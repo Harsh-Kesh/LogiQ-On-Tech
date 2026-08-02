@@ -56,7 +56,7 @@ async function main() {
 
   console.log('✅ Users seeded: Admin, Vendor, Warehouse, Customer');
 
-  // 2. Vendor Company Profile
+  // 2. Vendor Company Profile (1-to-1 with Vendor User)
   const vendor = await prisma.vendor.upsert({
     where: { abnAcn: '12345678901' },
     update: {},
@@ -134,7 +134,7 @@ async function main() {
 
   console.log('✅ Item Master Data seeded: 2 items');
 
-  // 6. Warehouse
+  // 6. Warehouse & Vendor-Warehouse Assignment
   const warehouse1 = await prisma.warehouse.upsert({
     where: { code: 'WH-SYD-01' },
     update: {},
@@ -145,9 +145,23 @@ async function main() {
     },
   });
 
-  console.log('✅ Warehouse seeded: WH-SYD-01');
+  await prisma.vendorWarehouse.upsert({
+    where: {
+      vendorId_warehouseId: {
+        vendorId: vendor.id,
+        warehouseId: warehouse1.id,
+      },
+    },
+    update: {},
+    create: {
+      vendorId: vendor.id,
+      warehouseId: warehouse1.id,
+    },
+  });
 
-  // 7. Stock Ledger Entry (Immutable Movement)
+  console.log('✅ Warehouse & Vendor-Warehouse Access Assignment seeded: WH-SYD-01');
+
+  // 7. Stock Ledger Entry (Immutable Movement linked to User createdBy)
   await prisma.stockLedger.create({
     data: {
       warehouseId: warehouse1.id,

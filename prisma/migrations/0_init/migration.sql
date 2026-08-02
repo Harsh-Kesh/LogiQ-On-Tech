@@ -45,6 +45,16 @@ CREATE TABLE "vendors" (
 );
 
 -- CreateTable
+CREATE TABLE "vendor_warehouses" (
+    "id" TEXT NOT NULL,
+    "vendorId" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "vendor_warehouses_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "compliance_docs" (
     "id" TEXT NOT NULL,
     "vendorId" TEXT NOT NULL,
@@ -186,6 +196,8 @@ CREATE TABLE "audit_logs" (
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 CREATE UNIQUE INDEX "vendors_abnAcn_key" ON "vendors"("abnAcn");
+CREATE UNIQUE INDEX "vendors_userId_key" ON "vendors"("userId");
+CREATE UNIQUE INDEX "vendor_warehouses_vendorId_warehouseId_key" ON "vendor_warehouses"("vendorId", "warehouseId");
 CREATE UNIQUE INDEX "categories_slug_key" ON "categories"("slug");
 CREATE UNIQUE INDEX "unit_of_measures_code_key" ON "unit_of_measures"("code");
 CREATE UNIQUE INDEX "item_masters_sku_key" ON "item_masters"("sku");
@@ -194,8 +206,29 @@ CREATE UNIQUE INDEX "warehouses_code_key" ON "warehouses"("code");
 CREATE UNIQUE INDEX "warehouse_stock_warehouseId_itemMasterId_binLocation_key" ON "warehouse_stock"("warehouseId", "itemMasterId", "binLocation");
 CREATE UNIQUE INDEX "orders_orderNumber_key" ON "orders"("orderNumber");
 
+-- Indexes for Query Performance
+CREATE INDEX "compliance_docs_vendorId_idx" ON "compliance_docs"("vendorId");
+CREATE INDEX "compliance_docs_expiryDate_idx" ON "compliance_docs"("expiryDate");
+CREATE INDEX "item_masters_vendorId_idx" ON "item_masters"("vendorId");
+CREATE INDEX "item_masters_categoryId_idx" ON "item_masters"("categoryId");
+CREATE INDEX "warehouse_stock_warehouseId_idx" ON "warehouse_stock"("warehouseId");
+CREATE INDEX "warehouse_stock_itemMasterId_idx" ON "warehouse_stock"("itemMasterId");
+CREATE INDEX "stock_ledger_warehouseId_idx" ON "stock_ledger"("warehouseId");
+CREATE INDEX "stock_ledger_itemMasterId_idx" ON "stock_ledger"("itemMasterId");
+CREATE INDEX "stock_ledger_createdAt_idx" ON "stock_ledger"("createdAt");
+CREATE INDEX "stock_ledger_referenceNumber_idx" ON "stock_ledger"("referenceNumber");
+CREATE INDEX "orders_customerId_idx" ON "orders"("customerId");
+CREATE INDEX "orders_warehouseId_idx" ON "orders"("warehouseId");
+CREATE INDEX "orders_status_idx" ON "orders"("status");
+CREATE INDEX "order_items_orderId_idx" ON "order_items"("orderId");
+CREATE INDEX "order_items_itemMasterId_idx" ON "order_items"("itemMasterId");
+CREATE INDEX "audit_logs_userId_idx" ON "audit_logs"("userId");
+CREATE INDEX "audit_logs_timestamp_idx" ON "audit_logs"("timestamp");
+
 -- AddForeignKey
 ALTER TABLE "vendors" ADD CONSTRAINT "vendors_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "vendor_warehouses" ADD CONSTRAINT "vendor_warehouses_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "vendors"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "vendor_warehouses" ADD CONSTRAINT "vendor_warehouses_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "compliance_docs" ADD CONSTRAINT "compliance_docs_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "vendors"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "categories" ADD CONSTRAINT "categories_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "item_masters" ADD CONSTRAINT "item_masters_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -205,6 +238,7 @@ ALTER TABLE "warehouse_stock" ADD CONSTRAINT "warehouse_stock_warehouseId_fkey" 
 ALTER TABLE "warehouse_stock" ADD CONSTRAINT "warehouse_stock_itemMasterId_fkey" FOREIGN KEY ("itemMasterId") REFERENCES "item_masters"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "stock_ledger" ADD CONSTRAINT "stock_ledger_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouses"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "stock_ledger" ADD CONSTRAINT "stock_ledger_itemMasterId_fkey" FOREIGN KEY ("itemMasterId") REFERENCES "item_masters"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "stock_ledger" ADD CONSTRAINT "stock_ledger_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "orders" ADD CONSTRAINT "orders_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "orders" ADD CONSTRAINT "orders_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouses"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
