@@ -33,6 +33,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Office & lock files
-~$*.docx
-*.docx
+# Root Office & report files
+/*.docx
+/~$*.docx
