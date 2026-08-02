@@ -1,36 +1,38 @@
-# Node & Dependencies
-node_modules/
-.pnpm-store/
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
 
-# Next.js Build
-.next/
-out/
-build/
-dist/
+# testing
+/coverage
 
-# Environment Variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# next.js
+/.next/
+/out/
 
-# Logs
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# System Files
-.DS_Store
-Thumbs.db
-*.suo
-*.user
+# local env files
+.env*.local
+.env
 
-# IDEs & Editors
-.vscode/
-.idea/
+# vercel
+.vercel
 
-# Database SQLite/Local
-*.db
-*.sqlite
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Office & lock files
+~$*.docx
+*.docx
