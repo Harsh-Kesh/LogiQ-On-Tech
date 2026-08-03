@@ -3,7 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, Building, ShoppingCart, UserCheck, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Shield, Building, ShoppingCart, AlertCircle, CheckCircle2, Eye, EyeOff, Info } from 'lucide-react';
+import {
+  isValidEmail,
+  validatePasswordPolicy,
+  isValidFullName,
+  isValidCompanyName,
+  isValidAbnAcn,
+} from '@/lib/validation';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,11 +27,49 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Password policy live checks
+  const passwordResult = validatePasswordPolicy(password);
+  const abnResult = accountType === 'VENDOR' && abnAcn ? isValidAbnAcn(abnAcn) : { valid: true };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setSuccess('');
+
+    // Client-side Validation Checks
+    if (!isValidEmail(email)) {
+      setError('Please enter a valid email address.');
+      setLoading(false);
+      return;
+    }
+
+    if (!isValidFullName(fullName)) {
+      setError('Full name must be at least 2 characters.');
+      setLoading(false);
+      return;
+    }
+
+    if (!passwordResult.valid) {
+      setError(`Password requirements not met: ${passwordResult.errors[0]}`);
+      setLoading(false);
+      return;
+    }
+
+    if (accountType === 'VENDOR') {
+      if (!isValidCompanyName(companyName)) {
+        setError('Company name must be at least 3 characters long.');
+        setLoading(false);
+        return;
+      }
+
+      const abnCheck = isValidAbnAcn(abnAcn);
+      if (!abnCheck.valid) {
+        setError(abnCheck.message || 'Invalid ABN/ACN number.');
+        setLoading(false);
+        return;
+      }
+    }
 
     try {
       const res = await fetch('/api/auth/register', {
@@ -118,7 +163,7 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-              Full Name / Contact Name
+              Full Name / Primary Contact
             </label>
             <input
               type="text"
@@ -161,17 +206,27 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-amber-400 mb-1.5 uppercase tracking-wider font-mono">
-                  ABN / ACN (11-Digit Code)
-                </label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="text-xs font-semibold text-amber-400 uppercase tracking-wider font-mono">
+                    Australian ABN (11 Digits) / ACN (9 Digits)
+                  </label>
+                  <span className="text-[10px] font-mono text-slate-500">Statutory Checksum</span>
+                </div>
                 <input
                   type="text"
                   required
                   value={abnAcn}
                   onChange={(e) => setAbnAcn(e.target.value)}
-                  placeholder="e.g. 98765432101"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-amber-500 transition-all placeholder:text-slate-600 font-mono"
+                  placeholder="e.g. 51 824 753 556 (11 digits)"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-slate-950 border text-white text-sm focus:outline-none transition-all placeholder:text-slate-600 font-mono ${
+                    abnAcn && !abnResult.valid ? 'border-red-500 focus:border-red-500' : 'border-slate-800 focus:border-amber-500'
+                  }`}
                 />
+                {abnAcn && !abnResult.valid && (
+                  <p className="text-[11px] text-red-400 font-mono mt-1 flex items-center gap-1">
+                    <Info className="w-3 h-3" /> {abnResult.message}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -198,6 +253,24 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+
+            {/* Live Password Rules Indicator */}
+            {password && (
+              <div className="mt-2 p-2 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono space-y-1">
+                <div className={password.length >= 8 ? 'text-emerald-400' : 'text-slate-500'}>
+                  ✓ Min 8 characters
+                </div>
+                <div className={/[A-Z]/.test(password) && /[a-z]/.test(password) ? 'text-emerald-400' : 'text-slate-500'}>
+                  ✓ Uppercase & Lowercase letter
+                </div>
+                <div className={/[0-9]/.test(password) ? 'text-emerald-400' : 'text-slate-500'}>
+                  ✓ At least one number (0-9)
+                </div>
+                <div className={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? 'text-emerald-400' : 'text-slate-500'}>
+                  ✓ At least one special character (!@#$)
+                </div>
+              </div>
+            )}
           </div>
 
           <button
