@@ -4,10 +4,12 @@ import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
 import { UserRole } from '@prisma/client';
 import { logAuditEvent } from './audit';
+import crypto from 'crypto';
 
-// Global runtime user store for fallback and newly registered accounts
+// Global runtime user store
 const globalForAuth = global as unknown as {
   runtimeUsers: Record<string, { id: string; fullName: string; role: UserRole; mfaEnabled: boolean; passwordHash: string }>;
+  resetOtpStore: Record<string, { code: string; expiresAt: number }>;
 };
 
 function getSeededDemoAccounts() {
@@ -24,6 +26,10 @@ if (!globalForAuth.runtimeUsers) {
   globalForAuth.runtimeUsers = getSeededDemoAccounts();
 }
 
+if (!globalForAuth.resetOtpStore) {
+  globalForAuth.resetOtpStore = {};
+}
+
 export function isUserRegistered(email: string): boolean {
   const emailClean = email.toLowerCase().trim();
   return !!globalForAuth.runtimeUsers[emailClean];
@@ -32,7 +38,7 @@ export function isUserRegistered(email: string): boolean {
 export function registerRuntimeUser(email: string, fullName: string, role: UserRole, passwordHash: string): boolean {
   const emailClean = email.toLowerCase().trim();
   if (globalForAuth.runtimeUsers[emailClean]) {
-    return false; // Already exists!
+    return false;
   }
   globalForAuth.runtimeUsers[emailClean] = {
     id: `usr_reg_${Date.now()}`,
@@ -44,8 +50,39 @@ export function registerRuntimeUser(email: string, fullName: string, role: UserR
   return true;
 }
 
-export function resetRuntimeUsersToSeed() {
-  globalForAuth.runtimeUsers = getSeededDemoAccounts();
+export function updateRuntimeUserPassword(email: string, newPasswordHash: string) {
+  const emailClean = email.toLowerCase().trim();
+  if (globalForAuth.runtimeUsers[emailClean]) {
+    globalForAuth.runtimeUsers[emailClean].passwordHash = newPasswordHash;
+  }
+}
+
+// 6-Digit Password Reset OTP Generator
+export function generatePasswordResetOtp(email: string): string {
+  const emailClean = email.toLowerCase().trim();
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes validity
+
+  globalForAuth.resetOtpStore[emailClean] = { code, expiresAt };
+  return code;
+}
+
+export function verifyPasswordResetOtp(email: string, inputCode: string): boolean {
+  const emailClean = email.toLowerCase().trim();
+  const record = globalForAuth.resetOtpStore[emailClean];
+
+  if (!record) return false;
+  if (Date.now() > record.expiresAt) {
+    delete globalForAuth.resetOtpStore[emailClean];
+    return false;
+  }
+
+  if (record.code === inputCode.trim()) {
+    delete globalForAuth.resetOtpStore[emailClean]; // Consume OTP single-use
+    return true;
+  }
+
+  return false;
 }
 
 export const authOptions: NextAuthOptions = {
