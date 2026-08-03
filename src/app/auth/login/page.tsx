@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, Building, Warehouse, ShoppingCart, UserCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Shield, Building, Warehouse, ShoppingCart, UserCheck, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 function LoginForm() {
   const router = useRouter();
@@ -13,6 +13,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -60,13 +61,13 @@ function LoginForm() {
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-sky-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-3">
           <Shield className="w-6 h-6 text-white" />
         </div>
-        <h1 className="text-2xl font-extrabold tracking-tight">LogiQ-On Tech</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-white">LogiQ-On Tech</h1>
         <p className="text-xs text-slate-400 font-mono mt-1">Multi-Tenant Platform Authentication — KAN-2</p>
       </div>
 
       {/* 1-Click Role Switcher Demo Buttons */}
       <div className="mb-6 bg-slate-950/70 border border-slate-800/80 rounded-xl p-4">
-        <div className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2 flex items-center gap-1.5">
+        <div className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2 flex items-center gap-1.5 font-mono">
           <UserCheck className="w-3.5 h-3.5" />
           1-Click Demo Accounts (Acceptance Criteria #2)
         </div>
@@ -156,14 +157,24 @@ function LoginForm() {
           <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
             Password
           </label>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••••••"
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••••"
+              className="w-full px-4 py-2.5 pr-11 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white transition-colors"
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
         <div className="flex justify-between items-center text-xs text-slate-400 pt-1">
