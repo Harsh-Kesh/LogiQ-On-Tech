@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Shield, Building, Warehouse, ShoppingCart, Database, LogIn } from 'lucide-react';
+import { ArrowRight, Shield, Building, Warehouse, ShoppingCart, Database, LogIn, UserPlus } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -17,17 +17,26 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <div className="flex items-center gap-3">
+            <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mr-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Staging Environment: Active
+              Staging Active
             </span>
+
+            <Link
+              href="/auth/register"
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white font-bold text-xs border border-slate-800 transition-all flex items-center gap-1.5"
+            >
+              <UserPlus className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Register Account</span>
+            </Link>
+
             <Link
               href="/auth/login"
               className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 border border-indigo-400/40"
             >
               <LogIn className="w-4 h-4" />
-              Sign In to Staging Portal
+              <span>Sign In</span>
             </Link>
           </div>
         </div>
@@ -55,13 +64,14 @@ export default function Home() {
             href="/auth/login"
             className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl border border-indigo-400/50 shadow-xl shadow-indigo-600/30 transition-all flex items-center gap-2 text-sm"
           >
-            Launch Role Authentication Portal <ArrowRight className="w-4 h-4" />
+            Sign In to Demo Accounts <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
-            href="/dashboard/mfa-enrol"
-            className="px-8 py-3.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl border border-white/20 backdrop-blur-md transition-all text-sm"
+            href="/auth/register"
+            className="px-8 py-3.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl border border-white/20 backdrop-blur-md transition-all text-sm flex items-center gap-2"
           >
-            Staff MFA Enrolment Demo
+            <UserPlus className="w-4 h-4 text-indigo-400" />
+            Create New Account
           </Link>
         </div>
 
