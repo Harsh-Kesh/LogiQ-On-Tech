@@ -36,3 +36,8 @@ next-env.d.ts
 # Root Office & report files
 /*.docx
 /~$*.docx
+~$*.docx
+
+# Local temp data & scratch
+.data/
+scratch/

@@ -122,9 +122,15 @@ export default function MainDashboardPage() {
               </span>
             )}
           </div>
-          <Link href="/dashboard/mfa-enrol" className="text-xs text-indigo-400 font-bold hover:underline block pt-1">
-            Configure MFA 2FA Enrolment $\rightarrow$
-          </Link>
+          {mfaEnabled ? (
+            <div className="text-xs text-emerald-400 font-semibold pt-1 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> MFA Active & Secured
+            </div>
+          ) : (
+            <Link href="/dashboard/mfa-enrol" className="text-xs text-indigo-400 font-bold hover:underline flex items-center gap-1 pt-1">
+              Configure MFA 2FA Enrolment &rarr;
+            </Link>
+          )}
         </div>
 
         {/* Card 3: Session Timestamp */}

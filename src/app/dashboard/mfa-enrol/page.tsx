@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Lock, QrCode, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function MfaEnrolPage() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [secret, setSecret] = useState('');
   const [token, setToken] = useState('');
@@ -51,6 +51,7 @@ export default function MfaEnrolPage() {
       if (!res.ok) {
         setError(data.error || 'Verification failed');
       } else {
+        await update({ mfaEnabled: true });
         setSuccess('🎉 MFA Enrolment Successful! Staff account is now secured with 2FA.');
       }
     } catch (e: any) {
@@ -101,7 +102,22 @@ export default function MfaEnrolPage() {
           </div>
         )}
 
-        {!qrCodeUrl ? (
+        {(session?.user as any)?.mfaEnabled && !success ? (
+          <div className="text-center py-8 space-y-4 bg-slate-950/60 rounded-xl border border-emerald-500/20 p-6">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white">MFA / 2FA is Active & Account Secured</h2>
+              <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+                Your account is already protected with Two-Factor Authentication. Re-configuration is locked to prevent unauthorized modifications.
+              </p>
+            </div>
+            <div className="inline-block px-3 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Status: 2FA Enrolment Locked & Operational
+            </div>
+          </div>
+        ) : !qrCodeUrl ? (
           <div className="text-center py-6 space-y-4">
             <p className="text-xs text-slate-400 max-w-md mx-auto">
               Secure your account using Google Authenticator, Authy, or 1Password. Click below to generate your 2FA setup QR Code.

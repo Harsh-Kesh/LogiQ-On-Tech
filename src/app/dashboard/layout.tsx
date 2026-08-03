@@ -4,26 +4,35 @@ export const dynamic = 'force-dynamic';
 
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Shield, Building, Warehouse, ShoppingCart, Key, FileText, LogOut, Lock, Database } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
 
-  if (status === 'loading') {
+  const role = (session?.user as any)?.role || 'CUSTOMER';
+  const mfaEnabled = (session?.user as any)?.mfaEnabled || false;
+  const mfaVerified = (session?.user as any)?.mfaVerified || false;
+
+  useEffect(() => {
+    if (status === 'authenticated' && mfaEnabled && !mfaVerified) {
+      router.push('/auth/mfa-verify');
+    }
+  }, [status, mfaEnabled, mfaVerified, router]);
+
+  if (status === 'loading' || (status === 'authenticated' && mfaEnabled && !mfaVerified)) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></div>
-          <span className="text-xs font-mono text-slate-400">Verifying Session & Role Permissions...</span>
+          <span className="text-xs font-mono text-slate-400">Verifying Session & MFA Checks...</span>
         </div>
       </div>
     );
   }
-
-  const role = (session?.user as any)?.role || 'CUSTOMER';
-  const mfaEnabled = (session?.user as any)?.mfaEnabled || false;
 
   const navLinks = [
     { name: 'Platform Owner', href: '/dashboard/owner', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Shield },
