@@ -4,84 +4,138 @@ import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
 import { UserRole } from '@prisma/client';
 import { logAuditEvent } from './audit';
-import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
-// Global runtime user store
-const globalForAuth = global as unknown as {
-  runtimeUsers: Record<string, { id: string; fullName: string; role: UserRole; mfaEnabled: boolean; passwordHash: string }>;
-  resetOtpStore: Record<string, { code: string; expiresAt: number }>;
-};
+export interface PersistentUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  mfaEnabled: boolean;
+  passwordHash: string;
+  createdAt: string;
+}
 
-function getSeededDemoAccounts() {
+// File-based persistent storage path for staging fallback
+const STORAGE_DIR = path.join(process.cwd(), '.data');
+const STORAGE_FILE = path.join(STORAGE_DIR, 'registered_users.json');
+const OTP_FILE = path.join(STORAGE_DIR, 'reset_otps.json');
+
+function ensureStorageDirExists() {
+  try {
+    if (!fs.existsSync(STORAGE_DIR)) {
+      fs.mkdirSync(STORAGE_DIR, { recursive: true });
+    }
+  } catch (e) {}
+}
+
+function getSeededDemoAccounts(): Record<string, PersistentUser> {
   const defaultPasswordHash = bcrypt.hashSync('Password123!', 10);
   return {
-    'admin@logiqon.tech': { id: 'usr_admin_01', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER' as UserRole, mfaEnabled: true, passwordHash: defaultPasswordHash },
-    'vendor@logiqon.tech': { id: 'usr_vendor_01', fullName: 'Apex Hardware Manager', role: 'VENDOR' as UserRole, mfaEnabled: false, passwordHash: defaultPasswordHash },
-    'warehouse@logiqon.tech': { id: 'usr_wh_01', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE' as UserRole, mfaEnabled: true, passwordHash: defaultPasswordHash },
-    'customer@logiqon.tech': { id: 'usr_cust_01', fullName: 'Induja Retail Buyer', role: 'CUSTOMER' as UserRole, mfaEnabled: false, passwordHash: defaultPasswordHash },
+    'admin@logiqon.tech': { id: 'usr_admin_01', email: 'admin@logiqon.tech', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'vendor@logiqon.tech': { id: 'usr_vendor_01', email: 'vendor@logiqon.tech', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'customer@logiqon.tech': { id: 'usr_cust_01', email: 'customer@logiqon.tech', fullName: 'Induja Retail Buyer', role: 'CUSTOMER', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
   };
 }
 
-if (!globalForAuth.runtimeUsers) {
-  globalForAuth.runtimeUsers = getSeededDemoAccounts();
+export function loadPersistentUsers(): Record<string, PersistentUser> {
+  ensureStorageDirExists();
+  try {
+    if (fs.existsSync(STORAGE_FILE)) {
+      const data = fs.readFileSync(STORAGE_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      return { ...getSeededDemoAccounts(), ...parsed };
+    }
+  } catch (e) {}
+  return getSeededDemoAccounts();
 }
 
-if (!globalForAuth.resetOtpStore) {
-  globalForAuth.resetOtpStore = {};
+export function savePersistentUsers(users: Record<string, PersistentUser>) {
+  ensureStorageDirExists();
+  try {
+    fs.writeFileSync(STORAGE_FILE, JSON.stringify(users, null, 2), 'utf-8');
+  } catch (e) {}
 }
 
 export function isUserRegistered(email: string): boolean {
   const emailClean = email.toLowerCase().trim();
-  return !!globalForAuth.runtimeUsers[emailClean];
+  const users = loadPersistentUsers();
+  return !!users[emailClean];
 }
 
 export function registerRuntimeUser(email: string, fullName: string, role: UserRole, passwordHash: string): boolean {
   const emailClean = email.toLowerCase().trim();
-  if (globalForAuth.runtimeUsers[emailClean]) {
-    return false;
+  const users = loadPersistentUsers();
+
+  if (users[emailClean]) {
+    return false; // Email already exists!
   }
-  globalForAuth.runtimeUsers[emailClean] = {
+
+  users[emailClean] = {
     id: `usr_reg_${Date.now()}`,
+    email: emailClean,
     fullName,
     role,
     mfaEnabled: false,
     passwordHash,
+    createdAt: new Date().toISOString(),
   };
+
+  savePersistentUsers(users);
   return true;
 }
 
 export function updateRuntimeUserPassword(email: string, newPasswordHash: string) {
   const emailClean = email.toLowerCase().trim();
-  if (globalForAuth.runtimeUsers[emailClean]) {
-    globalForAuth.runtimeUsers[emailClean].passwordHash = newPasswordHash;
+  const users = loadPersistentUsers();
+  if (users[emailClean]) {
+    users[emailClean].passwordHash = newPasswordHash;
+    savePersistentUsers(users);
   }
 }
 
-// 6-Digit Password Reset OTP Generator
+// 6-Digit Password Reset OTP Persistence
 export function generatePasswordResetOtp(email: string): string {
   const emailClean = email.toLowerCase().trim();
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes validity
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 mins
 
-  globalForAuth.resetOtpStore[emailClean] = { code, expiresAt };
+  ensureStorageDirExists();
+  try {
+    let otps: Record<string, { code: string; expiresAt: number }> = {};
+    if (fs.existsSync(OTP_FILE)) {
+      otps = JSON.parse(fs.readFileSync(OTP_FILE, 'utf-8'));
+    }
+    otps[emailClean] = { code, expiresAt };
+    fs.writeFileSync(OTP_FILE, JSON.stringify(otps, null, 2), 'utf-8');
+  } catch (e) {}
+
   return code;
 }
 
 export function verifyPasswordResetOtp(email: string, inputCode: string): boolean {
   const emailClean = email.toLowerCase().trim();
-  const record = globalForAuth.resetOtpStore[emailClean];
+  ensureStorageDirExists();
+  try {
+    if (fs.existsSync(OTP_FILE)) {
+      const otps: Record<string, { code: string; expiresAt: number }> = JSON.parse(fs.readFileSync(OTP_FILE, 'utf-8'));
+      const record = otps[emailClean];
+      if (!record) return false;
+      if (Date.now() > record.expiresAt) {
+        delete otps[emailClean];
+        fs.writeFileSync(OTP_FILE, JSON.stringify(otps, null, 2), 'utf-8');
+        return false;
+      }
 
-  if (!record) return false;
-  if (Date.now() > record.expiresAt) {
-    delete globalForAuth.resetOtpStore[emailClean];
-    return false;
-  }
-
-  if (record.code === inputCode.trim()) {
-    delete globalForAuth.resetOtpStore[emailClean]; // Consume OTP single-use
-    return true;
-  }
-
+      if (record.code === inputCode.trim()) {
+        delete otps[emailClean];
+        fs.writeFileSync(OTP_FILE, JSON.stringify(otps, null, 2), 'utf-8');
+        return true;
+      }
+    }
+  } catch (e) {}
   return false;
 }
 
@@ -145,11 +199,12 @@ export const authOptions: NextAuthOptions = {
             }
           }
         } catch (dbError: any) {
-          console.warn('Prisma DB lookup warning, falling back to runtime user store:', dbError.message);
+          console.warn('Prisma DB lookup warning, falling back to persistent file store:', dbError.message);
         }
 
-        // 2. Check Shared Runtime User Store
-        const runtimeUser = globalForAuth.runtimeUsers[emailClean];
+        // 2. Check Persistent File Storage
+        const persistentUsers = loadPersistentUsers();
+        const runtimeUser = persistentUsers[emailClean];
         if (runtimeUser) {
           const isValidPassword = await bcrypt.compare(credentials.password, runtimeUser.passwordHash);
           if (isValidPassword) {
