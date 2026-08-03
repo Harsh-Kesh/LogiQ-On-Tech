@@ -13,6 +13,7 @@ export interface PersistentUser {
   fullName: string;
   role: UserRole;
   mfaEnabled: boolean;
+  mfaVerified?: boolean;
   passwordHash: string;
   createdAt: string;
 }
@@ -195,6 +196,7 @@ export const authOptions: NextAuthOptions = {
                 name: user.fullName,
                 role: user.role,
                 mfaEnabled: user.mfaEnabled,
+                mfaVerified: !user.mfaEnabled, // If MFA is enabled, they start as unverified
               };
             }
           }
@@ -214,6 +216,7 @@ export const authOptions: NextAuthOptions = {
               name: runtimeUser.fullName,
               role: runtimeUser.role,
               mfaEnabled: runtimeUser.mfaEnabled,
+              mfaVerified: !runtimeUser.mfaEnabled,
             };
           }
         }
@@ -228,9 +231,12 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as any).role;
         token.mfaEnabled = (user as any).mfaEnabled;
+        token.mfaVerified = (user as any).mfaVerified;
       }
-      if (trigger === 'update' && session?.role) {
-        token.role = session.role;
+      if (trigger === 'update') {
+        if (session?.role) token.role = session.role;
+        if (session?.mfaEnabled !== undefined) token.mfaEnabled = session.mfaEnabled;
+        if (session?.mfaVerified !== undefined) token.mfaVerified = session.mfaVerified;
       }
       return token;
     },
@@ -239,6 +245,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role as UserRole;
         (session.user as any).mfaEnabled = token.mfaEnabled as boolean;
+        (session.user as any).mfaVerified = token.mfaVerified as boolean;
       }
       return session;
     },

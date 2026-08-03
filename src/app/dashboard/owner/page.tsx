@@ -141,7 +141,7 @@ export default function OwnerDashboardPage() {
             href="/dashboard/owner/audit-logs"
             className="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs text-center transition-all block shadow-md shadow-sky-600/20"
           >
-            View Live Security Audit Logs Table $\rightarrow$
+            View Live Security Audit Logs Table &rarr;
           </Link>
         </div>
       </div>
