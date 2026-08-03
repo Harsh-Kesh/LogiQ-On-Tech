@@ -5,26 +5,35 @@ import bcrypt from 'bcryptjs';
 import { UserRole } from '@prisma/client';
 import { logAuditEvent } from './audit';
 
-// Pre-hashed 'Password123!' for demo accounts
-const DEMO_PASSWORD_HASH = '$2a$10$wNqBqH9kE3J9z8e4b7v1t.6Gq5Y8Z9X0W1V2U3T4S5R6Q7P8O9N0M'; // Password123!
-
 // Global runtime user store for fallback and newly registered accounts
 const globalForAuth = global as unknown as {
   runtimeUsers: Record<string, { id: string; fullName: string; role: UserRole; mfaEnabled: boolean; passwordHash: string }>;
 };
 
-if (!globalForAuth.runtimeUsers) {
+function getSeededDemoAccounts() {
   const defaultPasswordHash = bcrypt.hashSync('Password123!', 10);
-  globalForAuth.runtimeUsers = {
-    'admin@logiqon.tech': { id: 'usr_admin_01', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash },
-    'vendor@logiqon.tech': { id: 'usr_vendor_01', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash },
-    'warehouse@logiqon.tech': { id: 'usr_wh_01', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash },
-    'customer@logiqon.tech': { id: 'usr_cust_01', fullName: 'Induja Retail Buyer', role: 'CUSTOMER', mfaEnabled: false, passwordHash: defaultPasswordHash },
+  return {
+    'admin@logiqon.tech': { id: 'usr_admin_01', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER' as UserRole, mfaEnabled: true, passwordHash: defaultPasswordHash },
+    'vendor@logiqon.tech': { id: 'usr_vendor_01', fullName: 'Apex Hardware Manager', role: 'VENDOR' as UserRole, mfaEnabled: false, passwordHash: defaultPasswordHash },
+    'warehouse@logiqon.tech': { id: 'usr_wh_01', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE' as UserRole, mfaEnabled: true, passwordHash: defaultPasswordHash },
+    'customer@logiqon.tech': { id: 'usr_cust_01', fullName: 'Induja Retail Buyer', role: 'CUSTOMER' as UserRole, mfaEnabled: false, passwordHash: defaultPasswordHash },
   };
 }
 
-export function registerRuntimeUser(email: string, fullName: string, role: UserRole, passwordHash: string) {
+if (!globalForAuth.runtimeUsers) {
+  globalForAuth.runtimeUsers = getSeededDemoAccounts();
+}
+
+export function isUserRegistered(email: string): boolean {
   const emailClean = email.toLowerCase().trim();
+  return !!globalForAuth.runtimeUsers[emailClean];
+}
+
+export function registerRuntimeUser(email: string, fullName: string, role: UserRole, passwordHash: string): boolean {
+  const emailClean = email.toLowerCase().trim();
+  if (globalForAuth.runtimeUsers[emailClean]) {
+    return false; // Already exists!
+  }
   globalForAuth.runtimeUsers[emailClean] = {
     id: `usr_reg_${Date.now()}`,
     fullName,
@@ -32,6 +41,11 @@ export function registerRuntimeUser(email: string, fullName: string, role: UserR
     mfaEnabled: false,
     passwordHash,
   };
+  return true;
+}
+
+export function resetRuntimeUsersToSeed() {
+  globalForAuth.runtimeUsers = getSeededDemoAccounts();
 }
 
 export const authOptions: NextAuthOptions = {
@@ -97,7 +111,7 @@ export const authOptions: NextAuthOptions = {
           console.warn('Prisma DB lookup warning, falling back to runtime user store:', dbError.message);
         }
 
-        // 2. Check Shared Runtime User Store (Includes newly registered accounts & demo accounts)
+        // 2. Check Shared Runtime User Store
         const runtimeUser = globalForAuth.runtimeUsers[emailClean];
         if (runtimeUser) {
           const isValidPassword = await bcrypt.compare(credentials.password, runtimeUser.passwordHash);

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { logAuditEvent } from '@/lib/audit';
-import { registerRuntimeUser } from '@/lib/auth';
+import { isUserRegistered, registerRuntimeUser } from '@/lib/auth';
 import { UserRole, VendorStatus } from '@prisma/client';
 
 export async function POST(req: Request) {
@@ -14,21 +14,36 @@ export async function POST(req: Request) {
     }
 
     const emailClean = email.toLowerCase().trim();
-    const assignedRole: UserRole = role === 'VENDOR' ? 'VENDOR' : 'CUSTOMER';
-    const passwordHash = await bcrypt.hash(password, 10);
 
-    // Register into shared runtime store for instant login capability
-    registerRuntimeUser(emailClean, fullName, assignedRole, passwordHash);
+    // 1. Enforce Uniqueness Check across Runtime Store
+    if (isUserRegistered(emailClean)) {
+      return NextResponse.json({ error: 'An account with this email address already exists' }, { status: 400 });
+    }
 
+    // 2. Enforce Uniqueness Check across PostgreSQL Database
     try {
       const existingUser = await prisma.user.findUnique({
         where: { email: emailClean },
       });
 
       if (existingUser) {
-        return NextResponse.json({ error: 'An account with this email already exists' }, { status: 400 });
+        return NextResponse.json({ error: 'An account with this email address already exists' }, { status: 400 });
       }
+    } catch (e) {
+      // Database offline check continue
+    }
 
+    const assignedRole: UserRole = role === 'VENDOR' ? 'VENDOR' : 'CUSTOMER';
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Register into runtime store
+    const registered = registerRuntimeUser(emailClean, fullName, assignedRole, passwordHash);
+    if (!registered) {
+      return NextResponse.json({ error: 'An account with this email address already exists' }, { status: 400 });
+    }
+
+    // Attempt Database creation
+    try {
       const user = await prisma.user.create({
         data: {
           email: emailClean,
@@ -69,7 +84,7 @@ export async function POST(req: Request) {
         }).catch(() => {});
       }
     } catch (dbError: any) {
-      console.warn('⚠️ Database offline during registration, registered in runtime store:', dbError.message);
+      console.warn('⚠️ Database offline during registration, saved in runtime store:', dbError.message);
     }
 
     return NextResponse.json({
