@@ -70,6 +70,11 @@ export default function UserManagementPage() {
 
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault();
+    if (!newEmail.includes('@') || !newFullName.trim()) {
+      setToast({ message: 'Please enter a valid full name and email address.', type: 'error' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch('/api/admin/users', {
@@ -154,7 +159,7 @@ export default function UserManagementPage() {
       accessorKey: 'fullName',
       cell: (row) => (
         <div>
-          <div className="font-bold text-slate-900">{row.fullName}</div>
+          <div className="font-extrabold text-slate-900">{row.fullName}</div>
           <div className="text-xs font-mono text-slate-500">{row.email}</div>
         </div>
       ),
@@ -183,7 +188,7 @@ export default function UserManagementPage() {
       header: '2FA Security',
       accessorKey: 'mfaEnabled',
       cell: (row) => (
-        <span className="text-xs font-mono text-slate-500">
+        <span className="text-xs font-mono font-semibold text-slate-600">
           {row.mfaEnabled ? '🔒 TOTP Enabled' : '🔓 Pending'}
         </span>
       ),
@@ -229,10 +234,10 @@ export default function UserManagementPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Header Banner */}
+      {/* Header Banner matching Platform Owner */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200">
@@ -244,16 +249,19 @@ export default function UserManagementPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+          >
             <UserPlus className="w-4 h-4" /> Provision New User
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Search & Filter Bar */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4 justify-between items-center">
-        <div className="w-full sm:w-72">
+        <div className="w-full sm:w-80">
           <Input
             placeholder="Search by name or email..."
             value={search}
@@ -262,17 +270,19 @@ export default function UserManagementPage() {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            options={[
-              { value: '', label: 'All Roles' },
-              { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
-              { value: 'VENDOR', label: 'Vendor' },
-              { value: 'WAREHOUSE', label: 'Warehouse Manager' },
-              { value: 'CUSTOMER', label: 'Customer' },
-            ]}
-          />
+          <div className="w-48">
+            <Select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              options={[
+                { value: '', label: 'All Roles' },
+                { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
+                { value: 'VENDOR', label: 'Vendor' },
+                { value: 'WAREHOUSE', label: 'Warehouse Manager' },
+                { value: 'CUSTOMER', label: 'Customer' },
+              ]}
+            />
+          </div>
           <Button variant="secondary" onClick={fetchUsers} isLoading={loading}>
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -308,8 +318,8 @@ export default function UserManagementPage() {
       {/* Create User Modal */}
       <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Provision New Account">
         <form onSubmit={handleCreateUser} className="space-y-4">
-          <Input label="Full Name" required value={newFullName} onChange={(e) => setNewFullName(e.target.value)} />
-          <Input label="Email Address" type="email" required value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+          <Input label="Full Name" required value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder="e.g. Sarah Connor" />
+          <Input label="Email Address" type="email" required value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="e.g. sarah@logiqon.com" />
           <Select
             label="Initial Role"
             value={newRole}
@@ -321,7 +331,7 @@ export default function UserManagementPage() {
               { value: 'CUSTOMER', label: 'Customer' },
             ]}
           />
-          <Input label="Initial Password" type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <Input label="Initial Password" type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
             <Button type="submit" isLoading={submitting}>Create User Account</Button>
@@ -332,8 +342,8 @@ export default function UserManagementPage() {
       {/* Change Role Modal */}
       <Modal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} title="Update Role Assignment">
         <div className="space-y-4">
-          <p className="text-xs text-slate-600">
-            Modifying role for <span className="font-bold text-slate-900">{selectedUser?.fullName}</span>.
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Modifying role for <span className="font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{selectedUser?.fullName}</span>.
           </p>
           <Select
             label="Select New Role"
@@ -356,9 +366,9 @@ export default function UserManagementPage() {
       {/* Toggle Suspend Modal */}
       <Modal isOpen={isSuspendModalOpen} onClose={() => setIsSuspendModalOpen(false)} title="Account Access Control">
         <div className="space-y-4">
-          <p className="text-xs text-slate-600">
+          <p className="text-sm text-slate-700 leading-relaxed">
             Are you sure you want to {selectedUser?.isSuspended ? 'reactivate' : 'suspend'} access for{' '}
-            <span className="font-bold text-slate-900">{selectedUser?.fullName}</span>?
+            <span className="font-extrabold text-slate-950 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{selectedUser?.fullName}</span> ({selectedUser?.email})?
           </p>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={() => setIsSuspendModalOpen(false)}>Cancel</Button>

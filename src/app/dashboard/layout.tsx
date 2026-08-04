@@ -6,6 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Brand from '@/components/Brand';
 import { Shield, Building, Warehouse, ShoppingCart, Key, FileText, LogOut, Lock } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -46,16 +47,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-indigo-500 selection:text-white">
-      {/* Light Header matching Senura Design System */}
+      {/* Light Header matching LogiQ Landing Brand */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-3.5 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2.5 text-slate-900 no-underline">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-extrabold text-base text-white shadow-md shadow-indigo-600/20">
-                LQ
-              </div>
-              <span className="font-extrabold text-lg tracking-tight text-slate-900">LogiQ-On Tech</span>
-            </Link>
+          <div className="flex items-center gap-4">
+            <Brand />
             <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-widest hidden sm:inline-block font-semibold">
               Platform Console
             </span>
