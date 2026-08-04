@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
-import { Users, UserPlus, Shield, UserX, UserCheck, RefreshCw, Upload } from 'lucide-react';
+import { Users, UserPlus, UserX, UserCheck, RefreshCw, Upload } from 'lucide-react';
 
 interface ManagedUser {
   id: string;
@@ -54,11 +54,14 @@ export default function UserManagementPage() {
       const res = await fetch('/api/admin/users');
       if (res.ok) {
         const data = await res.json();
-        setUsers(data);
+        const userList = Array.isArray(data) ? data : (Array.isArray(data?.users) ? data.users : []);
+        setUsers(userList);
       } else {
+        setUsers([]);
         setToast({ message: 'Failed to load users from database.', type: 'error' });
       }
     } catch {
+      setUsers([]);
       setToast({ message: 'Error connecting to admin user API.', type: 'error' });
     } finally {
       setLoading(false);
@@ -216,7 +219,8 @@ export default function UserManagementPage() {
     },
   ];
 
-  const filteredUsers = users.filter((u) => {
+  const userArray = Array.isArray(users) ? users : [];
+  const filteredUsers = userArray.filter((u) => {
     const matchesSearch =
       u.fullName.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase());
