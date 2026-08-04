@@ -1,300 +1,233 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Shield, Building, ShoppingCart, AlertCircle, CheckCircle2, Eye, EyeOff, Info } from 'lucide-react';
-import {
-  isValidEmail,
-  validatePasswordPolicy,
-  isValidFullName,
-  isValidCompanyName,
-  isValidAbnAcn,
-} from '@/lib/validation';
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { getAssetPath } from "@/lib/nav";
 
 export default function RegisterPage() {
   const router = useRouter();
-
-  const [accountType, setAccountType] = useState<'CUSTOMER' | 'VENDOR'>('CUSTOMER');
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [companyName, setCompanyName] = useState('');
-  const [abnAcn, setAbnAcn] = useState('');
-
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("VENDOR");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // Password policy live checks
-  const passwordResult = validatePasswordPolicy(password);
-  const abnResult = accountType === 'VENDOR' && abnAcn ? isValidAbnAcn(abnAcn) : { valid: true };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError('');
-    setSuccess('');
-
-    // Client-side Validation Checks
-    if (!isValidEmail(email)) {
-      setError('Please enter a valid email address.');
-      setLoading(false);
-      return;
-    }
-
-    if (!isValidFullName(fullName)) {
-      setError('Full name must be at least 2 characters.');
-      setLoading(false);
-      return;
-    }
-
-    if (!passwordResult.valid) {
-      setError(`Password requirements not met: ${passwordResult.errors[0]}`);
-      setLoading(false);
-      return;
-    }
-
-    if (accountType === 'VENDOR') {
-      if (!isValidCompanyName(companyName)) {
-        setError('Company name must be at least 3 characters long.');
-        setLoading(false);
-        return;
-      }
-
-      const abnCheck = isValidAbnAcn(abnAcn);
-      if (!abnCheck.valid) {
-        setError(abnCheck.message || 'Invalid ABN/ACN number.');
-        setLoading(false);
-        return;
-      }
-    }
+    setErrorMsg("");
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName,
-          email,
-          password,
-          role: accountType,
-          companyName: accountType === 'VENDOR' ? companyName : undefined,
-          abnAcn: accountType === 'VENDOR' ? abnAcn : undefined,
-        }),
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fullName, role, password }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Registration failed');
-        setLoading(false);
+      if (res.ok) {
+        router.push("/auth/login?registered=true");
       } else {
-        setSuccess(
-          accountType === 'VENDOR'
-            ? '🎉 Vendor Application Submitted! Account created under PENDING review status.'
-            : '🎉 Customer Registration Successful! Redirecting to login portal...'
-        );
-        setTimeout(() => {
-          router.push('/auth/login');
-        }, 1500);
+        const data = await res.json();
+        setErrorMsg(data.error || "Registration failed.");
+        setLoading(false);
       }
-    } catch (err: any) {
-      setError('An unexpected network error occurred.');
+    } catch {
+      setErrorMsg("Network error during registration.");
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
-        {/* Header Branding */}
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-sky-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-3">
-            <Shield className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">LogiQ-On Tech</h1>
-          <p className="text-xs text-slate-400 font-mono mt-1">Multi-Tenant Account Registration</p>
-        </div>
-
-        {/* Account Type Selector Tabs */}
-        <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-950 border border-slate-800 mb-6 font-mono text-xs">
-          <button
-            type="button"
-            onClick={() => setAccountType('CUSTOMER')}
-            className={`py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 ${
-              accountType === 'CUSTOMER'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <ShoppingCart className="w-3.5 h-3.5" /> Customer
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setAccountType('VENDOR')}
-            className={`py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 ${
-              accountType === 'VENDOR'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Building className="w-3.5 h-3.5" /> Vendor Application
-          </button>
-        </div>
-
-        {/* Notifications */}
-        {error && (
-          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>{success}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "36px 20px",
+        background: "#f4f6f8",
+        fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 1040,
+          background: "#ffffff",
+          borderRadius: 28,
+          boxShadow: "0 25px 70px -15px rgba(15, 23, 42, 0.08)",
+          display: "grid",
+          gridTemplateColumns: "44% 56%",
+          overflow: "hidden",
+        }}
+      >
+        {/* Left Side Panel */}
+        <div
+          style={{
+            background: "#f8fafc",
+            borderRight: "1px solid #e2e8f0",
+            padding: "40px 38px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-              Full Name / Primary Contact
-            </label>
-            <input
-              type="text"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Sarah Jenkins"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
-            />
-          </div>
+            <Link
+              href="/"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                color: "#475569",
+                fontSize: 14,
+                fontWeight: 600,
+                textDecoration: "none",
+                marginBottom: 32,
+              }}
+            >
+              ← Back to home
+            </Link>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-              Email Address
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. sarah@example.com"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
-            />
-          </div>
-
-          {accountType === 'VENDOR' && (
-            <>
-              <div>
-                <label className="block text-xs font-semibold text-amber-400 mb-1.5 uppercase tracking-wider font-mono">
-                  Company Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. Apex Logistics Solutions Pty Ltd"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-amber-500 transition-all placeholder:text-slate-600"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="text-xs font-semibold text-amber-400 uppercase tracking-wider font-mono">
-                    Australian ABN (11 Digits) / ACN (9 Digits)
-                  </label>
-                  <span className="text-[10px] font-mono text-slate-500">Statutory Checksum</span>
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={abnAcn}
-                  onChange={(e) => setAbnAcn(e.target.value)}
-                  placeholder="e.g. 51 824 753 556 (11 digits)"
-                  className={`w-full px-4 py-2.5 rounded-xl bg-slate-950 border text-white text-sm focus:outline-none transition-all placeholder:text-slate-600 font-mono ${
-                    abnAcn && !abnResult.valid ? 'border-red-500 focus:border-red-500' : 'border-slate-800 focus:border-amber-500'
-                  }`}
-                />
-                {abnAcn && !abnResult.valid && (
-                  <p className="text-[11px] text-red-400 font-mono mt-1 flex items-center gap-1">
-                    <Info className="w-3 h-3" /> {abnResult.message}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full px-4 py-2.5 pr-11 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
+            <div>
+              <Image
+                src={getAssetPath("/images/logo.png")}
+                alt="LogiQ-On Logo"
+                width={140}
+                height={40}
+                style={{ height: 40, width: "auto", objectFit: "contain" }}
+                priority
               />
+            </div>
+          </div>
+
+          <div style={{ textAlign: "center", margin: "32px 0" }}>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
+              Join the Network
+            </h2>
+            <p style={{ fontSize: 13.5, color: "#64748b", margin: 0 }}>
+              Create your account to access multi-tenant logistics &amp; vendor portals.
+            </p>
+          </div>
+
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>
+            © 2026 LogiQ-On Ecosystem. All rights reserved.
+          </div>
+        </div>
+
+        {/* Right Side Form Panel */}
+        <div style={{ padding: "42px 44px", background: "#ffffff" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+              Register Account
+            </h1>
+
+            <div style={{ display: "inline-flex", background: "#f1f5f9", padding: 4, borderRadius: 20 }}>
+              <Link
+                href="/auth/login"
+                style={{ padding: "6px 14px", borderRadius: 16, fontSize: 12.5, fontWeight: 600, color: "#64748b", textDecoration: "none" }}
+              >
+                Sign In
+              </Link>
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white transition-colors"
-                title={showPassword ? 'Hide password' : 'Show password'}
+                style={{ padding: "6px 14px", borderRadius: 16, fontSize: 12.5, fontWeight: 700, border: "none", background: "#0f172a", color: "#ffffff" }}
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                Register
               </button>
             </div>
-
-            {/* Live Password Rules Indicator */}
-            {password && (
-              <div className="mt-2 p-2 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono space-y-1">
-                <div className={password.length >= 8 ? 'text-emerald-400' : 'text-slate-500'}>
-                  ✓ Min 8 characters
-                </div>
-                <div className={/[A-Z]/.test(password) && /[a-z]/.test(password) ? 'text-emerald-400' : 'text-slate-500'}>
-                  ✓ Uppercase & Lowercase letter
-                </div>
-                <div className={/[0-9]/.test(password) ? 'text-emerald-400' : 'text-slate-500'}>
-                  ✓ At least one number (0-9)
-                </div>
-                <div className={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? 'text-emerald-400' : 'text-slate-500'}>
-                  ✓ At least one special character (!@#$)
-                </div>
-              </div>
-            )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-3 rounded-xl font-bold text-sm shadow-lg transition-all disabled:opacity-50 mt-2 ${
-              accountType === 'VENDOR'
-                ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
-            }`}
-          >
-            {loading
-              ? 'Processing Registration...'
-              : accountType === 'VENDOR'
-              ? 'Submit Vendor Application'
-              : 'Create Customer Account'}
-          </button>
-        </form>
+          <p style={{ fontSize: 13.5, color: "#64748b", margin: "0 0 20px 0" }}>
+            Provision a new profile on the LogiQ-On platform.
+          </p>
 
-        <div className="text-center text-xs text-slate-400 mt-6">
-          Already have an account?{' '}
-          <Link href="/auth/login" className="text-indigo-400 font-semibold hover:underline">
-            Sign In here
-          </Link>
+          {errorMsg && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "10px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+              ⚠️ {errorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
+                Full Name
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Jane Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                style={{ width: "100%", padding: "11px 14px", fontSize: 14, color: "#0f172a", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", outline: "none" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                required
+                placeholder="jane@logiqon.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ width: "100%", padding: "11px 14px", fontSize: 14, color: "#0f172a", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", outline: "none" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
+                Role Type
+              </label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                style={{ width: "100%", padding: "11px 14px", fontSize: 14, color: "#0f172a", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", outline: "none" }}
+              >
+                <option value="VENDOR">Vendor / Supplier</option>
+                <option value="WAREHOUSE">Warehouse Manager</option>
+                <option value="CUSTOMER">Customer / Retail Buyer</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ width: "100%", padding: "11px 14px", fontSize: 14, color: "#0f172a", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", outline: "none" }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: "100%",
+                padding: "13px",
+                fontSize: 14.5,
+                fontWeight: 700,
+                color: "#ffffff",
+                background: "#0f172a",
+                borderRadius: 12,
+                border: "none",
+                cursor: loading ? "wait" : "pointer",
+                marginTop: 8,
+              }}
+            >
+              {loading ? "Creating Account..." : "Complete Registration →"}
+            </button>
+          </form>
         </div>
       </div>
     </div>
