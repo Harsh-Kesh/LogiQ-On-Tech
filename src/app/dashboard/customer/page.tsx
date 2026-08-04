@@ -1,41 +1,46 @@
 'use client';
 
-import { ShoppingCart, PackageCheck, Clock } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { ShoppingCart, PackageCheck, Clock, FileCheck } from 'lucide-react';
 
 export default function CustomerDashboardPage() {
+  const { data: session } = useSession();
+
   return (
     <div className="space-y-6">
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-sky-950/40 via-slate-900 to-slate-900 border border-sky-500/20">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-sky-600/20 text-sky-400 border border-sky-500/30">
-            <ShoppingCart className="w-6 h-6" />
+      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-2xl bg-sky-50 text-sky-600 border border-sky-200">
+            <ShoppingCart className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Pillar 3: Customer CRM & Order Management</h1>
-            <p className="text-xs text-slate-400 font-mono">Storefront Ordering, Status Tracking & Customer Support</p>
+            <h1 className="text-2xl font-extrabold text-slate-900">Pillar 3: Customer Sales Orders &amp; Invoicing</h1>
+            <p className="text-xs text-slate-500 font-mono">Retail Buyer Telemetry, Tracking &amp; Invoice Ledger</p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold font-mono">
+          Customer Portal Active
         </div>
       </div>
 
-      <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-bold text-white flex items-center gap-2">
-            <PackageCheck className="w-4 h-4 text-sky-400" /> Recent Customer Orders
-          </div>
-          <span className="text-xs text-slate-500 font-mono">1 Active Order</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="text-xs font-mono text-slate-500 uppercase font-bold">Active Orders</div>
+          <div className="text-2xl font-extrabold text-slate-900">4 Active</div>
+          <p className="text-xs text-sky-600 font-medium">In Transit via Australia Post</p>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center text-xs">
-          <div>
-            <div className="font-bold text-white font-mono">Order #ORD-2026-8801</div>
-            <div className="text-slate-400">1x Barcode Scanner HD-900</div>
-          </div>
-          <div className="text-right">
-            <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold font-mono text-[10px]">
-              Status: DISPATCHED
-            </span>
-            <div className="text-[10px] text-slate-500 mt-1 font-mono">Tracking: AUS-POST-9921</div>
-          </div>
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="text-xs font-mono text-slate-500 uppercase font-bold">Total Purchases</div>
+          <div className="text-2xl font-extrabold text-slate-900">$24,850 AUD</div>
+          <p className="text-xs text-slate-500">GST Tax Invoices Issued</p>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="text-xs font-mono text-slate-500 uppercase font-bold">Delivery SLA</div>
+          <div className="text-2xl font-extrabold text-slate-900">99.4% On Time</div>
+          <p className="text-xs text-emerald-600 font-medium">Guaranteed SLA Met</p>
         </div>
       </div>
     </div>

@@ -18,7 +18,6 @@ export interface PersistentUser {
   createdAt: string;
 }
 
-// File-based persistent storage path for staging fallback
 const STORAGE_DIR = path.join(process.cwd(), '.data');
 const STORAGE_FILE = path.join(STORAGE_DIR, 'registered_users.json');
 const OTP_FILE = path.join(STORAGE_DIR, 'reset_otps.json');
@@ -35,9 +34,13 @@ function getSeededDemoAccounts(): Record<string, PersistentUser> {
   const defaultPasswordHash = bcrypt.hashSync('Password123!', 10);
   return {
     'admin@logiqon.tech': { id: 'usr_admin_01', email: 'admin@logiqon.tech', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'owner@logiqon.com': { id: 'usr_owner_01', email: 'owner@logiqon.com', fullName: 'Platform Owner', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
     'vendor@logiqon.tech': { id: 'usr_vendor_01', email: 'vendor@logiqon.tech', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'vendor@logiqon.com': { id: 'usr_vendor_02', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
     'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'warehouse@logiqon.com': { id: 'usr_wh_02', email: 'warehouse@logiqon.com', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
     'customer@logiqon.tech': { id: 'usr_cust_01', email: 'customer@logiqon.tech', fullName: 'Induja Retail Buyer', role: 'CUSTOMER', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'customer@logiqon.com': { id: 'usr_cust_02', email: 'customer@logiqon.com', fullName: 'Induja Retail Buyer', role: 'CUSTOMER', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
   };
 }
 
@@ -71,7 +74,7 @@ export function registerRuntimeUser(email: string, fullName: string, role: UserR
   const users = loadPersistentUsers();
 
   if (users[emailClean]) {
-    return false; // Email already exists!
+    return false;
   }
 
   users[emailClean] = {
@@ -97,11 +100,10 @@ export function updateRuntimeUserPassword(email: string, newPasswordHash: string
   }
 }
 
-// 6-Digit Password Reset OTP Persistence
 export function generatePasswordResetOtp(email: string): string {
   const emailClean = email.toLowerCase().trim();
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 mins
+  const expiresAt = Date.now() + 15 * 60 * 1000;
 
   ensureStorageDirExists();
   try {
@@ -162,7 +164,6 @@ export const authOptions: NextAuthOptions = {
 
         const emailClean = credentials.email.toLowerCase().trim();
 
-        // 1. Attempt Database Authentication
         try {
           const user = await prisma.user.findUnique({
             where: { email: emailClean },
@@ -196,7 +197,7 @@ export const authOptions: NextAuthOptions = {
                 name: user.fullName,
                 role: user.role,
                 mfaEnabled: user.mfaEnabled,
-                mfaVerified: !user.mfaEnabled, // If MFA is enabled, they start as unverified
+                mfaVerified: !user.mfaEnabled,
               };
             }
           }
@@ -204,7 +205,6 @@ export const authOptions: NextAuthOptions = {
           console.warn('Prisma DB lookup warning, falling back to persistent file store:', dbError.message);
         }
 
-        // 2. Check Persistent File Storage
         const persistentUsers = loadPersistentUsers();
         const runtimeUser = persistentUsers[emailClean];
         if (runtimeUser) {

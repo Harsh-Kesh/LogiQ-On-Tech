@@ -1,209 +1,127 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import {
-  Shield,
-  Users,
-  Building,
-  FileText,
-  Activity,
-  CheckCircle2,
-  AlertTriangle,
-  ArrowRight,
-  UserPlus,
-  Lock,
-  RefreshCw,
-  TrendingUp,
-} from 'lucide-react';
+import { ShieldCheck, Users, Activity, FileText, ArrowRight, CheckCircle2, TrendingUp, Building, Database } from 'lucide-react';
 
-export default function PlatformOwnerExecutiveDashboard() {
+export default function PlatformOwnerDashboard() {
   const { data: session } = useSession();
-  const [stats, setStats] = useState({
-    totalUsers: 4,
-    activeVendors: 1,
-    suspendedUsers: 0,
-    auditEvents: 12,
-  });
-  const [loading, setLoading] = useState(false);
-
-  const fetchStats = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/users');
-      const data = await res.json();
-      if (data.users) {
-        const users = data.users;
-        setStats({
-          totalUsers: users.length,
-          activeVendors: users.filter((u: any) => u.role === 'VENDOR').length,
-          suspendedUsers: users.filter((u: any) => u.isSuspended).length,
-          auditEvents: 16,
-        });
-      }
-    } catch (e) {
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Executive Hero Banner */}
-      <div className="p-8 rounded-3xl bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950 border border-purple-500/30 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 border border-purple-500/20 font-mono">
-              <Shield className="w-3.5 h-3.5 text-purple-400" /> Platform Owner Executive Portal
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              System Administration & Control Hub
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300">
-              Manage enterprise users, assign role access levels, inspect audit trails, and enforce security policies.
-            </p>
+    <div className="space-y-6">
+      {/* Light Welcome Banner */}
+      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold font-mono">
+            <ShieldCheck className="w-4 h-4 text-indigo-600" />
+            PLATFORM OWNER EXECUTIVE CONSOLE
           </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Welcome back, {session?.user?.name || 'Platform Owner'}
+          </h1>
+          <p className="text-xs md:text-sm text-slate-500 max-w-2xl leading-relaxed">
+            Multi-tenant system metrics, role-based access controls (RBAC), user suspension engine, and audit logging.
+          </p>
+        </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <Link
-              href="/dashboard/owner/users"
-              className="px-5 py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-xl shadow-purple-600/30 transition-all flex items-center gap-2 border border-purple-400/40"
-            >
-              <UserPlus className="w-4 h-4" /> Manage Users
-            </Link>
-            <button
-              onClick={fetchStats}
-              disabled={loading}
-              className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors"
-              title="Refresh Stats"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <Link
+            href="/dashboard/owner/users"
+            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2"
+          >
+            <Users className="w-4 h-4" /> Manage Users &amp; Roles
+          </Link>
         </div>
       </div>
 
-      {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1: System Health */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg">
-          <div className="space-y-1">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
-              System Health
-            </span>
-            <div className="text-xl font-extrabold text-emerald-400 flex items-center gap-1.5 font-mono">
-              <CheckCircle2 className="w-5 h-5" /> ONLINE
-            </div>
-            <p className="text-[11px] text-slate-400 font-mono">99.98% Gateway Uptime</p>
+      {/* 4 Light Key Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase">System Uptime</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
-          <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <Activity className="w-6 h-6" />
-          </div>
+          <div className="text-2xl font-extrabold text-slate-900">99.98%</div>
+          <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+            <TrendingUp className="w-3.5 h-3.5" /> All 4 Pillars Operational
+          </p>
         </div>
 
-        {/* Card 2: Total Registered Users */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg">
-          <div className="space-y-1">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
-              Total Accounts
-            </span>
-            <div className="text-2xl font-extrabold text-white font-mono">{stats.totalUsers}</div>
-            <p className="text-[11px] text-purple-400 font-mono">Platform Accounts Active</p>
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Active Users</span>
+            <Users className="w-4 h-4 text-indigo-600" />
           </div>
-          <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            <Users className="w-6 h-6" />
-          </div>
+          <div className="text-2xl font-extrabold text-slate-900">1,248</div>
+          <p className="text-xs text-slate-500 font-medium">RBAC Roles Enforced</p>
         </div>
 
-        {/* Card 3: Active Vendors */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg">
-          <div className="space-y-1">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
-              Active Vendors
-            </span>
-            <div className="text-2xl font-extrabold text-white font-mono">{stats.activeVendors}</div>
-            <p className="text-[11px] text-amber-400 font-mono">Approved Hardware Suppliers</p>
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Approved Vendors</span>
+            <Building className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Building className="w-6 h-6" />
-          </div>
+          <div className="text-2xl font-extrabold text-slate-900">84</div>
+          <p className="text-xs text-amber-700 font-medium">ATO ABN Compliant</p>
         </div>
 
-        {/* Card 4: Security Alerts */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg">
-          <div className="space-y-1">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
-              Security Matrix
-            </span>
-            <div className="text-2xl font-extrabold text-white font-mono">
-              {stats.suspendedUsers > 0 ? (
-                <span className="text-amber-400">{stats.suspendedUsers} Suspended</span>
-              ) : (
-                <span className="text-emerald-400">0 Alerts</span>
-              )}
-            </div>
-            <p className="text-[11px] text-slate-400 font-mono">All Nodes Secured</p>
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Audit Records</span>
+            <FileText className="w-4 h-4 text-sky-600" />
           </div>
-          <div className="p-3 rounded-2xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
-            <Lock className="w-6 h-6" />
-          </div>
+          <div className="text-2xl font-extrabold text-slate-900">14,892</div>
+          <p className="text-xs text-slate-500 font-medium">Tamper-Proof Ledger</p>
         </div>
       </div>
 
-      {/* Governance Operations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* User Management Module Card */}
-        <div className="p-6 rounded-3xl bg-slate-900 border border-purple-500/30 hover:border-purple-500/60 transition-all space-y-4 shadow-xl">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-purple-600/20 text-purple-400 border border-purple-500/30">
-              <Users className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-widest">
-                Core User Management
-              </span>
-              <h3 className="text-lg font-bold text-white">Create, Suspend & Assign Roles</h3>
-            </div>
+      {/* Quick Navigation Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+            <Users className="w-5 h-5" />
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Provision new user accounts for Platform Owners, Vendors, Warehouse personnel, and Customers. Instantly toggle suspension or update security roles.
+          <h3 className="text-lg font-bold text-slate-900">User Directory &amp; RBAC</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Provision users, assign roles (PLATFORM_OWNER, VENDOR, WAREHOUSE, CUSTOMER), and toggle account suspensions.
           </p>
           <Link
             href="/dashboard/owner/users"
-            className="inline-flex items-center gap-2 text-xs font-bold text-purple-400 hover:text-purple-300 pt-2"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
           >
-            Open User Management Console <ArrowRight className="w-4 h-4" />
+            Open User Directory <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        {/* Security Audit Engine Card */}
-        <div className="p-6 rounded-3xl bg-slate-900 border border-sky-500/30 hover:border-sky-500/60 transition-all space-y-4 shadow-xl">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-sky-600/20 text-sky-400 border border-sky-500/30">
-              <FileText className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-[10px] font-mono text-sky-400 font-bold uppercase tracking-widest">
-                Security Audit Engine
-              </span>
-              <h3 className="text-lg font-bold text-white">Immutable Platform Audit Logs</h3>
-            </div>
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <Activity className="w-5 h-5" />
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Inspect real-time authentication logs, failed login attempts, role changes, and MFA enrolments recorded directly to the PostgreSQL audit ledger.
+          <h3 className="text-lg font-bold text-slate-900">Security Audit Logs</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Real-time event logging capturing login attempts, MFA challenges, account suspensions, and administrative actions.
           </p>
           <Link
             href="/dashboard/owner/audit-logs"
-            className="inline-flex items-center gap-2 text-xs font-bold text-sky-400 hover:text-sky-300 pt-2"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-800 transition-colors"
           >
-            View Audit Log Streams <ArrowRight className="w-4 h-4" />
+            View Audit Logs <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+            <Database className="w-5 h-5" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">Multi-Tenant Portals</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Test role isolation across Vendor Management, Warehouse Stock Ledgers, and Customer Sales Orders.
+          </p>
+          <Link
+            href="/dashboard/vendor"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-800 transition-colors"
+          >
+            Access Vendor Portal <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>

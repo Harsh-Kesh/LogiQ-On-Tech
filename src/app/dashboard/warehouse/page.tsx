@@ -1,46 +1,46 @@
 'use client';
 
-import { Warehouse, Boxes, History } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { Warehouse, Package, Truck, Layers } from 'lucide-react';
 
 export default function WarehouseDashboardPage() {
+  const { data: session } = useSession();
+
   return (
     <div className="space-y-6">
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/20">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30">
-            <Warehouse className="w-6 h-6" />
+      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+            <Warehouse className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Pillar 2: Warehouse Point Operations</h1>
-            <p className="text-xs text-slate-400 font-mono">Facility Management, Stock Balances & Immutable Ledger</p>
+            <h1 className="text-2xl font-extrabold text-slate-900">Pillar 2: Warehouse Stock &amp; Movement Ledger</h1>
+            <p className="text-xs text-slate-500 font-mono">Bin Allocations, RFID Ingestion &amp; 3PL Movement Ledgers</p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold font-mono">
+          WH-SYD-01 Active
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-            <Boxes className="w-4 h-4" /> Stock Balances (WH-SYD-01)
-          </div>
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center text-xs">
-            <div>
-              <div className="font-bold text-white">LOGIQ-SCN-001</div>
-              <div className="text-slate-500 font-mono">Barcode Scanner HD-900</div>
-            </div>
-            <div className="text-right font-mono text-emerald-400 font-bold">
-              100 Units On Hand
-            </div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="text-xs font-mono text-slate-500 uppercase font-bold">Total SKUs On Hand</div>
+          <div className="text-2xl font-extrabold text-slate-900">14,250 Units</div>
+          <p className="text-xs text-slate-500">Allocated across 12 Aisle Bins</p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
-          <div className="flex items-center gap-2 text-sky-400 font-bold text-sm">
-            <History className="w-4 h-4" /> Immutable Movement Ledger
-          </div>
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1 font-mono">
-            <div className="text-emerald-400 font-bold">+100 RECEIPT | PO-2026-0001</div>
-            <div className="text-slate-400 text-[10px]">Aisle 2 - Bin B-04 | Initial Stock Receipt</div>
-          </div>
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="text-xs font-mono text-slate-500 uppercase font-bold">Dispatched Today</div>
+          <div className="text-2xl font-extrabold text-slate-900">320 Shipments</div>
+          <p className="text-xs text-emerald-600 font-medium">3PL Express Courier Sync</p>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+          <div className="text-xs font-mono text-slate-500 uppercase font-bold">Stock Reconciliation</div>
+          <div className="text-2xl font-extrabold text-slate-900">100% Matched</div>
+          <p className="text-xs text-slate-500">Zero Discrepancy Ledger</p>
         </div>
       </div>
     </div>
