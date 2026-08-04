@@ -3,30 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import Link from 'next/link';
 import { Shield, Building, Warehouse, ShoppingCart, Lock, FileText, CheckCircle2, UserCheck, ArrowRight, Clock, Key } from 'lucide-react';
 
 export default function MainDashboardPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
-
-  const role = (session?.user as any)?.role || 'CUSTOMER';
-
-  useEffect(() => {
-    if (status === 'authenticated') {
-      if (role === 'PLATFORM_OWNER' || role === 'MDM') {
-        router.replace('/dashboard/owner');
-      } else if (role === 'VENDOR') {
-        router.replace('/dashboard/vendor');
-      } else if (role === 'WAREHOUSE') {
-        router.replace('/dashboard/warehouse');
-      } else if (role === 'CUSTOMER') {
-        router.replace('/dashboard/customer');
-      }
-    }
-  }, [status, role, router]);
 
   if (status === 'loading') {
     return (
@@ -37,6 +18,7 @@ export default function MainDashboardPage() {
     );
   }
 
+  const role = (session?.user as any)?.role || 'CUSTOMER';
   const email = session?.user?.email || 'N/A';
   const name = session?.user?.name || 'Authenticated User';
   const mfaEnabled = (session?.user as any)?.mfaEnabled || false;
@@ -100,7 +82,7 @@ export default function MainDashboardPage() {
 
         <Link
           href={currentPortal.href}
-          className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0"
+          className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 border border-indigo-400/40 shrink-0"
         >
           Enter {currentPortal.title} <ArrowRight className="w-4 h-4" />
         </Link>
