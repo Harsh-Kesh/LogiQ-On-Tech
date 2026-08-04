@@ -36,6 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navLinks = [
     { name: 'Platform Owner', href: '/dashboard/owner', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Shield },
+    { name: 'User Directory', href: '/dashboard/owner/users', roleRequired: ['PLATFORM_OWNER'], icon: Key },
     { name: 'Vendor Portal', href: '/dashboard/vendor', roleRequired: ['VENDOR', 'PLATFORM_OWNER'], icon: Building },
     { name: 'Warehouse Point', href: '/dashboard/warehouse', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: Warehouse },
     { name: 'Customer CRM', href: '/dashboard/customer', roleRequired: ['CUSTOMER', 'PLATFORM_OWNER'], icon: ShoppingCart },
