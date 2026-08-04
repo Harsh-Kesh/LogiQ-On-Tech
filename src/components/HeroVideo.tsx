@@ -24,6 +24,7 @@ export default function HeroVideo() {
 
     playVideo();
 
+    // Fallback manual loop safeguard to guarantee full video continuous looping
     const handleEnded = () => {
       video.currentTime = 0;
       video.play().catch(() => {});
@@ -47,6 +48,7 @@ export default function HeroVideo() {
     >
       <source src={getAssetPath("/videos/hero-bg-v2.webm")} type="video/webm" />
       <source src={getAssetPath("/videos/hero-bg-v2.mp4")} type="video/mp4" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         className="w-full h-full object-cover object-center"
         alt="Futuristic automated warehouse with robots, AMRs, and smart conveyor belts"
