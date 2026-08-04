@@ -75,7 +75,7 @@ export default function HomePage() {
                   <img
                     alt="Vendor Management"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    src={getAssetPath("/images/stitch/95c0fb7eb215.png")}
+                    src={getAssetPath("/images/stitch/e4da613a9de1.png")}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                   <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/50 px-2.5 py-1 rounded-full backdrop-blur-md">
