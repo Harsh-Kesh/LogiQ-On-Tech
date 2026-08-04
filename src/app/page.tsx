@@ -1,50 +1,47 @@
-import Link from 'next/link';
-import HeroVideo from '@/components/HeroVideo';
-import Header from '@/components/Header';
-import { getAssetPath } from '@/lib/nav';
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { PARTNER_LOGOS } from "@/lib/data/partners";
+import HeroVideo from "@/components/HeroVideo";
+import GsapSection from "@/components/GsapSection";
+import { TextAnimate } from "@/components/ui/text-animate";
+import ContactEmailForm from "@/components/ContactEmailForm";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { getAssetPath } from "@/lib/nav";
+
+export const metadata: Metadata = {
+  description:
+    "LogiQ-On Tech orchestrates the world's most complex supply chains with real-time AI insights, seamless connectivity, and industrial-grade reliability.",
+};
 
 export default function HomePage() {
   return (
-    <div className="relative bg-white text-slate-950 min-h-screen font-sans">
-      {/* Site Header matching Senura's exact liquid glass design */}
+    <div>
       <Header />
 
-      {/* Hero Section matching Senura's exact design */}
-      <section className="relative min-h-screen flex items-end overflow-hidden bg-slate-950 pt-36 pb-16 md:pb-20">
+      <section className="relative min-h-screen flex items-end overflow-hidden bg-slate-950 pt-36 pb-12 md:pb-16">
         <div className="absolute inset-0 z-0">
           <HeroVideo />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/50 to-slate-950/30 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-slate-950/20 pointer-events-none" />
         </div>
-
         <div className="w-full px-6 sm:px-10 md:px-16 lg:px-20 relative z-20">
           <div className="max-w-3xl">
             <div className="mb-8 md:mb-10">
-              <span className="inline-block text-xs font-bold text-white bg-white/20 border border-white/40 px-4 py-1.5 rounded-full mb-6 uppercase tracking-widest backdrop-blur-md shadow-sm">
-                INDUSTRIAL PRECISION AT SCALE
-              </span>
-              <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white leading-tight drop-shadow-xl">
-                The Intelligent Pulse of <br />
-                <span>Modern Logistics</span>
+              <span className="inline-block font-label-md text-label-md text-white bg-white/20 border border-white/40 px-4 py-1.5 rounded-full mb-6 uppercase tracking-widest backdrop-blur-md shadow-sm" style={{ color: "#ffffff" }}>Industrial Precision At Scale</span>
+              <h1 className="font-display-lg text-display-lg text-white leading-tight drop-shadow-xl" style={{ color: "#ffffff" }}>
+                The Intelligent Pulse of <br/><span style={{ color: "#ffffff" }}>Modern Logistics</span>
               </h1>
-              <p className="text-base md:text-lg text-white/90 max-w-lg drop-shadow-lg mt-6 font-normal leading-relaxed">
+              <p className="font-body-md text-base md:text-lg text-white max-w-lg drop-shadow-lg" style={{ color: "rgba(255, 255, 255, 0.9)", marginTop: "36px" }}>
                 LogiQ-On Tech orchestrates the world&apos;s most complex supply chains with real-time AI insights, seamless connectivity, and industrial-grade reliability.
               </p>
             </div>
-
             <div className="mt-8 md:mt-12">
               <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/auth/login"
-                  className="btn btn-primary btn-lg"
-                  style={{ background: "#4c3ae3", color: "#ffffff", borderColor: "rgba(255,255,255,0.4)" }}
-                >
-                  Request Demo &rarr;
+                <Link href="/auth/login" className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl border border-indigo-400/50 shadow-xl transition-all flex items-center gap-2" style={{ color: "#ffffff" }}>
+                  Request Demo <span className="material-symbols-outlined text-lg text-white" data-icon="arrow_forward">arrow_forward</span>
                 </Link>
-                <Link
-                  href="/auth/login"
-                  className="btn btn-ghost btn-lg"
-                  style={{ background: "rgba(255, 255, 255, 0.15)", color: "#ffffff", borderColor: "rgba(255, 255, 255, 0.4)", backdropFilter: "blur(12px)" }}
-                >
+                <Link href="/solutions" className="px-8 py-4 bg-white/15 hover:bg-white/25 text-white font-semibold rounded-xl border border-white/40 backdrop-blur-md transition-all flex items-center gap-2" style={{ color: "#ffffff" }}>
                   Explore Solutions
                 </Link>
               </div>
@@ -53,57 +50,68 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Expertise Centers / Core Business Pillars matching Senura's UI cards */}
-      <section className="py-24 px-6 sm:px-10 md:px-16 lg:px-20 bg-slate-50 border-t border-slate-200">
-        <div className="max-w-7xl mx-auto space-y-12">
-          <div className="text-center space-y-3">
-            <span className="text-xs font-bold uppercase tracking-[0.25em] text-indigo-600 block font-mono">
-              EXPERT CENTERS
-            </span>
-            <h2 className="text-3xl md:text-5xl font-extrabold text-slate-950 tracking-tight">
-              Core Business Pillars
-            </h2>
-            <p className="text-base text-slate-600 max-w-3xl mx-auto leading-relaxed">
-              Four capabilities, one accountable partner — delivering specialized end-to-end solutions that bridge the gap between physical operations and digital intelligence.
-            </p>
-          </div>
+      <GsapSection id="pillars-header" className="bg-surface" fullScreen={true}>
+        <div className="container mx-auto px-margin-desktop flex flex-col items-center justify-center text-center">
+          <TextAnimate
+            by="word"
+            animation="wavy"
+            as="span"
+            startOnView={true}
+            once={false}
+            duration={0.25}
+            className="text-xs md:text-sm font-bold uppercase tracking-[0.25em] text-indigo-600 mb-4 block text-center"
+          >
+            Expertise Centers
+          </TextAnimate>
+          <TextAnimate
+            by="word"
+            animation="wavy"
+            as="h2"
+            startOnView={true}
+            once={false}
+            duration={0.3}
+            className="text-4xl md:text-5xl font-extrabold text-slate-950 mb-8 text-center tracking-tight leading-tight"
+          >
+            Core Business Pillars
+          </TextAnimate>
+          <TextAnimate
+            by="word"
+            animation="wavy"
+            as="p"
+            startOnView={true}
+            once={false}
+            delay={0.05}
+            duration={0.35}
+            className="text-lg md:text-xl text-slate-600 leading-[2.2] max-w-5xl mx-auto text-center font-normal"
+          >
+            Four capabilities, one accountable partner — delivering specialized end-to-end solutions that bridge the gap between physical operations and digital intelligence.
+          </TextAnimate>
+        </div>
+      </GsapSection>
 
+      <GsapSection id="pillars-cards" className="bg-surface border-t border-slate-100" fullScreen={true} scrub={false} start="top 92%" stagger={0.06} duration={0.45}>
+        <div className="container mx-auto px-margin-desktop">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Pillar 1 */}
-            <div className="group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+
+            <div className="gsap-animate group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
               <div>
                 <div className="relative h-48 overflow-hidden">
-                  <img
-                    alt="Vendor Management"
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    src={getAssetPath("/images/stitch/95c0fb7eb215.png")}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                  <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                    01
-                  </span>
+                  <img alt="Wireless Infrastructure" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src={getAssetPath("/images/stitch/e4da613a9de1.png")}/>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"/>
+                  <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">01</span>
                   <div className="absolute bottom-3 left-4 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-950 shadow-md border border-white">
-                    <span className="material-symbols-outlined text-base text-slate-950 font-bold">domain</span>
+                    <span className="material-symbols-outlined text-base text-slate-950 font-bold">settings_input_antenna</span>
                   </div>
                 </div>
                 <div className="p-6 pb-2">
-                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">
-                    Governance
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">
-                    Vendor Management &amp; ATO Compliance
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">
-                    ATO statutory ABN/ACN verification, trade document compliance, and vendor catalog isolation.
-                  </p>
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">Infrastructure</span>
+                  <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">Wireless Data &amp; Infrastructure</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">Mission-critical connectivity engineered for the toughest industrial environments.</p>
                 </div>
               </div>
               <div className="px-6 pb-6 pt-0">
-                <Link
-                  href="/dashboard/owner/users"
-                  className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors"
-                >
-                  Explore Pillar
+                <Link href="/solutions" className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors">
+                  Explore 
                   <span className="w-7 h-7 rounded-full bg-white text-slate-950 border border-slate-300 shadow-sm flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white group-hover:border-slate-950 transition-all">
                     <span className="material-symbols-outlined text-xs font-bold">arrow_forward</span>
                   </span>
@@ -111,41 +119,25 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Pillar 2 */}
-            <div className="group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+            <div className="gsap-animate group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
               <div>
                 <div className="relative h-48 overflow-hidden">
-                  <img
-                    alt="Warehouse Ledger"
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    src={getAssetPath("/images/pexels/home-warehouse-aisle.jpg")}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                  <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                    02
-                  </span>
+                  <img alt="RFID Tracking" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src={getAssetPath("/images/stitch/87e3e6a9b1e0.png")}/>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"/>
+                  <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">02</span>
                   <div className="absolute bottom-3 left-4 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-950 shadow-md border border-white">
-                    <span className="material-symbols-outlined text-base text-slate-950 font-bold">warehouse</span>
+                    <span className="material-symbols-outlined text-base text-slate-950 font-bold">sensors</span>
                   </div>
                 </div>
                 <div className="p-6 pb-2">
-                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">
-                    Operations
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">
-                    Warehouse Stock &amp; Movement Ledger
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">
-                    Multi-warehouse stock balances, bin location allocations, and immutable audit ledgers.
-                  </p>
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">Visibility</span>
+                  <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">RFID &amp; Asset Tracking</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">Automated, real-time inventory visibility that eliminates blind spots on the floor.</p>
                 </div>
               </div>
               <div className="px-6 pb-6 pt-0">
-                <Link
-                  href="/dashboard/warehouse"
-                  className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors"
-                >
-                  Explore Pillar
+                <Link href="/products/rfid-solutions" className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors">
+                  Explore 
                   <span className="w-7 h-7 rounded-full bg-white text-slate-950 border border-slate-300 shadow-sm flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white group-hover:border-slate-950 transition-all">
                     <span className="material-symbols-outlined text-xs font-bold">arrow_forward</span>
                   </span>
@@ -153,41 +145,25 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Pillar 3 */}
-            <div className="group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+            <div className="gsap-animate group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
               <div>
                 <div className="relative h-48 overflow-hidden">
-                  <img
-                    alt="Customer CRM"
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    src={getAssetPath("/images/stitch/ea517d840311.png")}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                  <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                    03
-                  </span>
+                  <img alt="Supply Chain Hardware" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src={getAssetPath("/images/stitch/ea517d840311.png")}/>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"/>
+                  <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">03</span>
                   <div className="absolute bottom-3 left-4 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-950 shadow-md border border-white">
-                    <span className="material-symbols-outlined text-base text-slate-950 font-bold">shopping_cart</span>
+                    <span className="material-symbols-outlined text-base text-slate-950 font-bold">devices</span>
                   </div>
                 </div>
                 <div className="p-6 pb-2">
-                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">
-                    CRM
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">
-                    Customer Orders &amp; Retail CRM
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">
-                    Retail buyer sales order creation, real-time shipment tracking, and customer lifecycle invoicing.
-                  </p>
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">Hardware</span>
+                  <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">Supply Chain Hardware</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">Ruggedized, enterprise-grade equipment built for the harshest industrial edge.</p>
                 </div>
               </div>
               <div className="px-6 pb-6 pt-0">
-                <Link
-                  href="/dashboard/customer"
-                  className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors"
-                >
-                  Explore Pillar
+                <Link href="/products" className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors">
+                  Explore 
                   <span className="w-7 h-7 rounded-full bg-white text-slate-950 border border-slate-300 shadow-sm flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white group-hover:border-slate-950 transition-all">
                     <span className="material-symbols-outlined text-xs font-bold">arrow_forward</span>
                   </span>
@@ -195,58 +171,37 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Pillar 4 */}
-            <div className="group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+            <div className="gsap-animate group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
               <div>
                 <div className="relative h-48 overflow-hidden">
-                  <img
-                    alt="Master Data"
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    src={getAssetPath("/images/pexels/partners-server-hardware.jpg")}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                  <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                    04
-                  </span>
+                  <img alt="Integration &amp; Enterprise Services" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src={getAssetPath("/images/pexels/partners-server-hardware.jpg")}/>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"/>
+                  <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">04</span>
                   <div className="absolute bottom-3 left-4 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-950 shadow-md border border-white">
-                    <span className="material-symbols-outlined text-base text-slate-950 font-bold">database</span>
+                    <span className="material-symbols-outlined text-base text-slate-950 font-bold">integration_instructions</span>
                   </div>
                 </div>
                 <div className="p-6 pb-2">
-                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">
-                    Master Data
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">
-                    Master Data Management (MDM)
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">
-                    SKU barcode registry, Unit of Measure (UOM) definitions, category taxonomy, and product masters.
-                  </p>
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">Services</span>
+                  <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">Integration &amp; Enterprise Services</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">Seamless software orchestration between edge data capture and core systems.</p>
                 </div>
               </div>
               <div className="px-6 pb-6 pt-0">
-                <Link
-                  href="/dashboard/owner"
-                  className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors"
-                >
-                  Explore Pillar
+                <Link href="/solutions" className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors">
+                  Explore 
                   <span className="w-7 h-7 rounded-full bg-white text-slate-950 border border-slate-300 shadow-sm flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white group-hover:border-slate-950 transition-all">
                     <span className="material-symbols-outlined text-xs font-bold">arrow_forward</span>
                   </span>
                 </Link>
               </div>
             </div>
+
           </div>
         </div>
-      </section>
+      </GsapSection>
 
-      {/* Footer matching reference design */}
-      <footer className="border-t border-slate-200 py-8 px-6 sm:px-10 md:px-16 lg:px-20 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white">
-        <div>LogiQ-On Tech &copy; 2026. All rights reserved. Industrial-grade logistics platform.</div>
-        <div className="font-mono text-[11px] text-slate-500">
-          Branch: <span className="text-indigo-600 font-bold">feature/KAN-2-auth-rbac-mfa</span> | Environment: <span className="text-emerald-600 font-bold">Staging</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

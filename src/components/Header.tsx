@@ -3,44 +3,33 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NAV_LINKS } from "@/lib/nav";
 import Brand from "./Brand";
-
-const NAV_ITEMS = [
-  { label: "Home", href: "/" },
-  { label: "Owner Console", href: "/dashboard/owner" },
-  { label: "User Directory", href: "/dashboard/owner/users" },
-  { label: "Audit Logs", href: "/dashboard/owner/audit-logs" },
-  { label: "Vendor Portal", href: "/dashboard/vendor" },
-  { label: "Warehouse", href: "/dashboard/warehouse" },
-  { label: "Customer CRM", href: "/dashboard/customer" },
-];
+import MobileNav from "./MobileNav";
 
 export default function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  if (pathname?.startsWith("/dashboard/")) return null;
+  if (pathname?.startsWith("/dashboard")) return null;
 
   return (
     <>
       <header className="site-header">
         <div className="container header-container header-inner">
           <Brand />
-
-          <nav className="main-nav hidden xl:flex" aria-label="Primary">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={pathname === item.href ? "active" : ""}
-              >
-                {item.label}
+          <nav className="main-nav" aria-label="Primary">
+            {NAV_LINKS.map((l) => (
+              <Link key={l.key} href={l.href} className={pathname === l.href ? "active" : ""}>
+                {l.label}
               </Link>
             ))}
           </nav>
-
           <div className="header-actions">
-            <Link href="/auth/login" className="btn-liquid-login">
+            <Link
+              href="/auth/login"
+              className="btn-liquid-login"
+            >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -57,10 +46,10 @@ export default function Header() {
               </svg>
               Login
             </Link>
-
             <button
-              className="nav-toggle flex xl:hidden"
+              className="nav-toggle"
               aria-label={open ? "Close menu" : "Open menu"}
+              aria-expanded={open}
               onClick={() => setOpen((v) => !v)}
             >
               {open ? (
@@ -76,25 +65,7 @@ export default function Header() {
           </div>
         </div>
       </header>
-
-      {open && (
-        <div className="fixed top-[76px] left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-slate-800 p-6 xl:hidden space-y-2">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className={`block px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                pathname === item.href
-                  ? "bg-white/20 text-white border border-white/30"
-                  : "text-slate-300 hover:bg-slate-900 hover:text-white"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      )}
+      {open && <MobileNav onNavigate={() => setOpen(false)} />}
     </>
   );
 }
