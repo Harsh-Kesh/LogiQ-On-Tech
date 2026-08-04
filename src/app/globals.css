@@ -2,20 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   LogiQ-On Tech — Design System
+   Palette:  --bg white canvas / --ink near-black navy / --indigo + --violet
+             brand gradient / --cyan scan accent / --mist cool-grey panels
+   Type:     Hanken Grotesk (display) · Inter (body) · JetBrains Mono (utility)
+   ========================================================================== */
+
 :root {
+  --bg: #ffffff;
+  --ink: #14142b;
+  --ink-soft: #4a4a68;
+  --indigo: #4c3ae3;
+  --indigo-dark: #372aad;
+  --violet: #8b5cf6;
+  --cyan: #06b6d4;
+  --mist: #f4f5fb;
+  --mist-2: #eceefa;
+  --line: #e3e4f0;
+  --white: #ffffff;
+
   --font-hanken: 'Hanken Grotesk', sans-serif;
   --font-inter: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  --font-display: var(--font-hanken);
+  --font-body: var(--font-inter);
+
+  --container: 1220px;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow-card: 0 1px 2px rgba(20, 20, 43, 0.04), 0 12px 32px -16px rgba(20, 20, 43, 0.14);
+  --shadow-lift: 0 20px 48px -20px rgba(76, 58, 227, 0.35);
 }
 
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
 body {
-  font-family: var(--font-inter);
-  background-color: #020617;
-  color: #ffffff;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-hanken);
+  letter-spacing: -0.01em;
+  line-height: 1.08;
 }
 
 code, kbd, samp, pre {
@@ -32,6 +67,27 @@ code, kbd, samp, pre {
   background: rgba(2, 6, 23, 0.85);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--indigo);
+  font-weight: 500;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 16px;
+  height: 2px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  display: inline-block;
 }
 
 .btn-primary {
