@@ -15,51 +15,9 @@ export async function GET(req: Request) {
   const statusFilter = searchParams.get('status');
   const searchQuery = searchParams.get('search')?.toLowerCase() || '';
 
-  try {
-    const where: any = {};
-    if (statusFilter && statusFilter !== 'ALL') {
-      where.status = statusFilter;
-    }
-    if (searchQuery) {
-      where.OR = [
-        { companyName: { contains: searchQuery, mode: 'insensitive' } },
-        { abnAcn: { contains: searchQuery, mode: 'insensitive' } },
-        { user: { email: { contains: searchQuery, mode: 'insensitive' } } },
-      ];
-    }
+  const combinedMap = new Map<string, any>();
 
-    const vendors = await prisma.vendor.findMany({
-      where,
-      include: {
-        user: { select: { id: true, email: true, fullName: true, isSuspended: true } },
-        docs: { orderBy: { uploadedAt: 'desc' } },
-        warehouseAssignments: { include: { warehouse: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (vendors && vendors.length > 0) {
-      return NextResponse.json({ vendors });
-    }
-  } catch (e: any) {
-    console.warn('Prisma lookup failed, falling back to persistent vendor store:', e.message);
-  }
-
-  // Persistent & Mock Fallback for Demo Testing & Runtime Accounts
-  const persistentUsers = loadPersistentUsers();
-  const persistentVendors = Object.values(persistentUsers)
-    .filter((u) => u.role === 'VENDOR')
-    .map((u) => ({
-      id: `vnd_${u.id}`,
-      companyName: u.companyName || '',
-      abnAcn: u.abnAcn || '',
-      status: u.status || 'PENDING',
-      userId: u.id,
-      user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: false },
-      createdAt: u.createdAt,
-      docs: u.docs || [],
-    }));
-
+  // 1. Seed Mock Demo Vendors
   const mockVendors = [
     {
       id: 'vnd_01',
@@ -97,51 +55,81 @@ export async function GET(req: Request) {
       createdAt: new Date().toISOString(),
       docs: [],
     },
-    {
-      id: 'vnd_04',
-      companyName: 'Southern Star Express Carriers',
-      abnAcn: '44 555 666 777',
-      status: 'SUSPENDED',
-      userId: 'usr_vendor_04',
-      user: { id: 'usr_vendor_04', email: 'star@logiqon.com', fullName: 'Star Express Officer', isSuspended: true },
-      createdAt: new Date().toISOString(),
-      docs: [
-        { id: 'doc_04', docType: 'Public Liability Insurance', fileName: 'Expired_Policy_2025.pdf', fileSize: 1548576, status: 'REJECTED', uploadedAt: new Date().toISOString() },
-      ],
-    },
-    {
-      id: 'vnd_05',
-      companyName: 'Alpha Maritime Forwarders',
-      abnAcn: '99 000 111 222',
-      status: 'REJECTED',
-      rejectionReason: 'Invalid ABN registration document & failed ATO identity validation.',
-      userId: 'usr_vendor_05',
-      user: { id: 'usr_vendor_05', email: 'alpha@logiqon.com', fullName: 'Alpha Forwarders Rep', isSuspended: false },
-      createdAt: new Date().toISOString(),
-      docs: [],
-    },
   ];
 
-  // Combine runtime persistent vendors with seed mock vendors (de-duplicating by email)
-  const combinedMap = new Map<string, any>();
-  persistentVendors.forEach((v) => combinedMap.set(v.user.email.toLowerCase(), v));
-  mockVendors.forEach((v) => {
-    if (!combinedMap.has(v.user.email.toLowerCase())) {
-      combinedMap.set(v.user.email.toLowerCase(), v);
-    }
-  });
+  mockVendors.forEach((v) => combinedMap.set(v.user.email.toLowerCase(), v));
+
+  // 2. Fetch PostgreSQL DB Users with role VENDOR and their Vendor profiles
+  try {
+    const dbVendorUsers = await prisma.user.findMany({
+      where: { role: 'VENDOR' },
+      include: {
+        vendor: {
+          include: {
+            docs: { orderBy: { uploadedAt: 'desc' } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    dbVendorUsers.forEach((u) => {
+      const emailLower = u.email.toLowerCase();
+      const existing = combinedMap.get(emailLower);
+      const v = u.vendor;
+
+      combinedMap.set(emailLower, {
+        id: v?.id || `vnd_${u.id}`,
+        companyName: v?.companyName || existing?.companyName || '',
+        abnAcn: v?.abnAcn || existing?.abnAcn || '',
+        status: v?.status || existing?.status || 'PENDING',
+        rejectionReason: v?.rejectionReason || existing?.rejectionReason,
+        userId: u.id,
+        user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: u.isSuspended },
+        createdAt: v?.createdAt?.toISOString() || u.createdAt.toISOString(),
+        docs: v?.docs && v.docs.length > 0 ? v.docs : existing?.docs || [],
+      });
+    });
+  } catch (e: any) {
+    console.warn('Prisma DB query warning in vendor directory API:', e.message);
+  }
+
+  // 3. Fetch Persistent File-Store Registered Users with role VENDOR
+  const persistentUsers = loadPersistentUsers();
+  Object.values(persistentUsers)
+    .filter((u) => u.role === 'VENDOR')
+    .forEach((u) => {
+      const emailLower = u.email.toLowerCase();
+      const existing = combinedMap.get(emailLower);
+
+      combinedMap.set(emailLower, {
+        id: existing?.id || `vnd_${u.id}`,
+        companyName: u.companyName || existing?.companyName || '',
+        abnAcn: u.abnAcn || existing?.abnAcn || '',
+        status: u.status || existing?.status || 'PENDING',
+        rejectionReason: existing?.rejectionReason,
+        userId: u.id,
+        user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: false },
+        createdAt: u.createdAt,
+        docs: u.docs && u.docs.length > 0 ? u.docs : existing?.docs || [],
+      });
+    });
 
   let allVendors = Array.from(combinedMap.values());
 
+  // Apply Status Filtering
   if (statusFilter && statusFilter !== 'ALL') {
     allVendors = allVendors.filter((v) => v.status === statusFilter);
   }
+
+  // Apply Search Filtering
   if (searchQuery) {
     allVendors = allVendors.filter(
       (v) =>
         (v.companyName || '').toLowerCase().includes(searchQuery) ||
         (v.abnAcn || '').toLowerCase().includes(searchQuery) ||
-        (v.user.email || '').toLowerCase().includes(searchQuery)
+        (v.user?.email || '').toLowerCase().includes(searchQuery) ||
+        (v.user?.fullName || '').toLowerCase().includes(searchQuery)
     );
   }
 
