@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
-import { Building, Search, RefreshCw, FileText, CheckCircle2, AlertTriangle, XCircle, ShieldAlert, Eye, FileCheck, Ban } from 'lucide-react';
+import { Building, Search, RefreshCw, FileText, CheckCircle2, AlertTriangle, XCircle, ShieldAlert, Eye, FileCheck, Ban, Download } from 'lucide-react';
 
 interface ComplianceDoc {
   id: string;
@@ -107,6 +107,45 @@ export default function AdminVendorsPage() {
     }
   }
 
+  function handleOpenDoc(doc: ComplianceDoc) {
+    if (!doc.fileUrl) {
+      setToast({ message: 'Document file URL not available.', type: 'error' });
+      return;
+    }
+
+    if (doc.fileUrl.startsWith('data:')) {
+      try {
+        const arr = doc.fileUrl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/pdf';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        const win = window.open(blobUrl, '_blank');
+        if (!win) {
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = doc.fileName || 'compliance_doc.pdf';
+          a.click();
+        }
+      } catch {
+        window.open(doc.fileUrl, '_blank');
+      }
+    } else {
+      const win = window.open(doc.fileUrl, '_blank');
+      if (!win) {
+        const a = document.createElement('a');
+        a.href = doc.fileUrl;
+        a.download = doc.fileName || 'compliance_doc.pdf';
+        a.click();
+      }
+    }
+  }
+
   const columns: Column<VendorRecord>[] = [
     {
       header: 'Company Name & ABN/ACN',
@@ -152,17 +191,15 @@ export default function AdminVendorsPage() {
     {
       header: 'Action',
       cell: (row) => (
-        <Button
-          size="sm"
-          variant="secondary"
+        <button
           onClick={() => {
             setSelectedVendor(row);
             setIsDetailModalOpen(true);
           }}
-          className="flex items-center gap-1.5"
+          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm border border-slate-800 flex items-center gap-1.5 transition-all cursor-pointer"
         >
-          <Eye className="w-3.5 h-3.5" /> Inspect &amp; Review
-        </Button>
+          <Eye className="w-3.5 h-3.5 text-indigo-300" /> Inspect &amp; Review
+        </button>
       ),
     },
   ];
@@ -297,14 +334,13 @@ export default function AdminVendorsPage() {
                           {doc.fileName} • {(doc.fileSize / (1024 * 1024)).toFixed(2)} MB
                         </div>
                       </div>
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-[11px] flex items-center gap-1"
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDoc(doc)}
+                        className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
-                        <FileCheck className="w-3.5 h-3.5" /> View Certificate
-                      </a>
+                        <FileCheck className="w-3.5 h-3.5" /> View / Open Certificate
+                      </button>
                     </div>
                   ))}
                 </div>
