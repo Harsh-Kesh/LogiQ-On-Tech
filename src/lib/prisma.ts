@@ -1,5 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/logiqon_tech_db?schema=public';
+}
+
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 export const prisma =

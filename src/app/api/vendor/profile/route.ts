@@ -1,0 +1,217 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions, loadPersistentUsers, updateRuntimeVendorProfile } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { logAuditEvent } from '@/lib/audit';
+
+export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as any;
+
+  if (!user || (user.role !== 'VENDOR' && user.role !== 'PLATFORM_OWNER')) {
+    return NextResponse.json({ error: 'Unauthorized: Vendor access required.' }, { status: 403 });
+  }
+
+  const userId = user.id;
+  const userEmail = (user.email || '').toLowerCase().trim();
+
+  // 1. Check persistent file store (contains live runtime profile edits & uploads)
+  const persistentUsers = loadPersistentUsers();
+  const persistentRecord = Object.values(persistentUsers).find(
+    (u) => u.email.toLowerCase() === userEmail || u.id === userId
+  );
+
+  if (persistentRecord && (persistentRecord.companyName || persistentRecord.abnAcn || (persistentRecord.docs && persistentRecord.docs.length > 0))) {
+    return NextResponse.json({
+      vendor: {
+        id: `vnd_${persistentRecord.id}`,
+        companyName: persistentRecord.companyName || '',
+        abnAcn: persistentRecord.abnAcn || '',
+        status: persistentRecord.status || 'PENDING',
+        userId: persistentRecord.id,
+        user: { email: persistentRecord.email, fullName: persistentRecord.fullName },
+        createdAt: persistentRecord.createdAt,
+        docs: persistentRecord.docs || [],
+      },
+    });
+  }
+
+  try {
+    const vendor = await prisma.vendor.findUnique({
+      where: { userId },
+      include: {
+        user: { select: { email: true, fullName: true } },
+        docs: { orderBy: { uploadedAt: 'desc' } },
+        warehouseAssignments: { include: { warehouse: true } },
+      },
+    });
+
+    if (vendor) {
+      return NextResponse.json({ vendor });
+    }
+  } catch (e: any) {
+    console.warn('Prisma lookup failed:', e.message);
+  }
+
+  if (persistentRecord) {
+    return NextResponse.json({
+      vendor: {
+        id: `vnd_${persistentRecord.id}`,
+        companyName: persistentRecord.companyName || '',
+        abnAcn: persistentRecord.abnAcn || '',
+        status: persistentRecord.status || 'PENDING',
+        userId: persistentRecord.id,
+        user: { email: persistentRecord.email, fullName: persistentRecord.fullName },
+        createdAt: persistentRecord.createdAt,
+        docs: persistentRecord.docs || [],
+      },
+    });
+  }
+
+  // Demo seed account fallback ONLY for preset default vendor
+  if (user.email === 'vendor@logiqon.com' || userId === 'usr_vendor_01') {
+    return NextResponse.json({
+      vendor: {
+        id: `vnd_${userId || 'demo'}`,
+        companyName: 'Apex Hardware & Logistics Ltd',
+        abnAcn: '51 824 753 910',
+        status: 'APPROVED',
+        userId: userId || 'usr_vendor_01',
+        user: { email: user.email, fullName: user.name || 'Apex Hardware Manager' },
+        createdAt: new Date().toISOString(),
+        docs: [
+          {
+            id: 'doc_01',
+            docType: 'ATO ABN Registration Certificate',
+            fileName: 'Apex_ABN_Certificate_2026.pdf',
+            fileUrl: '/docs/abn_cert.pdf',
+            fileSize: 1048576,
+            status: 'APPROVED',
+            uploadedAt: new Date().toISOString(),
+          },
+          {
+            id: 'doc_02',
+            docType: 'Public Liability Insurance Policy',
+            fileName: 'Apex_Insurance_Policy_5M.pdf',
+            fileUrl: '/docs/insurance.pdf',
+            fileSize: 2097152,
+            status: 'APPROVED',
+            uploadedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+  }
+
+  // Newly Registered Vendors start completely EMPTY
+  return NextResponse.json({
+    vendor: {
+      id: `vnd_${userId}`,
+      companyName: '',
+      abnAcn: '',
+      status: 'PENDING',
+      userId: userId,
+      user: { email: user.email, fullName: user.name || 'New Vendor Account' },
+      createdAt: new Date().toISOString(),
+      docs: [],
+    },
+  });
+}
+
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as any;
+
+  if (!user || user.role !== 'VENDOR') {
+    return NextResponse.json({ error: 'Unauthorized: Vendor access required.' }, { status: 403 });
+  }
+
+  const { companyName, abnAcn } = await req.json();
+
+  if (!companyName || !abnAcn) {
+    return NextResponse.json({ error: 'Company Name and ABN/ACN are required.' }, { status: 400 });
+  }
+
+  // 1. Validate Australian ABN (11 digits) or ACN (9 digits)
+  const cleanAbn = abnAcn.replace(/\s+/g, '');
+  if (!/^\d{9}$|^\d{11}$/.test(cleanAbn)) {
+    return NextResponse.json(
+      { error: `Invalid Australian ABN/ACN format (${cleanAbn.length} digits). ABN must be exactly 11 numeric digits and ACN must be exactly 9 numeric digits.` },
+      { status: 400 }
+    );
+  }
+
+  // Save to persistent file store using user.email
+  const userEmail = user.email || '';
+  updateRuntimeVendorProfile(userEmail, companyName, cleanAbn, 'UNDER_REVIEW');
+
+  const persistentUsers = loadPersistentUsers();
+  const persistentRecord = persistentUsers[userEmail.toLowerCase().trim()];
+  const currentDocs = persistentRecord?.docs || [];
+
+  try {
+    const existingVendor = await prisma.vendor.findUnique({
+      where: { userId: user.id },
+    });
+
+    // 2. Statutory Lock Check: If Vendor is APPROVED, lock company details
+    if (existingVendor && existingVendor.status === 'APPROVED' && existingVendor.abnAcn && existingVendor.companyName) {
+      if (existingVendor.abnAcn !== cleanAbn || existingVendor.companyName !== companyName.trim()) {
+        return NextResponse.json(
+          {
+            error: `Statutory Lock Active: Your vendor entity (${existingVendor.companyName} - ABN: ${existingVendor.abnAcn}) has been approved by ATO governance. To request a change of registered company details, please contact Platform Support.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    const nextStatus = existingVendor?.status === 'APPROVED' ? 'APPROVED' : 'UNDER_REVIEW';
+
+    const vendor = await prisma.vendor.upsert({
+      where: { userId: user.id },
+      update: {
+        companyName,
+        abnAcn: cleanAbn,
+        status: nextStatus,
+      },
+      create: {
+        companyName,
+        abnAcn: cleanAbn,
+        userId: user.id,
+        status: 'UNDER_REVIEW',
+      },
+      include: { docs: true },
+    });
+
+    await logAuditEvent({
+      userId: user.id,
+      role: user.role,
+      action: 'VENDOR_PROFILE_UPDATED',
+      module: 'VENDOR_MANAGEMENT',
+      targetId: vendor.id,
+      payloadJson: { companyName, abnAcn: cleanAbn, status: vendor.status },
+    }).catch(() => {});
+
+    return NextResponse.json({
+      success: true,
+      vendor: {
+        ...vendor,
+        docs: vendor.docs && vendor.docs.length > 0 ? vendor.docs : currentDocs,
+      },
+    });
+  } catch (e: any) {
+    return NextResponse.json({
+      success: true,
+      vendor: {
+        id: `vnd_${user.id}`,
+        companyName,
+        abnAcn: cleanAbn,
+        status: 'UNDER_REVIEW',
+        userId: user.id,
+        user: { email: user.email, fullName: user.name || 'Vendor' },
+        docs: currentDocs,
+      },
+    });
+  }
+}
