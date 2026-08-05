@@ -59,7 +59,7 @@ export async function GET(req: Request) {
 
   mockVendors.forEach((v) => combinedMap.set(v.user.email.toLowerCase(), v));
 
-  // 2. Fetch PostgreSQL DB Users with role VENDOR and their Vendor profiles
+  // 2. Fetch PostgreSQL DB Users with role VENDOR
   try {
     const dbVendorUsers = await prisma.user.findMany({
       where: { role: 'VENDOR' },
@@ -106,6 +106,7 @@ export async function GET(req: Request) {
         id: existing?.id || `vnd_${u.id}`,
         companyName: u.companyName || existing?.companyName || '',
         abnAcn: u.abnAcn || existing?.abnAcn || '',
+        // Prioritize explicit runtime status changes (e.g. APPROVED) over stale DB defaults
         status: u.status || existing?.status || 'PENDING',
         rejectionReason: existing?.rejectionReason,
         userId: u.id,
