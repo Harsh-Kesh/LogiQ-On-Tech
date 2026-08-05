@@ -89,7 +89,11 @@ export default function VendorDashboardPage() {
       const data = await res.json();
       if (res.ok) {
         setToast({ message: 'Vendor company profile saved successfully!', type: 'success' });
-        fetchVendorProfile();
+        if (data.vendor) {
+          setVendor(data.vendor);
+          setCompanyName(data.vendor.companyName || '');
+          setAbnAcn(data.vendor.abnAcn || '');
+        }
       } else {
         setProfileError(data.error || 'Failed to save vendor profile.');
         setToast({ message: data.error || 'Failed to save vendor profile.', type: 'error' });
@@ -159,7 +163,19 @@ export default function VendorDashboardPage() {
           setToast({ message: data.message || `Successfully uploaded ${selectedFile.name}!`, type: 'success' });
           setSelectedFile(null);
           setFileValidationError('');
-          fetchVendorProfile();
+          if (data.doc) {
+            setVendor((prev) => {
+              const existingDocs = prev?.docs || [];
+              const filteredDocs = existingDocs.filter((d) => d.docType !== data.doc.docType);
+              return {
+                id: prev?.id || `vnd_${session?.user?.email}`,
+                companyName: prev?.companyName || companyName,
+                abnAcn: prev?.abnAcn || abnAcn,
+                status: 'UNDER_REVIEW',
+                docs: [data.doc, ...filteredDocs],
+              };
+            });
+          }
         } else {
           setFileValidationError(data.error || 'Failed to upload document.');
           setToast({ message: data.error || 'Upload failed.', type: 'error' });
@@ -178,7 +194,7 @@ export default function VendorDashboardPage() {
       const res = await fetch(`/api/vendor/documents?id=${docId}`, { method: 'DELETE' });
       if (res.ok) {
         setToast({ message: 'Compliance document deleted.', type: 'info' });
-        fetchVendorProfile();
+        setVendor((prev) => (prev ? { ...prev, docs: prev.docs.filter((d) => d.id !== docId) } : prev));
       }
     } catch {
       setToast({ message: 'Failed to delete document.', type: 'error' });
