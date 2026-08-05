@@ -6,70 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { getAssetPath } from "@/lib/nav";
-
-interface DemoAccount {
-  id: string;
-  role: string;
-  badge: string;
-  email: string;
-  password: string;
-  portalUrl: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-  icon: string;
-}
-
-const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    id: "owner",
-    role: "Platform Owner",
-    badge: "Owner Portal",
-    email: "owner@logiqon.com",
-    password: "Password123!",
-    portalUrl: "/dashboard/owner",
-    color: "#7c3aed",
-    bgColor: "#f5f3ff",
-    borderColor: "#ddd6fe",
-    icon: "👑",
-  },
-  {
-    id: "vendor",
-    role: "Vendor",
-    badge: "Vendor Portal",
-    email: "vendor@logiqon.com",
-    password: "Password123!",
-    portalUrl: "/dashboard/vendor",
-    color: "#0d9488",
-    bgColor: "#f0fdf4",
-    borderColor: "#bbf7d0",
-    icon: "🏭",
-  },
-  {
-    id: "warehouse",
-    role: "Warehouse Manager",
-    badge: "Warehouse Portal",
-    email: "warehouse@logiqon.com",
-    password: "Password123!",
-    portalUrl: "/dashboard/warehouse",
-    color: "#ea580c",
-    bgColor: "#fff7ed",
-    borderColor: "#ffedd5",
-    icon: "📦",
-  },
-  {
-    id: "customer",
-    role: "Customer",
-    badge: "Customer Portal",
-    email: "customer@logiqon.com",
-    password: "Password123!",
-    portalUrl: "/dashboard/customer",
-    color: "#2563eb",
-    bgColor: "#eff6ff",
-    borderColor: "#bfdbfe",
-    icon: "👤",
-  },
-];
+import { Eye, EyeOff, Shield, Building, Warehouse, ShoppingCart, Lock } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -79,7 +16,45 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [showDemoDrawer, setShowDemoDrawer] = useState(false);
+
+  const presetAccounts = [
+    {
+      role: "PLATFORM_OWNER",
+      label: "Platform Owner / Admin",
+      email: "owner@logiqon.com",
+      password: "Password123!",
+      desc: "Full executive access, user directory & audit log management",
+      icon: Shield,
+      badgeColor: "#1e3a8a",
+    },
+    {
+      role: "VENDOR",
+      label: "Apex Hardware (Vendor)",
+      email: "vendor@logiqon.com",
+      password: "Password123!",
+      desc: "Statutory ATO compliance, product catalog & 3PL allocations",
+      icon: Building,
+      badgeColor: "#d97706",
+    },
+    {
+      role: "WAREHOUSE",
+      label: "Sydney Hub (Warehouse)",
+      email: "warehouse@logiqon.com",
+      password: "Password123!",
+      desc: "Stock ledger, bin management & 3PL order fulfillment",
+      icon: Warehouse,
+      badgeColor: "#0284c7",
+    },
+    {
+      role: "CUSTOMER",
+      label: "Retail Buyers (Customer)",
+      email: "customer@logiqon.com",
+      password: "Password123!",
+      desc: "Equipment procurement, order checkout & shipment tracking",
+      icon: ShoppingCart,
+      badgeColor: "#16a34a",
+    },
+  ];
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -88,27 +63,36 @@ export default function LoginPage() {
 
     try {
       const res = await signIn("credentials", {
+        redirect: false,
         email,
         password,
-        redirect: false,
       });
 
-      if (res?.error) {
-        setErrorMsg(res.error);
-        setLoading(false);
-      } else {
+      if (res?.ok) {
+        // Fetch session to check MFA status
+        const sessionRes = await fetch("/api/auth/role");
+        if (sessionRes.ok) {
+          const data = await sessionRes.json();
+          if (data.mfaEnabled && !data.mfaVerified) {
+            router.push("/auth/mfa-verify");
+            return;
+          }
+        }
         router.push("/dashboard");
-        router.refresh();
+      } else {
+        setErrorMsg("Invalid email or password. Please check your credentials.");
+        setLoading(false);
       }
     } catch {
-      setErrorMsg("An unexpected authentication error occurred.");
+      setErrorMsg("Network error during authentication.");
       setLoading(false);
     }
   }
 
-  function handleQuickLogin(account: DemoAccount) {
+  function handleSelectPreset(account: (typeof presetAccounts)[0]) {
     setEmail(account.email);
     setPassword(account.password);
+    setErrorMsg("");
   }
 
   return (
@@ -126,26 +110,24 @@ export default function LoginPage() {
       <div
         style={{
           width: "100%",
-          maxWidth: 1040,
+          maxWidth: 1080,
           background: "#ffffff",
           borderRadius: 28,
-          boxShadow: "0 25px 70px -15px rgba(15, 23, 42, 0.08), 0 0 1px rgba(15, 23, 42, 0.12)",
+          boxShadow: "0 25px 70px -15px rgba(15, 23, 42, 0.08)",
           display: "grid",
-          gridTemplateColumns: "44% 56%",
+          gridTemplateColumns: "48% 52%",
           overflow: "hidden",
         }}
-        className="login-container-grid"
       >
-        {/* Left Side Panel */}
+        {/* Left Side: Staging Presets Panel */}
         <div
           style={{
             background: "#f8fafc",
             borderRight: "1px solid #e2e8f0",
-            padding: "40px 38px",
+            padding: "40px 36px",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            position: "relative",
           }}
         >
           <div>
@@ -159,16 +141,13 @@ export default function LoginPage() {
                 fontSize: 14,
                 fontWeight: 600,
                 textDecoration: "none",
-                marginBottom: 32,
+                marginBottom: 28,
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-              Back to home
+              ← Back to home
             </Link>
 
-            <div>
+            <div style={{ marginBottom: 20 }}>
               <Image
                 src={getAssetPath("/images/logo.png")}
                 alt="LogiQ-On Logo"
@@ -178,97 +157,98 @@ export default function LoginPage() {
                 priority
               />
             </div>
-          </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
-              margin: "32px 0",
-            }}
-          >
-            <div
-              style={{
-                position: "relative",
-                width: 170,
-                height: 170,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 28,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: "50%",
-                  border: "1.5px dashed #cbd5e1",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 18,
-                  borderRadius: "50%",
-                  background: "#f1f5f9",
-                }}
-              />
-              <div
-                style={{
-                  position: "relative",
-                  zIndex: 2,
-                  width: 58,
-                  height: 58,
-                  borderRadius: 16,
-                  background: "#ffffff",
-                  boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.12)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="M9 12l2 2 4-4" />
-                </svg>
-              </div>
-
-              <div style={{ position: "absolute", top: -8, width: 28, height: 28, borderRadius: "50%", background: "#ffffff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>📦</div>
-              <div style={{ position: "absolute", right: -8, width: 28, height: 28, borderRadius: "50%", background: "#ffffff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>🌐</div>
-              <div style={{ position: "absolute", bottom: -8, width: 28, height: 28, borderRadius: "50%", background: "#ffffff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>📊</div>
-              <div style={{ position: "absolute", left: -8, width: 28, height: 28, borderRadius: "50%", background: "#ffffff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>⚡</div>
-            </div>
-
-            <h2 style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
-              One Secure Account.
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
+              Staging Portal Accounts
             </h2>
-            <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "#64748b", maxWidth: 290, margin: 0 }}>
-              Access logistics telemetry, order tracking, verified vendor services, and enterprise analytics instantly.
+            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
+              Click any role card below to instant-fill test credentials:
             </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {presetAccounts.map((acc) => {
+                const Icon = acc.icon;
+                const isSelected = email === acc.email;
+
+                return (
+                  <button
+                    key={acc.role}
+                    type="button"
+                    onClick={() => handleSelectPreset(acc)}
+                    style={{
+                      textAlign: "left",
+                      padding: "14px 16px",
+                      borderRadius: 16,
+                      background: isSelected ? "#ffffff" : "#ffffff",
+                      border: isSelected ? "2px solid #0f172a" : "1px solid #e2e8f0",
+                      boxShadow: isSelected ? "0 4px 12px rgba(15, 23, 42, 0.08)" : "0 1px 3px rgba(0,0,0,0.02)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: 8,
+                        borderRadius: 10,
+                        background: "#f1f5f9",
+                        color: acc.badgeColor,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
+                          {acc.label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background: "#f1f5f9",
+                            color: "#475569",
+                          }}
+                        >
+                          {acc.role}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12, color: "#64748b", margin: 0, lineHeight: 1.4 }}>
+                        {acc.desc}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div style={{ fontSize: 12, color: "#94a3b8" }}>
-            © 2026 LogiQ-On Ecosystem. All rights reserved.
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 24 }}>
+            ⚡ <strong>Staging OTP Code:</strong> Use <code style={{ color: "#0f172a", fontWeight: "bold" }}>123456</code> to bypass TOTP authenticator device check.
           </div>
         </div>
 
-        {/* Right Side Form Panel */}
-        <div style={{ padding: "42px 44px", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#ffffff" }}>
+        {/* Right Side: Login Form */}
+        <div style={{ padding: "42px 44px", background: "#ffffff", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
-              <div>
-                <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", margin: 0 }}>
-                  Welcome back
-                </h1>
-              </div>
+              <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+                Sign In
+              </h1>
 
-              <div style={{ display: "inline-flex", background: "#f1f5f9", padding: 4, borderRadius: 20, marginLeft: "auto" }}>
+              <div style={{ display: "inline-flex", background: "#f1f5f9", padding: 4, borderRadius: 20 }}>
                 <button
                   type="button"
-                  style={{ padding: "6px 14px", borderRadius: 16, fontSize: 12.5, fontWeight: 700, border: "none", background: "#0f172a", color: "#ffffff", cursor: "pointer" }}
+                  style={{ padding: "6px 14px", borderRadius: 16, fontSize: 12.5, fontWeight: 700, border: "none", background: "#0f172a", color: "#ffffff" }}
                 >
                   Sign In
                 </button>
@@ -281,62 +261,16 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <p style={{ fontSize: 13.5, color: "#64748b", margin: "0 0 20px 0" }}>
-              Enter your credentials to access your multi-tenant portal console.
+            <p style={{ fontSize: 13.5, color: "#64748b", margin: "0 0 24px 0" }}>
+              Enter your credentials to access your role dashboard.
             </p>
 
-            {/* Error Message Alert */}
             {errorMsg && (
               <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "10px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
                 ⚠️ {errorMsg}
               </div>
             )}
 
-            {/* Quick Fill Demo Credentials */}
-            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 14, padding: "12px 14px", marginBottom: 22 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
-                  🔑 Quick Fill Demo Accounts:
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowDemoDrawer(!showDemoDrawer)}
-                  style={{ fontSize: 11.5, fontWeight: 600, color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}
-                >
-                  {showDemoDrawer ? "Hide ▲" : "Details ▾"}
-                </button>
-              </div>
-
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {DEMO_ACCOUNTS.map((acc) => (
-                  <button
-                    key={acc.id}
-                    type="button"
-                    onClick={() => handleQuickLogin(acc)}
-                    style={{
-                      background: email === acc.email ? acc.bgColor : "#ffffff",
-                      border: `1px solid ${email === acc.email ? acc.borderColor : "#cbd5e1"}`,
-                      color: email === acc.email ? acc.color : "#334155",
-                      padding: "4px 10px",
-                      borderRadius: 8,
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span>{acc.icon}</span> {acc.role}
-                  </button>
-                ))}
-              </div>
-
-              {showDemoDrawer && (
-                <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px dashed #cbd5e1", fontSize: 11, color: "#64748b" }}>
-                  Password for all demo accounts: <code style={{ fontWeight: 700, color: "#0f172a" }}>Password123!</code>
-                </div>
-              )}
-            </div>
-
-            {/* Login Form */}
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
@@ -368,24 +302,40 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
+                    style={{
+                      position: "absolute",
+                      right: 14,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: "#64748b",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      padding: 0,
+                    }}
+                    title={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? "👁️" : "🙈"}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  id="remember"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  style={{ accentColor: "#0f172a" }}
-                />
-                <label htmlFor="remember" style={{ fontSize: 13.5, color: "#475569", cursor: "pointer" }}>
-                  Keep me signed in
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#475569", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    style={{ borderRadius: 4 }}
+                  />
+                  Remember session
                 </label>
+
+                <Link href="/auth/forgot-password" style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}>
+                  Forgot password?
+                </Link>
               </div>
 
               <button
@@ -393,7 +343,7 @@ export default function LoginPage() {
                 disabled={loading}
                 style={{
                   width: "100%",
-                  padding: "13px",
+                  padding: "14px",
                   fontSize: 15,
                   fontWeight: 700,
                   color: "#ffffff",
@@ -401,13 +351,16 @@ export default function LoginPage() {
                   borderRadius: 12,
                   border: "none",
                   cursor: loading ? "wait" : "pointer",
-                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
-                  marginTop: 6,
+                  marginTop: 8,
                 }}
               >
-                {loading ? "Authenticating..." : "Sign In →"}
+                {loading ? "Authenticating..." : "Sign In to Dashboard →"}
               </button>
             </form>
+          </div>
+
+          <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", borderTop: "1px solid #f1f5f9", paddingTop: 16, marginTop: 24 }}>
+            LogiQ-On Platform Governance • Multi-tenant RBAC &amp; ATO Compliance
           </div>
         </div>
       </div>

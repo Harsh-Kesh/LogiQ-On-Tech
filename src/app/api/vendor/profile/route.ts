@@ -31,39 +31,52 @@ export async function GET(req: Request) {
     console.warn('Prisma lookup failed, falling back to mock vendor state:', e.message);
   }
 
-  // Persistent fallback for demo runtime
-  const persistentUsers = loadPersistentUsers();
-  const dbUser = Object.values(persistentUsers).find((u) => u.id === userId || u.email === user.email);
+  // Demo seed account fallback ONLY for the preset default vendor
+  if (user.email === 'vendor@logiqon.com' || userId === 'usr_vendor_01') {
+    return NextResponse.json({
+      vendor: {
+        id: `vnd_${userId || 'demo'}`,
+        companyName: 'Apex Hardware & Logistics Ltd',
+        abnAcn: '51 824 753 910',
+        status: 'APPROVED',
+        userId: userId || 'usr_vendor_01',
+        user: { email: user.email, fullName: user.name || 'Apex Hardware Manager' },
+        createdAt: new Date().toISOString(),
+        docs: [
+          {
+            id: 'doc_01',
+            docType: 'ATO ABN Registration Certificate',
+            fileName: 'Apex_ABN_Certificate_2026.pdf',
+            fileUrl: '/docs/abn_cert.pdf',
+            fileSize: 1048576,
+            status: 'APPROVED',
+            uploadedAt: new Date().toISOString(),
+          },
+          {
+            id: 'doc_02',
+            docType: 'Public Liability Insurance Policy',
+            fileName: 'Apex_Insurance_Policy_5M.pdf',
+            fileUrl: '/docs/insurance.pdf',
+            fileSize: 2097152,
+            status: 'APPROVED',
+            uploadedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+  }
 
+  // Newly Registered Vendors start completely EMPTY
   return NextResponse.json({
     vendor: {
-      id: `vnd_${userId || 'demo'}`,
-      companyName: 'Apex Hardware & Logistics Ltd',
-      abnAcn: '51 824 753 910',
-      status: 'APPROVED',
-      userId: userId || 'usr_vendor_01',
-      user: { email: user.email, fullName: user.name || 'Apex Hardware Manager' },
+      id: `vnd_${userId}`,
+      companyName: '',
+      abnAcn: '',
+      status: 'PENDING',
+      userId: userId,
+      user: { email: user.email, fullName: user.name || 'New Vendor Account' },
       createdAt: new Date().toISOString(),
-      docs: [
-        {
-          id: 'doc_01',
-          docType: 'ATO ABN Registration Certificate',
-          fileName: 'Apex_ABN_Certificate_2026.pdf',
-          fileUrl: '/docs/abn_cert.pdf',
-          fileSize: 1048576,
-          status: 'APPROVED',
-          uploadedAt: new Date().toISOString(),
-        },
-        {
-          id: 'doc_02',
-          docType: 'Public Liability Insurance Policy',
-          fileName: 'Apex_Insurance_Policy_5M.pdf',
-          fileUrl: '/docs/insurance.pdf',
-          fileSize: 2097152,
-          status: 'APPROVED',
-          uploadedAt: new Date().toISOString(),
-        },
-      ],
+      docs: [],
     },
   });
 }
@@ -97,7 +110,7 @@ export async function POST(req: Request) {
     });
 
     // 2. Statutory Lock Check: If Vendor is APPROVED, lock company details
-    if (existingVendor && existingVendor.status === 'APPROVED') {
+    if (existingVendor && existingVendor.status === 'APPROVED' && existingVendor.abnAcn && existingVendor.companyName) {
       if (existingVendor.abnAcn !== cleanAbn || existingVendor.companyName !== companyName.trim()) {
         return NextResponse.json(
           {
