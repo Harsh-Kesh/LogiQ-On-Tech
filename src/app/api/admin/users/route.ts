@@ -78,14 +78,14 @@ export async function POST(req: Request) {
       },
     });
 
-    // Create sub-records if Vendor or Customer
+    // Create vendor sub-record with PENDING status so vendor fills details in portal
     if (role === 'VENDOR') {
       await prisma.vendor.create({
         data: {
           userId: newUser.id,
           companyName: `${fullName} Logistics`,
-          abnAcn: `51 824 753 ${Math.floor(100 + Math.random() * 900)}`,
-          status: 'APPROVED',
+          abnAcn: `51 ${Math.floor(10000000 + Math.random() * 90000000)}`,
+          status: 'PENDING',
         },
       }).catch(() => {});
     }

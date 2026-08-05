@@ -8,8 +8,6 @@ import {
   isValidEmail,
   validatePasswordPolicy,
   isValidFullName,
-  isValidCompanyName,
-  isValidAbnAcn,
 } from '@/lib/validation';
 
 export async function POST(req: Request) {
@@ -44,28 +42,12 @@ export async function POST(req: Request) {
 
     const assignedRole: UserRole = role === 'VENDOR' ? 'VENDOR' : 'CUSTOMER';
 
-    // 5. Vendor Statutory Statutory Business Validations (ABN / ACN & Company Name)
-    if (assignedRole === 'VENDOR') {
-      if (!companyName || !isValidCompanyName(companyName)) {
-        return NextResponse.json({ error: 'Company name must be at least 3 characters long' }, { status: 400 });
-      }
-
-      if (!abnAcn) {
-        return NextResponse.json({ error: 'Australian ABN (11 digits) or ACN (9 digits) is required' }, { status: 400 });
-      }
-
-      const abnCheck = isValidAbnAcn(abnAcn);
-      if (!abnCheck.valid) {
-        return NextResponse.json({ error: abnCheck.message }, { status: 400 });
-      }
-    }
-
-    // 6. Strict Email Uniqueness Check across Runtime Store
+    // 5. Strict Email Uniqueness Check across Runtime Store
     if (isUserRegistered(emailClean)) {
       return NextResponse.json({ error: 'An account with this email address already exists' }, { status: 400 });
     }
 
-    // 7. Strict Uniqueness Check across PostgreSQL Database (Email & ABN)
+    // 6. Strict Uniqueness Check across PostgreSQL Database
     try {
       const existingUser = await prisma.user.findUnique({
         where: { email: emailClean },
@@ -73,15 +55,6 @@ export async function POST(req: Request) {
 
       if (existingUser) {
         return NextResponse.json({ error: 'An account with this email address already exists' }, { status: 400 });
-      }
-
-      if (assignedRole === 'VENDOR' && abnAcn) {
-        const existingVendor = await prisma.vendor.findUnique({
-          where: { abnAcn: abnAcn.replace(/\s+/g, '') },
-        });
-        if (existingVendor) {
-          return NextResponse.json({ error: 'A vendor with this ABN/ACN is already registered in the system' }, { status: 400 });
-        }
       }
     } catch (e) {
       // Database offline check continue
@@ -107,10 +80,13 @@ export async function POST(req: Request) {
       });
 
       if (assignedRole === 'VENDOR') {
+        const finalCompanyName = companyName?.trim() || `${fullName} Logistics`;
+        const finalAbn = abnAcn ? abnAcn.replace(/\s+/g, '') : `51${Math.floor(100000000 + Math.random() * 900000000)}`;
+
         await prisma.vendor.create({
           data: {
-            companyName: companyName.trim(),
-            abnAcn: abnAcn.replace(/\s+/g, ''),
+            companyName: finalCompanyName,
+            abnAcn: finalAbn,
             status: VendorStatus.PENDING,
             userId: user.id,
           },
@@ -119,9 +95,9 @@ export async function POST(req: Request) {
         await logAuditEvent({
           userId: user.id,
           role: 'VENDOR',
-          action: 'VENDOR_APPLICATION_SUBMITTED',
+          action: 'VENDOR_ACCOUNT_CREATED',
           module: 'VENDOR_MANAGEMENT',
-          payloadJson: { companyName, abnAcn: abnAcn.replace(/\s+/g, '') },
+          payloadJson: { companyName: finalCompanyName, abnAcn: finalAbn, status: 'PENDING' },
         }).catch(() => {});
       } else {
         await logAuditEvent({
