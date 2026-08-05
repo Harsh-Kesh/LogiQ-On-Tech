@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Building, FileText, CheckCircle2, Package, Upload, Truck, ShieldCheck, AlertCircle, AlertTriangle, XCircle, Trash2, FileCheck } from 'lucide-react';
+import { Building, FileText, CheckCircle2, Upload, ShieldCheck, AlertCircle, AlertTriangle, XCircle, Trash2, FileCheck, Lock, Info } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -39,6 +39,7 @@ export default function VendorDashboardPage() {
   // Profile Form State
   const [companyName, setCompanyName] = useState('');
   const [abnAcn, setAbnAcn] = useState('');
+  const [profileError, setProfileError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
 
   // Document Upload State
@@ -75,6 +76,7 @@ export default function VendorDashboardPage() {
 
   async function handleRegisterProfile(e: React.FormEvent) {
     e.preventDefault();
+    setProfileError('');
     setProfileSubmitting(true);
 
     try {
@@ -89,9 +91,11 @@ export default function VendorDashboardPage() {
         setToast({ message: 'Vendor company profile saved successfully!', type: 'success' });
         fetchVendorProfile();
       } else {
+        setProfileError(data.error || 'Failed to save vendor profile.');
         setToast({ message: data.error || 'Failed to save vendor profile.', type: 'error' });
       }
     } catch {
+      setProfileError('Network error saving vendor profile.');
       setToast({ message: 'Network error saving vendor profile.', type: 'error' });
     } finally {
       setProfileSubmitting(false);
@@ -152,7 +156,7 @@ export default function VendorDashboardPage() {
 
         const data = await res.json();
         if (res.ok) {
-          setToast({ message: `Successfully uploaded ${selectedFile.name}!`, type: 'success' });
+          setToast({ message: data.message || `Successfully uploaded ${selectedFile.name}!`, type: 'success' });
           setSelectedFile(null);
           setFileValidationError('');
           fetchVendorProfile();
@@ -182,6 +186,10 @@ export default function VendorDashboardPage() {
   }
 
   const currentStatus = vendor?.status || 'PENDING';
+  const isApproved = currentStatus === 'APPROVED';
+
+  // Check if a document of the currently selected classification type is already uploaded
+  const existingDocOfType = vendor?.docs?.find((d) => d.docType === docType);
 
   return (
     <div className="space-y-6 font-sans">
@@ -254,15 +262,37 @@ export default function VendorDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Card 1: Company Profile Form */}
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Building className="w-5 h-5 text-amber-600" />
-            <h3 className="text-lg font-bold text-slate-900">Company Registration Details</h3>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <Building className="w-5 h-5 text-amber-600" />
+              <h3 className="text-lg font-bold text-slate-900">Company Registration Details</h3>
+            </div>
+            {isApproved && (
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <Lock className="w-2.5 h-2.5" /> ATO Locked
+              </span>
+            )}
           </div>
+
+          {profileError && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{profileError}</span>
+            </div>
+          )}
+
+          {isApproved && (
+            <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-800 text-xs font-medium flex items-center gap-2">
+              <Info className="w-4 h-4 shrink-0 text-amber-600" />
+              <span>Statutory Lock Active: Approved vendor profiles cannot alter legal entity ABNs directly. To update registered company details, contact Support.</span>
+            </div>
+          )}
 
           <form onSubmit={handleRegisterProfile} className="space-y-4">
             <Input
               label="Registered Company Name"
               required
+              disabled={isApproved}
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               placeholder="e.g. Apex Hardware & Logistics Ltd"
@@ -271,19 +301,22 @@ export default function VendorDashboardPage() {
             <Input
               label="Australian ABN (11 digits) or ACN (9 digits)"
               required
+              disabled={isApproved}
               value={abnAcn}
               onChange={(e) => setAbnAcn(e.target.value)}
               placeholder="e.g. 51 824 753 910"
-              helperText="Australian Business Number statutory identity verification"
+              helperText="Australian Business Number statutory identity verification (Must be exactly 11 digits)"
             />
 
-            <Button type="submit" isLoading={profileSubmitting} className="w-full">
-              Save Company Profile
-            </Button>
+            {!isApproved && (
+              <Button type="submit" isLoading={profileSubmitting} className="w-full">
+                Save Company Profile
+              </Button>
+            )}
           </form>
         </div>
 
-        {/* Card 2: Compliance Document Upload with Validation */}
+        {/* Card 2: Compliance Document Upload with Validation & Replacement Rules */}
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
             <Upload className="w-5 h-5 text-indigo-600" />
@@ -294,6 +327,15 @@ export default function VendorDashboardPage() {
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{fileValidationError}</span>
+            </div>
+          )}
+
+          {existingDocOfType && (
+            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-semibold flex items-center gap-2">
+              <Info className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>
+                Replaces existing file ({existingDocOfType.fileName}). Uploading a new certificate will queue the file for review.
+              </span>
             </div>
           )}
 
@@ -326,7 +368,7 @@ export default function VendorDashboardPage() {
             </div>
 
             <Button type="submit" variant="success" isLoading={uploading} className="w-full">
-              Upload Compliance Certificate
+              {existingDocOfType ? 'Replace Existing Certificate' : 'Upload Compliance Certificate'}
             </Button>
           </form>
         </div>

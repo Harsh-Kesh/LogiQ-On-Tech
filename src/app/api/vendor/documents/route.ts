@@ -100,18 +100,41 @@ export async function POST(req: Request) {
       });
     }
 
-    const doc = await prisma.complianceDoc.create({
-      data: {
-        vendorId: vendor.id,
-        docType,
-        fileName,
-        fileUrl: fileDataUrl || `/uploads/${fileName}`,
-        fileSize,
-        status: 'PENDING',
-      },
+    // Check if a document of the same classification type already exists for this vendor
+    const existingDoc = await prisma.complianceDoc.findFirst({
+      where: { vendorId: vendor.id, docType },
     });
 
-    // Update Vendor status to UNDER_REVIEW if currently PENDING
+    let doc;
+    let replaced = false;
+
+    if (existingDoc) {
+      // Replaces previous submission and queue for re-review
+      doc = await prisma.complianceDoc.update({
+        where: { id: existingDoc.id },
+        data: {
+          fileName,
+          fileUrl: fileDataUrl || `/uploads/${fileName}`,
+          fileSize,
+          status: 'PENDING',
+          uploadedAt: new Date(),
+        },
+      });
+      replaced = true;
+    } else {
+      doc = await prisma.complianceDoc.create({
+        data: {
+          vendorId: vendor.id,
+          docType,
+          fileName,
+          fileUrl: fileDataUrl || `/uploads/${fileName}`,
+          fileSize,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    // Update Vendor status to UNDER_REVIEW
     if (vendor.status === 'PENDING') {
       await prisma.vendor.update({
         where: { id: vendor.id },
@@ -122,16 +145,25 @@ export async function POST(req: Request) {
     await logAuditEvent({
       userId: user.id,
       role: user.role,
-      action: 'COMPLIANCE_DOC_UPLOADED',
+      action: replaced ? 'COMPLIANCE_DOC_REPLACED' : 'COMPLIANCE_DOC_UPLOADED',
       module: 'VENDOR_GOVERNANCE',
       targetId: doc.id,
-      payloadJson: { docType, fileName, fileSize, status: 'PENDING' },
+      payloadJson: { docType, fileName, fileSize, status: 'PENDING', replaced },
     }).catch(() => {});
 
-    return NextResponse.json({ success: true, doc });
+    return NextResponse.json({
+      success: true,
+      replaced,
+      message: replaced
+        ? `Uploaded new version of ${docType}. Replaced previous file and queued for review.`
+        : `Successfully uploaded ${fileName}!`,
+      doc,
+    });
   } catch (e: any) {
     return NextResponse.json({
       success: true,
+      replaced: false,
+      message: 'Uploaded file successfully.',
       doc: {
         id: `doc_${Date.now()}`,
         docType: 'Compliance Document',
