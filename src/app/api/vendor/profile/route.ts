@@ -47,7 +47,7 @@ export async function GET(req: Request) {
       docs: [
         {
           id: 'doc_01',
-          docType: 'ATO ABN Certificate',
+          docType: 'ATO ABN Registration Certificate',
           fileName: 'Apex_ABN_Certificate_2026.pdf',
           fileUrl: '/docs/abn_cert.pdf',
           fileSize: 1048576,
@@ -56,7 +56,7 @@ export async function GET(req: Request) {
         },
         {
           id: 'doc_02',
-          docType: 'Public Liability Insurance',
+          docType: 'Public Liability Insurance Policy',
           fileName: 'Apex_Insurance_Policy_5M.pdf',
           fileUrl: '/docs/insurance.pdf',
           fileSize: 2097152,
@@ -76,31 +76,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized: Vendor access required.' }, { status: 403 });
   }
 
-  const { companyName, abnAcn, phone, address } = await req.json();
+  const { companyName, abnAcn } = await req.json();
 
   if (!companyName || !abnAcn) {
     return NextResponse.json({ error: 'Company Name and ABN/ACN are required.' }, { status: 400 });
   }
 
-  // Validate Australian ABN (11 digits) or ACN (9 digits)
+  // 1. Validate Australian ABN (11 digits) or ACN (9 digits)
   const cleanAbn = abnAcn.replace(/\s+/g, '');
   if (!/^\d{9}$|^\d{11}$/.test(cleanAbn)) {
     return NextResponse.json(
-      { error: 'Invalid Australian ABN/ACN format. ABN must be 11 numeric digits and ACN must be 9 numeric digits.' },
+      { error: `Invalid Australian ABN/ACN format (${cleanAbn.length} digits). ABN must be exactly 11 numeric digits and ACN must be exactly 9 numeric digits.` },
       { status: 400 }
     );
   }
 
   try {
-    const existing = await prisma.vendor.findFirst({
-      where: {
-        abnAcn: cleanAbn,
-        NOT: { userId: user.id },
-      },
+    const existingVendor = await prisma.vendor.findUnique({
+      where: { userId: user.id },
     });
 
-    if (existing) {
-      return NextResponse.json({ error: 'A vendor with this ABN/ACN is already registered.' }, { status: 400 });
+    // 2. Statutory Lock Check: If Vendor is APPROVED, lock company details
+    if (existingVendor && existingVendor.status === 'APPROVED') {
+      if (existingVendor.abnAcn !== cleanAbn || existingVendor.companyName !== companyName.trim()) {
+        return NextResponse.json(
+          {
+            error: `Statutory Lock Active: Your vendor entity (${existingVendor.companyName} - ABN: ${existingVendor.abnAcn}) has been approved by ATO governance. To request a change of registered company details, please contact Platform Support.`,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const vendor = await prisma.vendor.upsert({
@@ -108,7 +113,7 @@ export async function POST(req: Request) {
       update: {
         companyName,
         abnAcn: cleanAbn,
-        status: 'UNDER_REVIEW', // Automatically progress to UNDER_REVIEW when profile updated
+        status: existingVendor?.status === 'APPROVED' ? 'APPROVED' : 'UNDER_REVIEW',
       },
       create: {
         companyName,
@@ -121,7 +126,7 @@ export async function POST(req: Request) {
     await logAuditEvent({
       userId: user.id,
       role: user.role,
-      action: 'VENDOR_PROFILE_REGISTERED',
+      action: 'VENDOR_PROFILE_UPDATED',
       module: 'VENDOR_GOVERNANCE',
       targetId: vendor.id,
       payloadJson: { companyName, abnAcn: cleanAbn, status: vendor.status },
@@ -135,7 +140,7 @@ export async function POST(req: Request) {
         id: `vnd_${user.id}`,
         companyName,
         abnAcn: cleanAbn,
-        status: 'PENDING',
+        status: 'UNDER_REVIEW',
         userId: user.id,
       },
     });

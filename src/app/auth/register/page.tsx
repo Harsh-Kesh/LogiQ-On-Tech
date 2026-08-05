@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { getAssetPath } from "@/lib/nav";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState("VENDOR");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -120,7 +122,7 @@ export default function RegisterPage() {
 
         {/* Right Side Form Panel */}
         <div style={{ padding: "42px 44px", background: "#ffffff" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyItems: "space-between", marginBottom: 6 }}>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", margin: 0 }}>
               Register Account
             </h1>
@@ -195,18 +197,50 @@ export default function RegisterPage() {
               </select>
             </div>
 
+            {/* Password Field with Eye Toggle */}
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
                 Password
               </label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={{ width: "100%", padding: "11px 14px", fontSize: 14, color: "#0f172a", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", outline: "none" }}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "11px 40px 11px 14px",
+                    fontSize: 14,
+                    color: "#0f172a",
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    background: "#f8fafc",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#64748b",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: 0,
+                  }}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <button
