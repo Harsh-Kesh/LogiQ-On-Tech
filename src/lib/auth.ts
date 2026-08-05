@@ -16,6 +16,10 @@ export interface PersistentUser {
   mfaVerified?: boolean;
   passwordHash: string;
   createdAt: string;
+  companyName?: string;
+  abnAcn?: string;
+  status?: string;
+  docs?: any[];
 }
 
 const STORAGE_DIR = path.join(process.cwd(), '.data');
@@ -35,8 +39,8 @@ function getSeededDemoAccounts(): Record<string, PersistentUser> {
   return {
     'admin@logiqon.tech': { id: 'usr_admin_01', email: 'admin@logiqon.tech', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
     'owner@logiqon.com': { id: 'usr_owner_01', email: 'owner@logiqon.com', fullName: 'Platform Owner', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'vendor@logiqon.tech': { id: 'usr_vendor_01', email: 'vendor@logiqon.tech', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'vendor@logiqon.com': { id: 'usr_vendor_02', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'vendor@logiqon.tech': { id: 'usr_vendor_01', email: 'vendor@logiqon.tech', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 910', status: 'APPROVED' },
+    'vendor@logiqon.com': { id: 'usr_vendor_02', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 910', status: 'APPROVED' },
     'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
     'warehouse@logiqon.com': { id: 'usr_wh_02', email: 'warehouse@logiqon.com', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
     'customer@logiqon.tech': { id: 'usr_cust_01', email: 'customer@logiqon.tech', fullName: 'Induja Retail Buyer', role: 'CUSTOMER', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
@@ -63,6 +67,33 @@ export function savePersistentUsers(users: Record<string, PersistentUser>) {
   } catch (e) {}
 }
 
+export function updateRuntimeVendorProfile(userIdOrEmail: string, companyName: string, abnAcn: string, status: string = 'UNDER_REVIEW') {
+  const users = loadPersistentUsers();
+  const entry = Object.values(users).find(u => u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase());
+  if (entry) {
+    entry.companyName = companyName;
+    entry.abnAcn = abnAcn;
+    entry.status = status;
+    savePersistentUsers(users);
+  }
+}
+
+export function addRuntimeVendorDoc(userIdOrEmail: string, doc: any) {
+  const users = loadPersistentUsers();
+  const entry = Object.values(users).find(u => u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase());
+  if (entry) {
+    if (!entry.docs) entry.docs = [];
+    const idx = entry.docs.findIndex((d) => d.docType === doc.docType);
+    if (idx >= 0) {
+      entry.docs[idx] = doc;
+    } else {
+      entry.docs.push(doc);
+    }
+    entry.status = 'UNDER_REVIEW';
+    savePersistentUsers(users);
+  }
+}
+
 export function isUserRegistered(email: string): boolean {
   const emailClean = email.toLowerCase().trim();
   const users = loadPersistentUsers();
@@ -85,6 +116,10 @@ export function registerRuntimeUser(email: string, fullName: string, role: UserR
     mfaEnabled: false,
     passwordHash,
     createdAt: new Date().toISOString(),
+    companyName: '',
+    abnAcn: '',
+    status: 'PENDING',
+    docs: [],
   };
 
   savePersistentUsers(users);

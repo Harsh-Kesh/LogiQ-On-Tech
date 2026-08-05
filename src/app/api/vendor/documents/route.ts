@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions, loadPersistentUsers, addRuntimeVendorDoc } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 
@@ -25,6 +25,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ docs: vendor.docs });
     }
   } catch (e: any) {}
+
+  // Check persistent file store
+  const persistentUsers = loadPersistentUsers();
+  const persistentRecord = Object.values(persistentUsers).find(
+    (u) => u.id === user.id || u.email.toLowerCase() === (user.email || '').toLowerCase()
+  );
+
+  if (persistentRecord && persistentRecord.docs) {
+    return NextResponse.json({ docs: persistentRecord.docs });
+  }
 
   return NextResponse.json({
     docs: [
@@ -87,15 +97,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get or Create Vendor
+    const docPayload = {
+      id: `doc_${Date.now()}`,
+      docType,
+      fileName,
+      fileUrl: fileDataUrl || `/uploads/${fileName}`,
+      fileSize,
+      status: 'PENDING',
+      uploadedAt: new Date().toISOString(),
+    };
+
+    addRuntimeVendorDoc(user.id || user.email, docPayload);
+
+    // Get or Create Vendor in DB
     let vendor = await prisma.vendor.findUnique({ where: { userId: user.id } });
     if (!vendor) {
       vendor = await prisma.vendor.create({
         data: {
-          companyName: `${user.name || 'Vendor'} Business`,
-          abnAcn: `51 ${Math.floor(10000000 + Math.random() * 90000000)}`,
+          companyName: '',
+          abnAcn: '',
           userId: user.id,
-          status: 'PENDING',
+          status: 'UNDER_REVIEW',
         },
       });
     }

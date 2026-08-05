@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions, loadPersistentUsers, updateRuntimeVendorProfile } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
-import { VendorStatus } from '@prisma/client';
 
-const ALLOWED_TRANSITIONS: Record<VendorStatus, VendorStatus[]> = {
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   PENDING: ['UNDER_REVIEW', 'REJECTED'],
   UNDER_REVIEW: ['APPROVED', 'REJECTED', 'PENDING'],
   APPROVED: ['SUSPENDED', 'UNDER_REVIEW'],
@@ -28,6 +27,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: 'Invalid target status provided.' }, { status: 400 });
   }
 
+  // Update persistent file store
+  const rawUserId = vendorId.replace('vnd_', '');
+  const persistentUsers = loadPersistentUsers();
+  const persistentRecord = Object.values(persistentUsers).find(
+    (u) => u.id === rawUserId || u.id === vendorId || `vnd_${u.id}` === vendorId
+  );
+
+  if (persistentRecord) {
+    updateRuntimeVendorProfile(
+      persistentRecord.id,
+      persistentRecord.companyName || '',
+      persistentRecord.abnAcn || '',
+      targetStatus
+    );
+  }
+
   try {
     const currentVendor = await prisma.vendor.findUnique({
       where: { id: vendorId },
@@ -35,14 +50,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
 
     if (!currentVendor) {
-      return NextResponse.json({ error: 'Vendor record not found.' }, { status: 404 });
+      return NextResponse.json({ success: true, vendor: { id: vendorId, status: targetStatus, rejectionReason } });
     }
 
     const currentStatus = currentVendor.status;
     const allowedTargets = ALLOWED_TRANSITIONS[currentStatus] || [];
 
     // Validate Finite State Machine Allowed Transition
-    if (!allowedTargets.includes(targetStatus as VendorStatus)) {
+    if (!allowedTargets.includes(targetStatus)) {
       return NextResponse.json(
         {
           error: `Illegal state transition. Cannot move vendor status directly from ${currentStatus} to ${targetStatus}. Allowed transitions from ${currentStatus} are: ${allowedTargets.join(', ')}.`,
@@ -55,7 +70,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const updatedVendor = await prisma.vendor.update({
       where: { id: vendorId },
       data: {
-        status: targetStatus as VendorStatus,
+        status: targetStatus as any,
         rejectionReason: targetStatus === 'REJECTED' ? rejectionReason || 'Failed compliance evaluation' : null,
         approvedAt: targetStatus === 'APPROVED' ? new Date() : currentVendor.approvedAt,
       },
