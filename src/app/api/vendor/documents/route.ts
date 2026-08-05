@@ -15,26 +15,26 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const userEmail = (user.email || '').toLowerCase().trim();
+  const persistentUsers = loadPersistentUsers();
+  const persistentRecord = Object.values(persistentUsers).find(
+    (u) => u.email.toLowerCase() === userEmail || u.id === user.id
+  );
+
+  if (persistentRecord && persistentRecord.docs && persistentRecord.docs.length > 0) {
+    return NextResponse.json({ docs: persistentRecord.docs });
+  }
+
   try {
     const vendor = await prisma.vendor.findUnique({
       where: { userId: user.id },
       include: { docs: { orderBy: { uploadedAt: 'desc' } } },
     });
 
-    if (vendor) {
+    if (vendor && vendor.docs) {
       return NextResponse.json({ docs: vendor.docs });
     }
   } catch (e: any) {}
-
-  // Check persistent file store
-  const persistentUsers = loadPersistentUsers();
-  const persistentRecord = Object.values(persistentUsers).find(
-    (u) => u.id === user.id || u.email.toLowerCase() === (user.email || '').toLowerCase()
-  );
-
-  if (persistentRecord && persistentRecord.docs) {
-    return NextResponse.json({ docs: persistentRecord.docs });
-  }
 
   return NextResponse.json({
     docs: [
@@ -107,7 +107,8 @@ export async function POST(req: Request) {
       uploadedAt: new Date().toISOString(),
     };
 
-    addRuntimeVendorDoc(user.id || user.email, docPayload);
+    const userEmail = user.email || '';
+    addRuntimeVendorDoc(userEmail, docPayload);
 
     // Get or Create Vendor in DB
     let vendor = await prisma.vendor.findUnique({ where: { userId: user.id } });
@@ -179,22 +180,23 @@ export async function POST(req: Request) {
       message: replaced
         ? `Uploaded new version of ${docType}. Replaced previous file and queued for review.`
         : `Successfully uploaded ${fileName}!`,
-      doc,
+      doc: doc || docPayload,
     });
   } catch (e: any) {
+    const docPayload = {
+      id: `doc_${Date.now()}`,
+      docType: 'Compliance Document',
+      fileName: 'Uploaded_File.pdf',
+      fileUrl: '/uploads/file.pdf',
+      fileSize: 1024000,
+      status: 'PENDING',
+      uploadedAt: new Date().toISOString(),
+    };
     return NextResponse.json({
       success: true,
       replaced: false,
       message: 'Uploaded file successfully.',
-      doc: {
-        id: `doc_${Date.now()}`,
-        docType: 'Compliance Document',
-        fileName: 'Uploaded_File.pdf',
-        fileUrl: '/uploads/file.pdf',
-        fileSize: 1024000,
-        status: 'PENDING',
-        uploadedAt: new Date().toISOString(),
-      },
+      doc: docPayload,
     });
   }
 }

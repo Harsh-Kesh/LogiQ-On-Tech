@@ -13,6 +13,28 @@ export async function GET(req: Request) {
   }
 
   const userId = user.id;
+  const userEmail = (user.email || '').toLowerCase().trim();
+
+  // 1. Check persistent file store (contains live runtime profile edits & uploads)
+  const persistentUsers = loadPersistentUsers();
+  const persistentRecord = Object.values(persistentUsers).find(
+    (u) => u.email.toLowerCase() === userEmail || u.id === userId
+  );
+
+  if (persistentRecord && (persistentRecord.companyName || persistentRecord.abnAcn || (persistentRecord.docs && persistentRecord.docs.length > 0))) {
+    return NextResponse.json({
+      vendor: {
+        id: `vnd_${persistentRecord.id}`,
+        companyName: persistentRecord.companyName || '',
+        abnAcn: persistentRecord.abnAcn || '',
+        status: persistentRecord.status || 'PENDING',
+        userId: persistentRecord.id,
+        user: { email: persistentRecord.email, fullName: persistentRecord.fullName },
+        createdAt: persistentRecord.createdAt,
+        docs: persistentRecord.docs || [],
+      },
+    });
+  }
 
   try {
     const vendor = await prisma.vendor.findUnique({
@@ -28,14 +50,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ vendor });
     }
   } catch (e: any) {
-    console.warn('Prisma lookup failed, falling back to persistent vendor state:', e.message);
+    console.warn('Prisma lookup failed:', e.message);
   }
-
-  // Persistent File Store fallback
-  const persistentUsers = loadPersistentUsers();
-  const persistentRecord = Object.values(persistentUsers).find(
-    (u) => u.id === userId || u.email.toLowerCase() === (user.email || '').toLowerCase()
-  );
 
   if (persistentRecord) {
     return NextResponse.json({
@@ -125,9 +141,13 @@ export async function POST(req: Request) {
     );
   }
 
-  // Save to persistent file store
-  const targetStatus = 'UNDER_REVIEW';
-  updateRuntimeVendorProfile(user.id || user.email, companyName, cleanAbn, targetStatus);
+  // Save to persistent file store using user.email
+  const userEmail = user.email || '';
+  updateRuntimeVendorProfile(userEmail, companyName, cleanAbn, 'UNDER_REVIEW');
+
+  const persistentUsers = loadPersistentUsers();
+  const persistentRecord = persistentUsers[userEmail.toLowerCase().trim()];
+  const currentDocs = persistentRecord?.docs || [];
 
   try {
     const existingVendor = await prisma.vendor.findUnique({
@@ -161,6 +181,7 @@ export async function POST(req: Request) {
         userId: user.id,
         status: 'UNDER_REVIEW',
       },
+      include: { docs: true },
     });
 
     await logAuditEvent({
@@ -172,7 +193,13 @@ export async function POST(req: Request) {
       payloadJson: { companyName, abnAcn: cleanAbn, status: vendor.status },
     }).catch(() => {});
 
-    return NextResponse.json({ success: true, vendor });
+    return NextResponse.json({
+      success: true,
+      vendor: {
+        ...vendor,
+        docs: vendor.docs && vendor.docs.length > 0 ? vendor.docs : currentDocs,
+      },
+    });
   } catch (e: any) {
     return NextResponse.json({
       success: true,
@@ -182,6 +209,8 @@ export async function POST(req: Request) {
         abnAcn: cleanAbn,
         status: 'UNDER_REVIEW',
         userId: user.id,
+        user: { email: user.email, fullName: user.name || 'Vendor' },
+        docs: currentDocs,
       },
     });
   }

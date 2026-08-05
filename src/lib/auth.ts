@@ -67,31 +67,69 @@ export function savePersistentUsers(users: Record<string, PersistentUser>) {
   } catch (e) {}
 }
 
-export function updateRuntimeVendorProfile(userIdOrEmail: string, companyName: string, abnAcn: string, status: string = 'UNDER_REVIEW') {
+export function updateRuntimeVendorProfile(userEmail: string, companyName: string, abnAcn: string, status: string = 'UNDER_REVIEW') {
   const users = loadPersistentUsers();
-  const entry = Object.values(users).find(u => u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase());
-  if (entry) {
+  const emailClean = (userEmail || '').toLowerCase().trim();
+  let entry = users[emailClean] || Object.values(users).find(u => u.email.toLowerCase() === emailClean || u.id === userEmail);
+  
+  if (!entry && emailClean) {
+    entry = {
+      id: `usr_reg_${Date.now()}`,
+      email: emailClean,
+      fullName: 'Vendor Partner',
+      role: 'VENDOR',
+      mfaEnabled: false,
+      passwordHash: '',
+      createdAt: new Date().toISOString(),
+      companyName,
+      abnAcn,
+      status,
+      docs: [],
+    };
+    users[emailClean] = entry;
+  } else if (entry) {
     entry.companyName = companyName;
     entry.abnAcn = abnAcn;
     entry.status = status;
-    savePersistentUsers(users);
+    users[entry.email.toLowerCase()] = entry;
   }
+  
+  savePersistentUsers(users);
 }
 
-export function addRuntimeVendorDoc(userIdOrEmail: string, doc: any) {
+export function addRuntimeVendorDoc(userEmail: string, doc: any) {
   const users = loadPersistentUsers();
-  const entry = Object.values(users).find(u => u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase());
-  if (entry) {
+  const emailClean = (userEmail || '').toLowerCase().trim();
+  let entry = users[emailClean] || Object.values(users).find(u => u.email.toLowerCase() === emailClean || u.id === userEmail);
+  
+  if (!entry && emailClean) {
+    entry = {
+      id: `usr_reg_${Date.now()}`,
+      email: emailClean,
+      fullName: 'Vendor Partner',
+      role: 'VENDOR',
+      mfaEnabled: false,
+      passwordHash: '',
+      createdAt: new Date().toISOString(),
+      companyName: '',
+      abnAcn: '',
+      status: 'UNDER_REVIEW',
+      docs: [doc],
+    };
+    users[emailClean] = entry;
+  } else if (entry) {
     if (!entry.docs) entry.docs = [];
     const idx = entry.docs.findIndex((d) => d.docType === doc.docType);
     if (idx >= 0) {
       entry.docs[idx] = doc;
     } else {
-      entry.docs.push(doc);
+      entry.docs.unshift(doc);
     }
     entry.status = 'UNDER_REVIEW';
-    savePersistentUsers(users);
+    users[entry.email.toLowerCase()] = entry;
   }
+  
+  savePersistentUsers(users);
 }
 
 export function isUserRegistered(email: string): boolean {
