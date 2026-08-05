@@ -90,7 +90,7 @@ export default function AdminVendorsPage() {
       const data = await res.json();
       if (res.ok) {
         setToast({
-          message: `Successfully transitioned ${selectedVendor.companyName} to ${targetStatus}!`,
+          message: `Successfully transitioned ${selectedVendor.companyName || selectedVendor.user?.email} to ${targetStatus}!`,
           type: targetStatus === 'APPROVED' ? 'success' : targetStatus === 'REJECTED' || targetStatus === 'SUSPENDED' ? 'error' : 'info',
         });
         setIsDetailModalOpen(false);
@@ -152,8 +152,12 @@ export default function AdminVendorsPage() {
       accessorKey: 'companyName',
       cell: (row) => (
         <div>
-          <div className="font-extrabold text-slate-900">{row.companyName}</div>
-          <div className="text-xs font-mono text-slate-500">ABN/ACN: {row.abnAcn}</div>
+          <div className="font-extrabold text-slate-900">
+            {row.companyName && row.companyName.trim() !== '' ? row.companyName : 'Pending Company Registration'}
+          </div>
+          <div className="text-xs font-mono text-slate-500">
+            ABN/ACN: {row.abnAcn && row.abnAcn.trim() !== '' ? row.abnAcn : 'Not Provided Yet'}
+          </div>
         </div>
       ),
     },
@@ -206,9 +210,9 @@ export default function AdminVendorsPage() {
 
   const filteredVendors = vendors.filter((v) => {
     const matchesSearch =
-      v.companyName.toLowerCase().includes(search.toLowerCase()) ||
-      v.abnAcn.toLowerCase().includes(search.toLowerCase()) ||
-      v.user?.email.toLowerCase().includes(search.toLowerCase());
+      (v.companyName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (v.abnAcn || '').toLowerCase().includes(search.toLowerCase()) ||
+      (v.user?.email || '').toLowerCase().includes(search.toLowerCase());
     return matchesSearch;
   });
 
@@ -278,8 +282,8 @@ export default function AdminVendorsPage() {
         <Modal
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
-          title={`Review Vendor: ${selectedVendor.companyName}`}
-          subtitle={`ABN/ACN: ${selectedVendor.abnAcn} • ID: ${selectedVendor.id}`}
+          title={`Review Vendor: ${selectedVendor.companyName || selectedVendor.user?.email || 'Vendor'}`}
+          subtitle={`ABN/ACN: ${selectedVendor.abnAcn || 'Not Provided Yet'} • ID: ${selectedVendor.id}`}
           maxWidth="lg"
         >
           <div className="space-y-6 text-slate-900 font-sans">
@@ -287,11 +291,11 @@ export default function AdminVendorsPage() {
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-4 text-xs">
               <div>
                 <span className="text-slate-500 font-semibold block">Company Name:</span>
-                <span className="font-extrabold text-slate-900">{selectedVendor.companyName}</span>
+                <span className="font-extrabold text-slate-900">{selectedVendor.companyName || 'Pending Company Registration'}</span>
               </div>
               <div>
                 <span className="text-slate-500 font-semibold block">Australian ABN/ACN:</span>
-                <span className="font-mono font-bold text-slate-900">{selectedVendor.abnAcn}</span>
+                <span className="font-mono font-bold text-slate-900">{selectedVendor.abnAcn || 'Not Provided Yet'}</span>
               </div>
               <div>
                 <span className="text-slate-500 font-semibold block">Primary Account:</span>
@@ -459,7 +463,7 @@ export default function AdminVendorsPage() {
       >
         <div className="space-y-4 text-slate-900 font-sans">
           <p className="text-xs text-slate-600">
-            Please enter a formal rejection reason for <span className="font-extrabold text-slate-900">{selectedVendor?.companyName}</span>.
+            Please enter a formal rejection reason for <span className="font-extrabold text-slate-900">{selectedVendor?.companyName || selectedVendor?.user?.email}</span>.
           </p>
 
           <Input

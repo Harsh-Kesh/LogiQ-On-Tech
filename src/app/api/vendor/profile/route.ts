@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, loadPersistentUsers } from '@/lib/auth';
+import { authOptions, loadPersistentUsers, updateRuntimeVendorProfile } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 
@@ -28,10 +28,31 @@ export async function GET(req: Request) {
       return NextResponse.json({ vendor });
     }
   } catch (e: any) {
-    console.warn('Prisma lookup failed, falling back to mock vendor state:', e.message);
+    console.warn('Prisma lookup failed, falling back to persistent vendor state:', e.message);
   }
 
-  // Demo seed account fallback ONLY for the preset default vendor
+  // Persistent File Store fallback
+  const persistentUsers = loadPersistentUsers();
+  const persistentRecord = Object.values(persistentUsers).find(
+    (u) => u.id === userId || u.email.toLowerCase() === (user.email || '').toLowerCase()
+  );
+
+  if (persistentRecord) {
+    return NextResponse.json({
+      vendor: {
+        id: `vnd_${persistentRecord.id}`,
+        companyName: persistentRecord.companyName || '',
+        abnAcn: persistentRecord.abnAcn || '',
+        status: persistentRecord.status || 'PENDING',
+        userId: persistentRecord.id,
+        user: { email: persistentRecord.email, fullName: persistentRecord.fullName },
+        createdAt: persistentRecord.createdAt,
+        docs: persistentRecord.docs || [],
+      },
+    });
+  }
+
+  // Demo seed account fallback ONLY for preset default vendor
   if (user.email === 'vendor@logiqon.com' || userId === 'usr_vendor_01') {
     return NextResponse.json({
       vendor: {
@@ -104,6 +125,10 @@ export async function POST(req: Request) {
     );
   }
 
+  // Save to persistent file store
+  const targetStatus = 'UNDER_REVIEW';
+  updateRuntimeVendorProfile(user.id || user.email, companyName, cleanAbn, targetStatus);
+
   try {
     const existingVendor = await prisma.vendor.findUnique({
       where: { userId: user.id },
@@ -121,18 +146,20 @@ export async function POST(req: Request) {
       }
     }
 
+    const nextStatus = existingVendor?.status === 'APPROVED' ? 'APPROVED' : 'UNDER_REVIEW';
+
     const vendor = await prisma.vendor.upsert({
       where: { userId: user.id },
       update: {
         companyName,
         abnAcn: cleanAbn,
-        status: existingVendor?.status === 'APPROVED' ? 'APPROVED' : 'UNDER_REVIEW',
+        status: nextStatus,
       },
       create: {
         companyName,
         abnAcn: cleanAbn,
         userId: user.id,
-        status: 'PENDING',
+        status: 'UNDER_REVIEW',
       },
     });
 
