@@ -169,7 +169,7 @@ export async function POST(req: Request) {
       userId: user.id,
       role: user.role,
       action: replaced ? 'COMPLIANCE_DOC_REPLACED' : 'COMPLIANCE_DOC_UPLOADED',
-      module: 'VENDOR_GOVERNANCE',
+      module: 'VENDOR_MANAGEMENT',
       targetId: doc.id,
       payloadJson: { docType, fileName, fileSize, status: 'PENDING', replaced },
     }).catch(() => {});

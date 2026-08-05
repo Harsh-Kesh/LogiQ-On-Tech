@@ -111,7 +111,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     userId: adminUser.id,
     role: adminUser.role,
     action: `VENDOR_STATUS_TRANSITION_${targetStatus}`,
-    module: 'VENDOR_GOVERNANCE',
+    module: 'VENDOR_MANAGEMENT',
     targetId: vendorId,
     payloadJson: {
       companyName: dbVendor?.companyName || persistentRecord?.companyName,

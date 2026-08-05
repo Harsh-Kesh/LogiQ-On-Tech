@@ -188,7 +188,7 @@ export async function POST(req: Request) {
       userId: user.id,
       role: user.role,
       action: 'VENDOR_PROFILE_UPDATED',
-      module: 'VENDOR_GOVERNANCE',
+      module: 'VENDOR_MANAGEMENT',
       targetId: vendor.id,
       payloadJson: { companyName, abnAcn: cleanAbn, status: vendor.status },
     }).catch(() => {});
