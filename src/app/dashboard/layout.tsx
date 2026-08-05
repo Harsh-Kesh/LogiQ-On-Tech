@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Brand from '@/components/Brand';
-import { Shield, Building, Warehouse, ShoppingCart, Key, FileText, LogOut, Lock } from 'lucide-react';
+import { Shield, Building, Warehouse, ShoppingCart, Key, FileText, LogOut, Lock, Users } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -37,7 +37,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navLinks = [
     { name: 'Platform Owner', href: '/dashboard/owner', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Shield },
-    { name: 'User Directory', href: '/dashboard/owner/users', roleRequired: ['PLATFORM_OWNER'], icon: Key },
+    { name: 'User Directory', href: '/dashboard/owner/users', roleRequired: ['PLATFORM_OWNER'], icon: Users },
+    { name: 'Vendor Directory', href: '/dashboard/owner/vendors', roleRequired: ['PLATFORM_OWNER'], icon: Building },
     { name: 'Vendor Portal', href: '/dashboard/vendor', roleRequired: ['VENDOR', 'PLATFORM_OWNER'], icon: Building },
     { name: 'Warehouse Point', href: '/dashboard/warehouse', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: Warehouse },
     { name: 'Customer CRM', href: '/dashboard/customer', roleRequired: ['CUSTOMER', 'PLATFORM_OWNER'], icon: ShoppingCart },
@@ -79,7 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <button
               onClick={() => signOut({ callbackUrl: '/auth/login' })}
-              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 border border-slate-200 transition-all text-xs flex items-center gap-1.5 font-bold"
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 border border-slate-200 transition-all text-xs flex items-center gap-1.5 font-bold cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
