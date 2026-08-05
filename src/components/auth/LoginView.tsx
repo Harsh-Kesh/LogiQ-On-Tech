@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { getAssetPath } from "@/lib/nav";
+import { Eye, EyeOff, Shield, Building, Warehouse, ShoppingCart } from "lucide-react";
 
 interface DemoAccount {
   id: string;
@@ -23,120 +25,109 @@ interface DemoAccount {
 
 const DEMO_ACCOUNTS: DemoAccount[] = [
   {
-    id: "customer",
-    role: "Customer",
-    badge: "Customer Portal",
-    email: "customer@logiqon.com",
-    password: "Customer123!",
-    portalName: "Customer Dashboard",
-    portalUrl: "/portal/customer",
-    color: "#2563eb",
+    id: "owner",
+    role: "Executive / Admin",
+    badge: "Owner Portal",
+    email: "owner@logiqon.com",
+    password: "Password123!",
+    portalName: "Platform Owner Console",
+    portalUrl: "/dashboard/owner",
+    color: "#1e3a8a",
     bgColor: "#eff6ff",
     borderColor: "#bfdbfe",
-    icon: "👤",
-    description: "Shipment telemetry, tracking & invoices",
+    icon: "👑",
+    description: "Executive analytics, system oversight & user directory",
   },
   {
     id: "vendor",
     role: "Vendor / Supplier",
     badge: "Vendor Portal",
     email: "vendor@logiqon.com",
-    password: "Vendor123!",
+    password: "Password123!",
     portalName: "Vendor Dashboard",
-    portalUrl: "/portal/vendor",
-    color: "#0d9488",
-    bgColor: "#f0fdf4",
-    borderColor: "#bbf7d0",
-    icon: "🏭",
-    description: "Product catalogs, purchase orders & compliance",
-  },
-  {
-    id: "owner",
-    role: "Executive / Admin",
-    badge: "Owner Portal",
-    email: "owner@logiqon.com",
-    password: "Owner123!",
-    portalName: "Executive Dashboard",
-    portalUrl: "/portal/owner",
-    color: "#7c3aed",
-    bgColor: "#f5f3ff",
-    borderColor: "#ddd6fe",
-    icon: "👑",
-    description: "Executive analytics, system oversight & admin",
-  },
-  {
-    id: "crm",
-    role: "Sales & CRM",
-    badge: "CRM Portal",
-    email: "crm@logiqon.com",
-    password: "Crm123!",
-    portalName: "Sales CRM Dashboard",
-    portalUrl: "/portal/crm",
+    portalUrl: "/dashboard/vendor",
     color: "#d97706",
     bgColor: "#fffbeb",
     borderColor: "#fef3c7",
-    icon: "📊",
-    description: "Client pipelines, lead scoring & sales metrics",
+    icon: "🏭",
+    description: "Statutory ATO compliance, product catalog & 3PL allocations",
   },
   {
     id: "warehouse",
     role: "Warehouse Manager",
     badge: "Warehouse Portal",
     email: "warehouse@logiqon.com",
-    password: "Warehouse123!",
+    password: "Password123!",
     portalName: "Warehouse Dashboard",
-    portalUrl: "/portal/warehouse",
-    color: "#ea580c",
-    bgColor: "#fff7ed",
-    borderColor: "#ffedd5",
+    portalUrl: "/dashboard/warehouse",
+    color: "#0284c7",
+    bgColor: "#f0f9ff",
+    borderColor: "#bae6fd",
     icon: "📦",
-    description: "RFID scanning, dock telemetry & stock control",
+    description: "Stock ledger, bin management & 3PL order fulfillment",
+  },
+  {
+    id: "customer",
+    role: "Customer / Retail Buyer",
+    badge: "Customer Portal",
+    email: "customer@logiqon.com",
+    password: "Password123!",
+    portalName: "Customer Dashboard",
+    portalUrl: "/dashboard/customer",
+    color: "#16a34a",
+    bgColor: "#f0fdf4",
+    borderColor: "#bbf7d0",
+    icon: "👤",
+    description: "Equipment procurement, order checkout & shipment tracking",
   },
 ];
 
 export default function LoginView() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"signin" | "register">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [submitted, setSubmitted] = useState(false);
-  const [targetPortal, setTargetPortal] = useState<string>("");
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const [showDemoDrawer, setShowDemoDrawer] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  function getTargetPortalUrl(inputEmail: string): string {
-    const e = inputEmail.toLowerCase();
-    if (e.includes("vendor")) return "/portal/vendor";
-    if (e.includes("owner") || e.includes("admin")) return "/portal/owner";
-    if (e.includes("crm") || e.includes("sales")) return "/portal/crm";
-    if (e.includes("warehouse")) return "/portal/warehouse";
-    return "/portal/customer";
-  }
-
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const dest = getTargetPortalUrl(email);
-    setTargetPortal(dest);
-    setSubmitted(true);
-    setTimeout(() => {
-      router.push(dest);
-    }, 700);
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const res = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
+
+      if (res?.ok) {
+        // Fetch session to check MFA status
+        const sessionRes = await fetch("/api/auth/role");
+        if (sessionRes.ok) {
+          const data = await sessionRes.json();
+          if (data.mfaEnabled && !data.mfaVerified) {
+            router.push("/auth/mfa-verify");
+            return;
+          }
+        }
+        router.push("/dashboard");
+      } else {
+        setErrorMsg("Invalid email or password. Please check your credentials.");
+        setLoading(false);
+      }
+    } catch {
+      setErrorMsg("Network error during authentication.");
+      setLoading(false);
+    }
   }
 
   function handleQuickLogin(account: DemoAccount) {
-    setEmail(account.email);
-    setPassword(account.password);
-    setTargetPortal(account.portalUrl);
-    setSubmitted(true);
-    setTimeout(() => {
-      router.push(account.portalUrl);
-    }, 600);
-  }
-
-  function handleFillCredentials(account: DemoAccount) {
     setEmail(account.email);
     setPassword(account.password);
   }
@@ -241,7 +232,6 @@ export default function LoginView() {
                 marginBottom: 28,
               }}
             >
-              {/* Outer Dashed Orbit Ring */}
               <div
                 style={{
                   position: "absolute",
@@ -250,7 +240,6 @@ export default function LoginView() {
                   border: "1.5px dashed #cbd5e1",
                 }}
               />
-              {/* Inner Soft Circle */}
               <div
                 style={{
                   position: "absolute",
@@ -260,7 +249,6 @@ export default function LoginView() {
                 }}
               />
 
-              {/* Central Glowing Shield Icon */}
               <div
                 style={{
                   position: "relative",
@@ -282,82 +270,10 @@ export default function LoginView() {
               </div>
 
               {/* Satellite Node Icons */}
-              {/* Top Node */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: -8,
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                }}
-              >
-                📦
-              </div>
-              {/* Right Node */}
-              <div
-                style={{
-                  position: "absolute",
-                  right: -8,
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                }}
-              >
-                🌐
-              </div>
-              {/* Bottom Node */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: -8,
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                }}
-              >
-                📊
-              </div>
-              {/* Left Node */}
-              <div
-                style={{
-                  position: "absolute",
-                  left: -8,
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                }}
-              >
-                ⚡
-              </div>
+              <div style={{ position: "absolute", top: -8, width: 28, height: 28, borderRadius: "50%", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 2px 6px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>📦</div>
+              <div style={{ position: "absolute", right: -8, width: 28, height: 28, borderRadius: "50%", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 2px 6px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>🌐</div>
+              <div style={{ position: "absolute", bottom: -8, width: 28, height: 28, borderRadius: "50%", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 2px 6px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>📊</div>
+              <div style={{ position: "absolute", left: -8, width: 28, height: 28, borderRadius: "50%", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 2px 6px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>⚡</div>
             </div>
 
             <h2
@@ -384,13 +300,7 @@ export default function LoginView() {
             </p>
           </div>
 
-          {/* Left Footer Copyright */}
-          <div
-            style={{
-              fontSize: 12,
-              color: "#94a3b8",
-            }}
-          >
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>
             © 2026 LogiQ-On Ecosystem. All rights reserved.
           </div>
         </div>
@@ -406,31 +316,14 @@ export default function LoginView() {
           }}
         >
           <div>
-            {/* Top Row: Title + Sign In / Register Switcher */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
               <div>
-                <h1
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: "#0f172a",
-                    letterSpacing: "-0.02em",
-                    margin: 0,
-                  }}
-                >
+                <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em", margin: 0 }}>
                   Welcome back
                 </h1>
               </div>
 
-              {/* Sign In / Register Pill Switcher */}
-              <div
-                style={{
-                  display: "inline-flex",
-                  background: "#f1f5f9",
-                  padding: 4,
-                  borderRadius: 20,
-                }}
-              >
+              <div style={{ display: "inline-flex", background: "#f1f5f9", padding: 4, borderRadius: 20 }}>
                 <button
                   type="button"
                   onClick={() => setActiveTab("signin")}
@@ -444,13 +337,12 @@ export default function LoginView() {
                     color: activeTab === "signin" ? "#ffffff" : "#64748b",
                     boxShadow: activeTab === "signin" ? "0 2px 5px rgba(15,23,42,0.15)" : "none",
                     cursor: "pointer",
-                    transition: "all 0.15s ease",
                   }}
                 >
                   Sign In
                 </button>
                 <Link
-                  href="/register"
+                  href="/auth/register"
                   style={{
                     padding: "6px 14px",
                     borderRadius: 16,
@@ -462,7 +354,6 @@ export default function LoginView() {
                     textDecoration: "none",
                     display: "inline-flex",
                     alignItems: "center",
-                    transition: "all 0.15s ease",
                   }}
                 >
                   Register
@@ -473,6 +364,12 @@ export default function LoginView() {
             <p style={{ fontSize: 13.5, color: "#64748b", margin: "0 0 20px 0" }}>
               Enter your details to sign in to your unified profile.
             </p>
+
+            {errorMsg && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "10px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+                ⚠️ {errorMsg}
+              </div>
+            )}
 
             {/* Client Demo Accounts Quick Selector */}
             <div
@@ -486,33 +383,24 @@ export default function LoginView() {
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#334155", display: "flex", alignItems: "center", gap: 5 }}>
-                  <span>🔑</span> Client Demo Logins (Click to Sign In):
+                  <span>🔑</span> Staging Demo Credentials:
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowDemoDrawer((v) => !v)}
-                  style={{
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    color: "#2563eb",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
+                  style={{ fontSize: 11.5, fontWeight: 600, color: "#2563eb", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
-                  {showDemoDrawer ? "Hide Passwords ▲" : "View Passwords ▾"}
+                  {showDemoDrawer ? "Hide Details ▲" : "View Details ▾"}
                 </button>
               </div>
 
-              {/* Quick Pills */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {DEMO_ACCOUNTS.map((acc) => (
                   <button
                     key={acc.id}
                     type="button"
                     onClick={() => handleQuickLogin(acc)}
-                    title={`Quick Login to ${acc.portalName}`}
+                    title={`Fill credentials for ${acc.role}`}
                     style={{
                       background: email === acc.email ? acc.bgColor : "#ffffff",
                       border: `1px solid ${email === acc.email ? acc.borderColor : "#cbd5e1"}`,
@@ -525,8 +413,6 @@ export default function LoginView() {
                       display: "flex",
                       alignItems: "center",
                       gap: 4,
-                      transition: "all 0.15s ease",
-                      boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
                     }}
                   >
                     <span>{acc.icon}</span>
@@ -535,7 +421,6 @@ export default function LoginView() {
                 ))}
               </div>
 
-              {/* Expandable Demo Accounts Reference Details */}
               {showDemoDrawer && (
                 <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px dashed #cbd5e1", display: "flex", flexDirection: "column", gap: 6 }}>
                   {DEMO_ACCOUNTS.map((acc) => (
@@ -558,39 +443,13 @@ export default function LoginView() {
                           {acc.email} | {acc.password}
                         </span>
                       </div>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(`${acc.email} / ${acc.password}`, acc.id)}
-                          style={{
-                            fontSize: 10.5,
-                            color: "#64748b",
-                            background: "#f1f5f9",
-                            border: "none",
-                            borderRadius: 4,
-                            padding: "2px 6px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {copiedField === acc.id ? "✓ Copied" : "Copy"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleFillCredentials(acc)}
-                          style={{
-                            fontSize: 10.5,
-                            color: "#2563eb",
-                            background: "#eff6ff",
-                            border: "none",
-                            borderRadius: 4,
-                            padding: "2px 6px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Fill Form
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(`${acc.email} / ${acc.password}`, acc.id)}
+                        style={{ fontSize: 10.5, color: "#64748b", background: "#f1f5f9", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
+                      >
+                        {copiedField === acc.id ? "✓ Copied" : "Copy"}
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -599,37 +458,13 @@ export default function LoginView() {
 
             {/* Sign In Form */}
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Email Input Field */}
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#334155",
-                    marginBottom: 6,
-                  }}
-                >
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
                   Email Address
                 </label>
-                <div
-                  style={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      left: 14,
-                      color: "#94a3b8",
-                      display: "flex",
-                      alignItems: "center",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <span style={{ position: "absolute", left: 14, color: "#94a3b8", display: "flex", alignItems: "center", pointerEvents: "none" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <rect x="2" y="4" width="20" height="16" rx="2" />
                       <path d="M22 6l-10 7L2 6" />
                     </svg>
@@ -637,79 +472,23 @@ export default function LoginView() {
                   <input
                     type="email"
                     required
-                    placeholder="you@example.com"
+                    placeholder="owner@logiqon.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px 12px 42px",
-                      fontSize: 14.5,
-                      color: "#0f172a",
-                      borderRadius: 12,
-                      border: "1px solid #e2e8f0",
-                      background: "#f8fafc",
-                      outline: "none",
-                      transition: "all 0.2s ease",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#0f172a";
-                      e.target.style.background = "#ffffff";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.background = "#f8fafc";
-                    }}
+                    style={{ width: "100%", padding: "12px 14px 12px 42px", fontSize: 14.5, color: "#0f172a", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", outline: "none" }}
                   />
                 </div>
               </div>
 
-              {/* Password Input Field */}
               <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <label
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#334155",
-                      margin: 0,
-                    }}
-                  >
+                <div style={{ display: "flex", alignItems: "center", justifyItems: "space-between", marginBottom: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#334155", margin: 0 }}>
                     Password
                   </label>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert("Password reset instructions have been sent to your email address.");
-                    }}
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#334155",
-                      textDecoration: "none",
-                    }}
-                  >
-                    Forgot?
-                  </a>
                 </div>
-                <div
-                  style={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      left: 14,
-                      color: "#94a3b8",
-                      display: "flex",
-                      alignItems: "center",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <span style={{ position: "absolute", left: 14, color: "#94a3b8", display: "flex", alignItems: "center", pointerEvents: "none" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
@@ -720,88 +499,33 @@ export default function LoginView() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "12px 42px 12px 42px",
-                      fontSize: 14.5,
-                      color: "#0f172a",
-                      borderRadius: 12,
-                      border: "1px solid #e2e8f0",
-                      background: "#f8fafc",
-                      outline: "none",
-                      transition: "all 0.2s ease",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#0f172a";
-                      e.target.style.background = "#ffffff";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.background = "#f8fafc";
-                    }}
+                    style={{ width: "100%", padding: "12px 42px 12px 42px", fontSize: 14.5, color: "#0f172a", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", outline: "none" }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    style={{
-                      position: "absolute",
-                      right: 14,
-                      background: "none",
-                      border: "none",
-                      color: "#94a3b8",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      padding: 0,
-                    }}
+                    style={{ position: "absolute", right: 14, background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
                     title={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
-                    ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              {/* Keep me signed in Checkbox */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "2px 0" }}>
-                <input
-                  type="checkbox"
-                  id="keepSignedIn"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 4,
-                    accentColor: "#0f172a",
-                    cursor: "pointer",
-                  }}
-                />
-                <label
-                  htmlFor="keepSignedIn"
-                  style={{
-                    fontSize: 13.5,
-                    color: "#475569",
-                    cursor: "pointer",
-                    userSelect: "none",
-                  }}
-                >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#475569", cursor: "pointer" }}>
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} style={{ borderRadius: 4 }} />
                   Keep me signed in
                 </label>
+
+                <Link href="/auth/forgot-password" style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}>
+                  Forgot password?
+                </Link>
               </div>
 
-              {/* Primary Black Sign In Button */}
               <button
                 type="submit"
+                disabled={loading}
                 style={{
                   width: "100%",
                   padding: "14px 20px",
@@ -811,145 +535,25 @@ export default function LoginView() {
                   fontSize: 15,
                   fontWeight: 600,
                   border: "none",
-                  cursor: "pointer",
+                  cursor: loading ? "wait" : "pointer",
                   marginTop: 4,
-                  transition: "background 0.2s ease, transform 0.1s ease",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 8,
                 }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "#18181b")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "#09090b")}
               >
-                <span>Sign In</span>
+                <span>{loading ? "Authenticating..." : "Sign In"}</span>
                 <span style={{ fontSize: 16 }}>➔</span>
               </button>
-
-              {submitted && (
-                <div
-                  style={{
-                    padding: 12,
-                    borderRadius: 10,
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    color: "#166534",
-                    fontSize: 13.5,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  <span>Signed in successfully! Opening dashboard...</span>
-                </div>
-              )}
             </form>
+          </div>
 
-            {/* OR CONTINUE WITH Divider */}
-            <div
-              style={{
-                position: "relative",
-                textAlign: "center",
-                margin: "24px 0 20px 0",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  inset: "50% 0 0 0",
-                  borderTop: "1px solid #e2e8f0",
-                }}
-              />
-              <span
-                style={{
-                  position: "relative",
-                  background: "#ffffff",
-                  padding: "0 12px",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "#94a3b8",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Or continue with
-              </span>
-            </div>
-
-            {/* Social Login Pill Buttons */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin(DEMO_ACCOUNTS[0])}
-                style={{
-                  padding: "11px 16px",
-                  borderRadius: 14,
-                  background: "#ffffff",
-                  color: "#334155",
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  border: "1px solid #e2e8f0",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  transition: "all 0.15s ease",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "#ffffff")}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                Google
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin(DEMO_ACCOUNTS[1])}
-                style={{
-                  padding: "11px 16px",
-                  borderRadius: 14,
-                  background: "#ffffff",
-                  color: "#334155",
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  border: "1px solid #e2e8f0",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  transition: "all 0.15s ease",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "#ffffff")}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#0f172a">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-                GitHub
-              </button>
-            </div>
+          <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", borderTop: "1px solid #f1f5f9", paddingTop: 16, marginTop: 24 }}>
+            LogiQ-On Platform Governance • Multi-tenant RBAC &amp; ATO Compliance
           </div>
         </div>
       </div>
-
-      {/* Responsive Breakdown */}
-      <style jsx>{`
-        @media (max-width: 868px) {
-          .login-container-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
