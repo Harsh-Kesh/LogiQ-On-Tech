@@ -67,45 +67,53 @@ export function savePersistentUsers(users: Record<string, PersistentUser>) {
   } catch (e) {}
 }
 
-export function updateRuntimeVendorProfile(userEmail: string, companyName: string, abnAcn: string, status: string = 'UNDER_REVIEW') {
+export function updateRuntimeVendorProfile(userEmailOrId: string, companyName?: string, abnAcn?: string, status?: string) {
   const users = loadPersistentUsers();
-  const emailClean = (userEmail || '').toLowerCase().trim();
-  let entry = users[emailClean] || Object.values(users).find(u => u.email.toLowerCase() === emailClean || u.id === userEmail);
+  const searchKey = (userEmailOrId || '').toLowerCase().trim();
+  const rawId = searchKey.replace('vnd_', '');
   
-  if (!entry && emailClean) {
+  let entry = users[searchKey] || Object.values(users).find(
+    (u) => u.email.toLowerCase() === searchKey || u.id === searchKey || u.id === rawId || `vnd_${u.id}` === searchKey
+  );
+
+  if (!entry && searchKey.includes('@')) {
     entry = {
       id: `usr_reg_${Date.now()}`,
-      email: emailClean,
+      email: searchKey,
       fullName: 'Vendor Partner',
       role: 'VENDOR',
       mfaEnabled: false,
       passwordHash: '',
       createdAt: new Date().toISOString(),
-      companyName,
-      abnAcn,
-      status,
+      companyName: companyName || '',
+      abnAcn: abnAcn || '',
+      status: status || 'UNDER_REVIEW',
       docs: [],
     };
-    users[emailClean] = entry;
+    users[searchKey] = entry;
   } else if (entry) {
-    entry.companyName = companyName;
-    entry.abnAcn = abnAcn;
-    entry.status = status;
+    if (companyName !== undefined && companyName !== '') entry.companyName = companyName;
+    if (abnAcn !== undefined && abnAcn !== '') entry.abnAcn = abnAcn;
+    if (status !== undefined) entry.status = status;
     users[entry.email.toLowerCase()] = entry;
   }
   
   savePersistentUsers(users);
 }
 
-export function addRuntimeVendorDoc(userEmail: string, doc: any) {
+export function addRuntimeVendorDoc(userEmailOrId: string, doc: any) {
   const users = loadPersistentUsers();
-  const emailClean = (userEmail || '').toLowerCase().trim();
-  let entry = users[emailClean] || Object.values(users).find(u => u.email.toLowerCase() === emailClean || u.id === userEmail);
+  const searchKey = (userEmailOrId || '').toLowerCase().trim();
+  const rawId = searchKey.replace('vnd_', '');
   
-  if (!entry && emailClean) {
+  let entry = users[searchKey] || Object.values(users).find(
+    (u) => u.email.toLowerCase() === searchKey || u.id === searchKey || u.id === rawId || `vnd_${u.id}` === searchKey
+  );
+
+  if (!entry && searchKey.includes('@')) {
     entry = {
       id: `usr_reg_${Date.now()}`,
-      email: emailClean,
+      email: searchKey,
       fullName: 'Vendor Partner',
       role: 'VENDOR',
       mfaEnabled: false,
@@ -116,7 +124,7 @@ export function addRuntimeVendorDoc(userEmail: string, doc: any) {
       status: 'UNDER_REVIEW',
       docs: [doc],
     };
-    users[emailClean] = entry;
+    users[searchKey] = entry;
   } else if (entry) {
     if (!entry.docs) entry.docs = [];
     const idx = entry.docs.findIndex((d) => d.docType === doc.docType);
@@ -125,7 +133,9 @@ export function addRuntimeVendorDoc(userEmail: string, doc: any) {
     } else {
       entry.docs.unshift(doc);
     }
-    entry.status = 'UNDER_REVIEW';
+    if (entry.status === 'PENDING') {
+      entry.status = 'UNDER_REVIEW';
+    }
     users[entry.email.toLowerCase()] = entry;
   }
   

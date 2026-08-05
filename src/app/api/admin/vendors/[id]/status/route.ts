@@ -27,87 +27,106 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: 'Invalid target status provided.' }, { status: 400 });
   }
 
-  // Update persistent file store
-  const rawUserId = vendorId.replace('vnd_', '');
-  const persistentUsers = loadPersistentUsers();
-  const persistentRecord = Object.values(persistentUsers).find(
-    (u) => u.id === rawUserId || u.id === vendorId || `vnd_${u.id}` === vendorId
-  );
-
-  if (persistentRecord) {
-    updateRuntimeVendorProfile(
-      persistentRecord.id,
-      persistentRecord.companyName || '',
-      persistentRecord.abnAcn || '',
-      targetStatus
-    );
-  }
+  let currentStatus = 'PENDING';
+  let vendorEmail = '';
+  let dbVendor: any = null;
 
   try {
-    const currentVendor = await prisma.vendor.findUnique({
+    dbVendor = await prisma.vendor.findUnique({
       where: { id: vendorId },
       include: { user: true },
     });
-
-    if (!currentVendor) {
-      return NextResponse.json({ success: true, vendor: { id: vendorId, status: targetStatus, rejectionReason } });
+    if (dbVendor) {
+      currentStatus = dbVendor.status;
+      vendorEmail = dbVendor.user?.email || '';
     }
+  } catch (e) {}
 
-    const currentStatus = currentVendor.status;
-    const allowedTargets = ALLOWED_TRANSITIONS[currentStatus] || [];
+  // Check persistent store
+  const persistentUsers = loadPersistentUsers();
+  const rawUserId = vendorId.replace('vnd_', '');
+  const persistentRecord = Object.values(persistentUsers).find(
+    (u) =>
+      u.id === rawUserId ||
+      u.id === vendorId ||
+      `vnd_${u.id}` === vendorId ||
+      (vendorEmail && u.email.toLowerCase() === vendorEmail.toLowerCase())
+  );
 
-    // Validate Finite State Machine Allowed Transition
-    if (!allowedTargets.includes(targetStatus)) {
-      return NextResponse.json(
-        {
-          error: `Illegal state transition. Cannot move vendor status directly from ${currentStatus} to ${targetStatus}. Allowed transitions from ${currentStatus} are: ${allowedTargets.join(', ')}.`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Execute State Machine Transition
-    const updatedVendor = await prisma.vendor.update({
-      where: { id: vendorId },
-      data: {
-        status: targetStatus as any,
-        rejectionReason: targetStatus === 'REJECTED' ? rejectionReason || 'Failed compliance evaluation' : null,
-        approvedAt: targetStatus === 'APPROVED' ? new Date() : currentVendor.approvedAt,
-      },
-    });
-
-    // Also toggle User account suspension if vendor is SUSPENDED / REJECTED
-    if (targetStatus === 'SUSPENDED') {
-      await prisma.user.update({
-        where: { id: currentVendor.userId },
-        data: { isSuspended: true },
-      }).catch(() => {});
-    } else if (targetStatus === 'APPROVED' && currentVendor.user.isSuspended) {
-      await prisma.user.update({
-        where: { id: currentVendor.userId },
-        data: { isSuspended: false },
-      }).catch(() => {});
-    }
-
-    await logAuditEvent({
-      userId: adminUser.id,
-      role: adminUser.role,
-      action: `VENDOR_STATUS_TRANSITION_${targetStatus}`,
-      module: 'VENDOR_GOVERNANCE',
-      targetId: vendorId,
-      payloadJson: {
-        companyName: currentVendor.companyName,
-        fromStatus: currentStatus,
-        toStatus: targetStatus,
-        rejectionReason,
-      },
-    }).catch(() => {});
-
-    return NextResponse.json({ success: true, vendor: updatedVendor });
-  } catch (e: any) {
-    return NextResponse.json({
-      success: true,
-      vendor: { id: vendorId, status: targetStatus, rejectionReason },
-    });
+  if (persistentRecord) {
+    currentStatus = persistentRecord.status || currentStatus;
+    if (!vendorEmail) vendorEmail = persistentRecord.email;
   }
+
+  const allowedTargets = ALLOWED_TRANSITIONS[currentStatus] || [];
+
+  // Validate State Machine Allowed Transition
+  if (!allowedTargets.includes(targetStatus)) {
+    return NextResponse.json(
+      {
+        error: `Illegal state transition. Cannot move vendor status directly from ${currentStatus} to ${targetStatus}. Allowed transitions from ${currentStatus} are: ${allowedTargets.join(', ')}.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // 1. Synchronize status transition to persistent store (registered_users.json)
+  if (vendorEmail) {
+    updateRuntimeVendorProfile(vendorEmail, undefined, undefined, targetStatus);
+  }
+  if (persistentRecord) {
+    updateRuntimeVendorProfile(persistentRecord.id, undefined, undefined, targetStatus);
+  }
+  updateRuntimeVendorProfile(vendorId, undefined, undefined, targetStatus);
+
+  // 2. Synchronize status transition to PostgreSQL Database
+  if (dbVendor) {
+    try {
+      await prisma.vendor.update({
+        where: { id: vendorId },
+        data: {
+          status: targetStatus as any,
+          rejectionReason: targetStatus === 'REJECTED' ? rejectionReason || 'Failed compliance evaluation' : null,
+          approvedAt: targetStatus === 'APPROVED' ? new Date() : dbVendor.approvedAt,
+        },
+      });
+
+      if (targetStatus === 'SUSPENDED') {
+        await prisma.user.update({
+          where: { id: dbVendor.userId },
+          data: { isSuspended: true },
+        }).catch(() => {});
+      } else if (targetStatus === 'APPROVED' && dbVendor.user.isSuspended) {
+        await prisma.user.update({
+          where: { id: dbVendor.userId },
+          data: { isSuspended: false },
+        }).catch(() => {});
+      }
+    } catch (e: any) {
+      console.warn('Prisma DB status update warning:', e.message);
+    }
+  }
+
+  await logAuditEvent({
+    userId: adminUser.id,
+    role: adminUser.role,
+    action: `VENDOR_STATUS_TRANSITION_${targetStatus}`,
+    module: 'VENDOR_GOVERNANCE',
+    targetId: vendorId,
+    payloadJson: {
+      companyName: dbVendor?.companyName || persistentRecord?.companyName,
+      fromStatus: currentStatus,
+      toStatus: targetStatus,
+      rejectionReason,
+    },
+  }).catch(() => {});
+
+  return NextResponse.json({
+    success: true,
+    vendor: {
+      id: vendorId,
+      status: targetStatus,
+      rejectionReason: targetStatus === 'REJECTED' ? rejectionReason : null,
+    },
+  });
 }
