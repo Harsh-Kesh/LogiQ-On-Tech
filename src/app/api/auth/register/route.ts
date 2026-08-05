@@ -80,8 +80,8 @@ export async function POST(req: Request) {
       });
 
       if (assignedRole === 'VENDOR') {
-        const finalCompanyName = companyName?.trim() || `${fullName} Logistics`;
-        const finalAbn = abnAcn ? abnAcn.replace(/\s+/g, '') : `51${Math.floor(100000000 + Math.random() * 900000000)}`;
+        const finalCompanyName = companyName?.trim() || '';
+        const finalAbn = abnAcn ? abnAcn.replace(/\s+/g, '') : '';
 
         await prisma.vendor.create({
           data: {
