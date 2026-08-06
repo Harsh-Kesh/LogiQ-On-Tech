@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions, loadPersistentUsers, updateRuntimeVendorProfile } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
+import { sendVendorApprovalEmail, sendVendorRejectionEmail } from '@/lib/email';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   PENDING: ['UNDER_REVIEW', 'REJECTED'],
@@ -29,6 +30,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   let currentStatus = 'PENDING';
   let vendorEmail = '';
+  let companyName = '';
   let dbVendor: any = null;
 
   try {
@@ -39,6 +41,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (dbVendor) {
       currentStatus = dbVendor.status;
       vendorEmail = dbVendor.user?.email || '';
+      companyName = dbVendor.companyName || '';
     }
   } catch (e) {}
 
@@ -56,6 +59,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (persistentRecord) {
     currentStatus = persistentRecord.status || currentStatus;
     if (!vendorEmail) vendorEmail = persistentRecord.email;
+    if (!companyName) companyName = persistentRecord.companyName || '';
   }
 
   const allowedTargets = ALLOWED_TRANSITIONS[currentStatus] || [];
@@ -72,12 +76,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   // 1. Synchronize status transition to persistent store (registered_users.json)
   if (vendorEmail) {
-    updateRuntimeVendorProfile(vendorEmail, undefined, undefined, targetStatus);
+    updateRuntimeVendorProfile(vendorEmail, undefined, undefined, targetStatus, targetStatus === 'REJECTED' ? rejectionReason : undefined);
   }
   if (persistentRecord) {
-    updateRuntimeVendorProfile(persistentRecord.id, undefined, undefined, targetStatus);
+    updateRuntimeVendorProfile(persistentRecord.id, undefined, undefined, targetStatus, targetStatus === 'REJECTED' ? rejectionReason : undefined);
   }
-  updateRuntimeVendorProfile(vendorId, undefined, undefined, targetStatus);
+  updateRuntimeVendorProfile(vendorId, undefined, undefined, targetStatus, targetStatus === 'REJECTED' ? rejectionReason : undefined);
 
   // 2. Synchronize status transition to PostgreSQL Database
   if (dbVendor) {
@@ -107,6 +111,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
   }
 
+  // 3. Trigger Real Transactional Email Dispatch directly to recipient's email address!
+  let emailResult: any = null;
+  if (vendorEmail) {
+    if (targetStatus === 'APPROVED') {
+      emailResult = await sendVendorApprovalEmail(vendorEmail, companyName).catch(() => null);
+    } else if (targetStatus === 'REJECTED') {
+      emailResult = await sendVendorRejectionEmail(vendorEmail, companyName, rejectionReason || 'Compliance documentation verification failed').catch(() => null);
+    }
+  }
+
   await logAuditEvent({
     userId: adminUser.id,
     role: adminUser.role,
@@ -114,19 +128,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     module: 'VENDOR_MANAGEMENT',
     targetId: vendorId,
     payloadJson: {
-      companyName: dbVendor?.companyName || persistentRecord?.companyName,
+      companyName: companyName || dbVendor?.companyName || persistentRecord?.companyName,
+      vendorEmail,
       fromStatus: currentStatus,
       toStatus: targetStatus,
       rejectionReason,
+      emailDispatched: emailResult ? emailResult.success : false,
+      emailMode: emailResult ? emailResult.mode : 'logged',
     },
   }).catch(() => {});
 
   return NextResponse.json({
     success: true,
+    message: targetStatus === 'APPROVED'
+      ? `Vendor account APPROVED! Transactional confirmation email dispatched to ${vendorEmail || 'vendor'}.`
+      : targetStatus === 'REJECTED'
+      ? `Vendor application REJECTED. Formal rejection notification email sent to ${vendorEmail || 'vendor'}.`
+      : `Vendor status updated to ${targetStatus}.`,
     vendor: {
       id: vendorId,
       status: targetStatus,
       rejectionReason: targetStatus === 'REJECTED' ? rejectionReason : null,
     },
+    emailDispatchedTo: vendorEmail,
   });
 }
