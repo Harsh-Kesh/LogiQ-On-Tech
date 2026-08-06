@@ -68,16 +68,23 @@ model User {
 }
 
 model Vendor {
-  id              String       @id @default(uuid())
-  companyName     String
-  abnAcn          String       @unique
-  status          VendorStatus @default(PENDING)
-  rejectionReason String?
-  userId          String       @unique
-  user            User         @relation(fields: [userId], references: [id])
-  approvedAt      DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id                  String       @id @default(uuid())
+  companyName         String
+  abnAcn              String       @unique
+  status              VendorStatus @default(PENDING)
+  rejectionReason     String?
+  userId              String       @unique
+  user                User         @relation(fields: [userId], references: [id])
+  approvedAt          DateTime?
+  
+  // Vendor Performance Monitoring Fields
+  fulfillmentRate    Float        @default(98.4)
+  onTimeDeliveryRate Float        @default(96.8)
+  qualityRating      Float        @default(4.9)
+  ordersFulfilled    Int          @default(0)
+
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   docs                 ComplianceDoc[]
   items                ItemMaster[]
@@ -145,10 +152,10 @@ model ItemMaster {
   barcode        String        @unique
   itemName       String
   description    String?
-  categoryId     String
-  category       Category      @relation(fields: [categoryId], references: [id])
-  uomId          String
-  uom            UnitOfMeasure @relation(fields: [uomId], references: [id])
+  categoryId     String?
+  category       Category?     @relation(fields: [categoryId], references: [id])
+  uomId          String?
+  uom            UnitOfMeasure? @relation(fields: [uomId], references: [id])
   costPrice      Decimal       @db.Decimal(12, 2)
   sellingPrice   Decimal       @db.Decimal(12, 2)
   status         ItemStatus    @default(DRAFT)
@@ -191,7 +198,7 @@ model WarehouseStock {
   itemMaster       ItemMaster @relation(fields: [itemMasterId], references: [id])
   binLocation      String
   quantityOnHand   Int        @default(0)
-  quantityReserved Int      @default(0)
+  quantityReserved Int        @default(0)
   updatedAt        DateTime   @updatedAt
 
   @@unique([warehouseId, itemMasterId, binLocation])
@@ -260,16 +267,16 @@ model OrderItem {
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   userId      String?
-  user        User?    @relation(fields: [userId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
   role        UserRole?
   action      String
   module      String
   targetId    String?
   ipAddress   String?
-  payloadJson String?  @db.Text
-  timestamp   DateTime @default(now())
+  payloadJson String?   @db.Text
+  timestamp   DateTime  @default(now())
 
   @@index([userId])
   @@index([timestamp])

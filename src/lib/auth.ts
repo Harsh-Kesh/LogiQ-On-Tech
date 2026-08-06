@@ -19,6 +19,7 @@ export interface PersistentUser {
   companyName?: string;
   abnAcn?: string;
   status?: string;
+  rejectionReason?: string;
   docs?: any[];
 }
 
@@ -67,7 +68,7 @@ export function savePersistentUsers(users: Record<string, PersistentUser>) {
   } catch (e) {}
 }
 
-export function updateRuntimeVendorProfile(userEmailOrId: string, companyName?: string, abnAcn?: string, status?: string) {
+export function updateRuntimeVendorProfile(userEmailOrId: string, companyName?: string, abnAcn?: string, status?: string, rejectionReason?: string) {
   const users = loadPersistentUsers();
   const searchKey = (userEmailOrId || '').toLowerCase().trim();
   const rawId = searchKey.replace('vnd_', '');
@@ -88,6 +89,7 @@ export function updateRuntimeVendorProfile(userEmailOrId: string, companyName?: 
       companyName: companyName || '',
       abnAcn: abnAcn || '',
       status: status || 'UNDER_REVIEW',
+      rejectionReason,
       docs: [],
     };
     users[searchKey] = entry;
@@ -95,6 +97,7 @@ export function updateRuntimeVendorProfile(userEmailOrId: string, companyName?: 
     if (companyName !== undefined && companyName !== '') entry.companyName = companyName;
     if (abnAcn !== undefined && abnAcn !== '') entry.abnAcn = abnAcn;
     if (status !== undefined) entry.status = status;
+    if (rejectionReason !== undefined) entry.rejectionReason = rejectionReason;
     users[entry.email.toLowerCase()] = entry;
   }
   
@@ -247,21 +250,35 @@ export const authOptions: NextAuthOptions = {
 
         const emailClean = credentials.email.toLowerCase().trim();
 
+        // 1. Check DB first
         try {
           const user = await prisma.user.findUnique({
             where: { email: emailClean },
+            include: { vendor: true },
           });
 
           if (user) {
-            if (user.isSuspended) {
+            if (user.isSuspended || user.vendor?.status === 'SUSPENDED') {
               await logAuditEvent({
                 userId: user.id,
                 role: user.role,
                 action: 'USER_LOGIN_BLOCKED',
                 module: 'GOVERNANCE',
-                payloadJson: { reason: 'Account suspended' },
+                payloadJson: { reason: 'Account suspended by Platform Owner' },
               }).catch(() => {});
               throw new Error('Account suspended by Platform Owner.');
+            }
+
+            if (user.role === 'VENDOR' && user.vendor?.status === 'REJECTED') {
+              const reason = user.vendor.rejectionReason || 'Compliance verification failed';
+              await logAuditEvent({
+                userId: user.id,
+                role: user.role,
+                action: 'USER_LOGIN_BLOCKED_REJECTED',
+                module: 'GOVERNANCE',
+                payloadJson: { reason },
+              }).catch(() => {});
+              throw new Error(`Account registration rejected by Platform Owner. Reason: ${reason}`);
             }
 
             const isValidPassword = await bcrypt.compare(credentials.password, user.passwordHash);
@@ -285,12 +302,25 @@ export const authOptions: NextAuthOptions = {
             }
           }
         } catch (dbError: any) {
+          if (dbError.message && dbError.message.includes('Platform Owner')) {
+            throw dbError;
+          }
           console.warn('Prisma DB lookup warning, falling back to persistent file store:', dbError.message);
         }
 
+        // 2. Check Persistent File Store Fallback
         const persistentUsers = loadPersistentUsers();
         const runtimeUser = persistentUsers[emailClean];
         if (runtimeUser) {
+          if (runtimeUser.role === 'VENDOR' && runtimeUser.status === 'REJECTED') {
+            const reason = runtimeUser.rejectionReason || 'Compliance document verification failed';
+            throw new Error(`Account registration rejected by Platform Owner. Reason: ${reason}`);
+          }
+
+          if (runtimeUser.status === 'SUSPENDED') {
+            throw new Error('Account suspended by Platform Owner.');
+          }
+
           const isValidPassword = await bcrypt.compare(credentials.password, runtimeUser.passwordHash);
           if (isValidPassword) {
             return {
