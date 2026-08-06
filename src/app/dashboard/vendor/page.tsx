@@ -662,10 +662,28 @@ export default function VendorDashboardPage() {
             </div>
           </div>
 
-          <Button onClick={openNewProductModal} className="flex items-center gap-2 text-xs">
-            <Plus className="w-4 h-4" /> Add New Product
-          </Button>
+          <button
+            type="button"
+            disabled={!isApproved}
+            onClick={openNewProductModal}
+            className={`font-bold px-4 py-2 rounded-xl shadow-sm text-xs border flex items-center gap-2 transition-all ${
+              isApproved
+                ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800 cursor-pointer font-mono'
+                : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
+            }`}
+            title={isApproved ? 'Add new product item to catalog' : 'Requires APPROVED Vendor status'}
+          >
+            {isApproved ? <Plus className="w-4 h-4 text-indigo-300" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+            Add New Product
+          </button>
         </div>
+
+        {!isApproved && (
+          <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center gap-2 font-sans">
+            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Catalog Governance Lock Active: Adding or editing products is restricted until your vendor registration status is APPROVED by Platform Governance.</span>
+          </div>
+        )}
 
         {/* Search & Filter Bar */}
         <div className="flex items-center gap-3">
