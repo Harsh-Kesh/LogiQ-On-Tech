@@ -32,7 +32,16 @@ export async function GET(req: Request) {
     });
 
     if (vendor && vendor.docs) {
-      return NextResponse.json({ docs: vendor.docs });
+      const formattedDocs = vendor.docs.map((d) => ({
+        id: d.id,
+        docType: d.docType,
+        fileName: d.fileName,
+        fileUrl: d.fileUrl,
+        fileSize: Number(d.fileSize),
+        status: d.status,
+        uploadedAt: d.uploadedAt.toISOString(),
+      }));
+      return NextResponse.json({ docs: formattedDocs });
     }
   } catch (e: any) {}
 
@@ -102,7 +111,7 @@ export async function POST(req: Request) {
       docType,
       fileName,
       fileUrl: fileDataUrl || `/uploads/${fileName}`,
-      fileSize,
+      fileSize: Number(fileSize),
       status: 'PENDING',
       uploadedAt: new Date().toISOString(),
     };
@@ -128,30 +137,29 @@ export async function POST(req: Request) {
       where: { vendorId: vendor.id, docType },
     });
 
-    let doc;
+    let dbDoc;
     let replaced = false;
 
     if (existingDoc) {
-      // Replaces previous submission and queue for re-review
-      doc = await prisma.complianceDoc.update({
+      dbDoc = await prisma.complianceDoc.update({
         where: { id: existingDoc.id },
         data: {
           fileName,
           fileUrl: fileDataUrl || `/uploads/${fileName}`,
-          fileSize,
+          fileSize: Number(fileSize),
           status: 'PENDING',
           uploadedAt: new Date(),
         },
       });
       replaced = true;
     } else {
-      doc = await prisma.complianceDoc.create({
+      dbDoc = await prisma.complianceDoc.create({
         data: {
           vendorId: vendor.id,
           docType,
           fileName,
           fileUrl: fileDataUrl || `/uploads/${fileName}`,
-          fileSize,
+          fileSize: Number(fileSize),
           status: 'PENDING',
         },
       });
@@ -170,9 +178,19 @@ export async function POST(req: Request) {
       role: user.role,
       action: replaced ? 'COMPLIANCE_DOC_REPLACED' : 'COMPLIANCE_DOC_UPLOADED',
       module: 'VENDOR_MANAGEMENT',
-      targetId: doc.id,
-      payloadJson: { docType, fileName, fileSize, status: 'PENDING', replaced },
+      targetId: dbDoc.id,
+      payloadJson: { docType, fileName, fileSize: Number(fileSize), status: 'PENDING', replaced },
     }).catch(() => {});
+
+    const returnedDoc = {
+      id: dbDoc?.id || docPayload.id,
+      docType: dbDoc?.docType || docPayload.docType,
+      fileName: dbDoc?.fileName || docPayload.fileName,
+      fileUrl: dbDoc?.fileUrl || docPayload.fileUrl,
+      fileSize: Number(dbDoc?.fileSize || docPayload.fileSize),
+      status: dbDoc?.status || 'PENDING',
+      uploadedAt: dbDoc?.uploadedAt ? new Date(dbDoc.uploadedAt).toISOString() : docPayload.uploadedAt,
+    };
 
     return NextResponse.json({
       success: true,
@@ -180,10 +198,10 @@ export async function POST(req: Request) {
       message: replaced
         ? `Uploaded new version of ${docType}. Replaced previous file and queued for review.`
         : `Successfully uploaded ${fileName}!`,
-      doc: doc || docPayload,
+      doc: returnedDoc,
     });
   } catch (e: any) {
-    const docPayload = {
+    const fallbackPayload = {
       id: `doc_${Date.now()}`,
       docType: 'Compliance Document',
       fileName: 'Uploaded_File.pdf',
@@ -196,7 +214,7 @@ export async function POST(req: Request) {
       success: true,
       replaced: false,
       message: 'Uploaded file successfully.',
-      doc: docPayload,
+      doc: fallbackPayload,
     });
   }
 }
