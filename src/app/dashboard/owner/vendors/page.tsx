@@ -234,9 +234,13 @@ export default function AdminVendorsPage() {
           </div>
         </div>
 
-        <Button onClick={fetchVendors} variant="outline" className="flex items-center gap-2 text-xs font-mono shrink-0">
-          <RefreshCw className="w-4 h-4" /> Refresh Directory
-        </Button>
+        <button
+          type="button"
+          onClick={fetchVendors}
+          className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm text-xs font-mono inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap transition-all cursor-pointer"
+        >
+          <RefreshCw className="w-4 h-4 text-indigo-600" /> Refresh Directory
+        </button>
       </div>
 
       {/* Filters Bar */}
