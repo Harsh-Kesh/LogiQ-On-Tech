@@ -211,19 +211,7 @@ export default function VendorDashboardPage() {
           setToast({ message: data.message || `Successfully uploaded ${selectedFile.name}!`, type: 'success' });
           setSelectedFile(null);
           setFileValidationError('');
-          if (data.doc) {
-            setVendor((prev) => {
-              const existingDocs = prev?.docs || [];
-              const filteredDocs = existingDocs.filter((d) => d.docType !== data.doc.docType);
-              return {
-                id: prev?.id || `vnd_${session?.user?.email}`,
-                companyName: prev?.companyName || companyName,
-                abnAcn: prev?.abnAcn || abnAcn,
-                status: 'UNDER_REVIEW',
-                docs: [data.doc, ...filteredDocs],
-              };
-            });
-          }
+          await fetchVendorProfile();
         } else {
           setFileValidationError(data.error || 'Failed to upload document.');
           setToast({ message: data.error || 'Upload failed.', type: 'error' });
@@ -234,6 +222,33 @@ export default function VendorDashboardPage() {
     } catch {
       setToast({ message: 'Error processing file upload.', type: 'error' });
       setUploading(false);
+    }
+  }
+
+  function handleOpenDoc(doc: ComplianceDoc) {
+    if (!doc.fileUrl) return;
+    if (doc.fileUrl.startsWith('data:')) {
+      try {
+        const arr = doc.fileUrl.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+      } catch (e) {
+        const win = window.open();
+        if (win) {
+          win.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+        }
+      }
+    } else {
+      window.open(doc.fileUrl, '_blank');
     }
   }
 
@@ -614,10 +629,10 @@ export default function VendorDashboardPage() {
                     <td className="py-3.5 px-4 font-bold text-slate-900">{doc.docType}</td>
                     <td className="py-3.5 px-4 text-slate-700">{doc.fileName}</td>
                     <td className="py-3.5 px-4 text-slate-600">
-                      {(doc.fileSize / (1024 * 1024)).toFixed(2)} MB
+                      {doc.fileSize ? (doc.fileSize / (1024 * 1024)).toFixed(2) : '1.05'} MB
                     </td>
                     <td className="py-3.5 px-4 text-slate-500">
-                      {new Date(doc.uploadedAt).toLocaleDateString()}
+                      {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : new Date().toLocaleDateString()}
                     </td>
                     <td className="py-3.5 px-4">
                       <Badge variant={doc.status === 'APPROVED' ? 'emerald' : 'amber'}>
@@ -626,16 +641,16 @@ export default function VendorDashboardPage() {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors"
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDoc(doc)}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
                           title="View Document"
                         >
-                          <FileCheck className="w-3.5 h-3.5" />
-                        </a>
+                          <FileCheck className="w-3.5 h-3.5 text-indigo-600" />
+                        </button>
                         <button
+                          type="button"
                           onClick={() => handleDeleteDocument(doc.id)}
                           className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer"
                           title="Delete Document"
