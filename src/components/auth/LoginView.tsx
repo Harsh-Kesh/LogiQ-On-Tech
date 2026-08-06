@@ -118,7 +118,10 @@ export default function LoginView() {
         }
         router.push("/dashboard");
       } else {
-        setErrorMsg("Invalid email or password. Please check your credentials.");
+        const customError = res?.error && res.error !== "CredentialsSignin"
+          ? res.error
+          : "Invalid email or password. Please check your credentials.";
+        setErrorMsg(customError);
         setLoading(false);
       }
     } catch {
