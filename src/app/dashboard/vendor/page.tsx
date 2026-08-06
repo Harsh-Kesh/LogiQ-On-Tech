@@ -417,9 +417,11 @@ export default function VendorDashboardPage() {
             <TrendingUp className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-2xl font-black text-slate-900 font-mono">
-            {vendor?.fulfillmentRate || 98.4}%
+            {isApproved ? `${vendor?.fulfillmentRate || 98.4}%` : 'N/A'}
           </p>
-          <span className="text-[10px] text-emerald-700 font-bold font-mono">Target: &gt;95.0% • Compliant</span>
+          <span className="text-[10px] text-emerald-700 font-bold font-mono">
+            {isApproved ? 'Target: >95.0% • Compliant' : 'Awaiting Initial Orders'}
+          </span>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
@@ -428,9 +430,11 @@ export default function VendorDashboardPage() {
             <Clock className="w-4 h-4 text-indigo-600" />
           </div>
           <p className="text-2xl font-black text-slate-900 font-mono">
-            {vendor?.onTimeDeliveryRate || 96.8}%
+            {isApproved ? `${vendor?.onTimeDeliveryRate || 96.8}%` : 'N/A'}
           </p>
-          <span className="text-[10px] text-indigo-700 font-bold font-mono">3PL SLA Index High</span>
+          <span className="text-[10px] text-indigo-700 font-bold font-mono">
+            {isApproved ? '3PL SLA Index High' : 'Awaiting Initial Orders'}
+          </span>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
@@ -439,9 +443,11 @@ export default function VendorDashboardPage() {
             <Star className="w-4 h-4 text-amber-500" />
           </div>
           <p className="text-2xl font-black text-slate-900 font-mono">
-            {vendor?.qualityRating || 4.9} / 5.0
+            {isApproved ? `${vendor?.qualityRating || 4.9} / 5.0` : 'Pending'}
           </p>
-          <span className="text-[10px] text-amber-700 font-bold font-mono">QA Certified Vendor</span>
+          <span className="text-[10px] text-amber-700 font-bold font-mono">
+            {isApproved ? 'QA Certified Vendor' : 'Pending Audit Evaluation'}
+          </span>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">

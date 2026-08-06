@@ -208,6 +208,8 @@ export default function AdminVendorsPage() {
     },
   ];
 
+  const isApprovedVendor = selectedVendor?.status === 'APPROVED';
+
   return (
     <div className="space-y-6 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -302,7 +304,7 @@ export default function AdminVendorsPage() {
               </div>
             </div>
 
-            {/* Vendor Performance Telemetry Fields */}
+            {/* Vendor Performance Telemetry Fields (Contextual for New vs Approved Vendors) */}
             <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2">
               <h4 className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider font-mono flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 text-indigo-600" /> Executed Vendor Performance Monitoring Telemetry
@@ -310,19 +312,27 @@ export default function AdminVendorsPage() {
               <div className="grid grid-cols-4 gap-2 pt-1 font-mono text-center">
                 <div className="p-2 rounded-xl bg-white border border-indigo-100">
                   <span className="text-[10px] text-slate-500 block font-sans">Fulfillment</span>
-                  <span className="font-bold text-slate-900 text-sm">{selectedVendor.fulfillmentRate || 98.4}%</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {isApprovedVendor ? `${selectedVendor.fulfillmentRate || 98.4}%` : 'N/A'}
+                  </span>
                 </div>
                 <div className="p-2 rounded-xl bg-white border border-indigo-100">
                   <span className="text-[10px] text-slate-500 block font-sans">On-Time Index</span>
-                  <span className="font-bold text-slate-900 text-sm">{selectedVendor.onTimeDeliveryRate || 96.8}%</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {isApprovedVendor ? `${selectedVendor.onTimeDeliveryRate || 96.8}%` : 'N/A'}
+                  </span>
                 </div>
                 <div className="p-2 rounded-xl bg-white border border-indigo-100">
                   <span className="text-[10px] text-slate-500 block font-sans">QA Rating</span>
-                  <span className="font-bold text-slate-900 text-sm">{selectedVendor.qualityRating || 4.9} / 5.0</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {isApprovedVendor ? `${selectedVendor.qualityRating || 4.9} / 5` : 'Pending'}
+                  </span>
                 </div>
                 <div className="p-2 rounded-xl bg-white border border-indigo-100">
                   <span className="text-[10px] text-slate-500 block font-sans">Fulfilled Orders</span>
-                  <span className="font-bold text-slate-900 text-sm">{selectedVendor.ordersFulfilled || 142}</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {isApprovedVendor ? (selectedVendor.ordersFulfilled || 142) : '0 Orders'}
+                  </span>
                 </div>
               </div>
             </div>
