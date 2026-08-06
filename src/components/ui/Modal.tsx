@@ -44,8 +44,8 @@ export function Modal({
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      {/* Backdrop covering entire screen seamlessly */}
       <div
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-in fade-in"
         onClick={onClose}
@@ -63,7 +63,7 @@ export function Modal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

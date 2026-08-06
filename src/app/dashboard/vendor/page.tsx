@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Toast } from '@/components/ui/Toast';
+import { Modal } from '@/components/ui/Modal';
 
 interface ComplianceDoc {
   id: string;
@@ -666,7 +667,7 @@ export default function VendorDashboardPage() {
             type="button"
             disabled={!isApproved}
             onClick={openNewProductModal}
-            className={`font-bold px-4 py-2 rounded-xl shadow-sm text-xs border flex items-center gap-2 transition-all ${
+            className={`font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs border flex items-center gap-2 shrink-0 whitespace-nowrap transition-all ${
               isApproved
                 ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800 cursor-pointer font-mono'
                 : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
@@ -762,112 +763,103 @@ export default function VendorDashboardPage() {
         )}
       </div>
 
-      {/* Create / Edit Product Modal */}
-      {showProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">
-                {editingProductId ? 'Edit Product Item' : 'Add New Product Item'}
-              </h3>
-              <button
-                onClick={() => setShowProductModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-mono text-sm"
-              >
-                ✕
-              </button>
+      {/* Create / Edit Product Modal (Using Central Clean Modal Component) */}
+      <Modal
+        isOpen={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        title={editingProductId ? 'Edit Product Item' : 'Add New Product Item'}
+        subtitle="Item Master Catalog Entry • Scoped to Vendor ID"
+      >
+        <div className="space-y-4 text-xs font-sans">
+          {prodFormError && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{prodFormError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveProduct} className="space-y-4">
+            <Input
+              label="Product / Item Name"
+              required
+              value={prodName}
+              onChange={(e) => setProdName(e.target.value)}
+              placeholder="e.g. Thermal Printer 300DPI"
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="SKU Code"
+                value={prodSku}
+                onChange={(e) => setProdSku(e.target.value)}
+                placeholder="Auto-generated if blank"
+                helperText="e.g. SKU-HDW-9001"
+              />
+              <Input
+                label="Barcode (EAN / GTIN)"
+                value={prodBarcode}
+                onChange={(e) => setProdBarcode(e.target.value)}
+                placeholder="Auto-generated if blank"
+                helperText="e.g. 9312345000018"
+              />
             </div>
 
-            {prodFormError && (
-              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{prodFormError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveProduct} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Product / Item Name"
+                label="Cost Price ($)"
+                type="number"
+                step="0.01"
                 required
-                value={prodName}
-                onChange={(e) => setProdName(e.target.value)}
-                placeholder="e.g. Thermal Printer 300DPI"
+                value={prodCost}
+                onChange={(e) => setProdCost(e.target.value)}
+                placeholder="120.00"
               />
-
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="SKU Code"
-                  value={prodSku}
-                  onChange={(e) => setProdSku(e.target.value)}
-                  placeholder="Auto-generated if blank"
-                  helperText="e.g. SKU-HDW-9001"
-                />
-                <Input
-                  label="Barcode (EAN / GTIN)"
-                  value={prodBarcode}
-                  onChange={(e) => setProdBarcode(e.target.value)}
-                  placeholder="Auto-generated if blank"
-                  helperText="e.g. 9312345000018"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Cost Price ($)"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={prodCost}
-                  onChange={(e) => setProdCost(e.target.value)}
-                  placeholder="120.00"
-                />
-                <Input
-                  label="Selling Price ($)"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={prodSelling}
-                  onChange={(e) => setProdSelling(e.target.value)}
-                  placeholder="249.99"
-                />
-              </div>
-
-              <Select
-                label="Product Status"
-                value={prodStatus}
-                onChange={(e) => setProdStatus(e.target.value as any)}
-                options={[
-                  { value: 'ACTIVE', label: 'ACTIVE (Ready for Order Fulfillment)' },
-                  { value: 'DRAFT', label: 'DRAFT (Internal Review)' },
-                  { value: 'DISCONTINUED', label: 'DISCONTINUED (End of Life)' },
-                ]}
+              <Input
+                label="Selling Price ($)"
+                type="number"
+                step="0.01"
+                required
+                value={prodSelling}
+                onChange={(e) => setProdSelling(e.target.value)}
+                placeholder="249.99"
               />
+            </div>
 
-              <div className="space-y-1 font-sans">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Product Description
-                </label>
-                <textarea
-                  rows={3}
-                  value={prodDesc}
-                  onChange={(e) => setProdDesc(e.target.value)}
-                  placeholder="Enter specifications, dimensions, or packaging details..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
-                />
-              </div>
+            <Select
+              label="Product Status"
+              value={prodStatus}
+              onChange={(e) => setProdStatus(e.target.value as any)}
+              options={[
+                { value: 'ACTIVE', label: 'ACTIVE (Ready for Order Fulfillment)' },
+                { value: 'DRAFT', label: 'DRAFT (Internal Review)' },
+                { value: 'DISCONTINUED', label: 'DISCONTINUED (End of Life)' },
+              ]}
+            />
 
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setShowProductModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={prodSubmitting}>
-                  {editingProductId ? 'Save Product Changes' : 'Create Product'}
-                </Button>
-              </div>
-            </form>
-          </div>
+            <div className="space-y-1 font-sans">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Product Description
+              </label>
+              <textarea
+                rows={3}
+                value={prodDesc}
+                onChange={(e) => setProdDesc(e.target.value)}
+                placeholder="Enter specifications, dimensions, or packaging details..."
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setShowProductModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={prodSubmitting}>
+                {editingProductId ? 'Save Product Changes' : 'Create Product'}
+              </Button>
+            </div>
+          </form>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
