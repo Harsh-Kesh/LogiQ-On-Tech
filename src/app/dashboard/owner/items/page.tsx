@@ -404,11 +404,11 @@ export default function MasterDataItemsPage() {
       {/* Header Banner matching Platform Owner Design */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-purple-50 text-purple-600 border border-purple-200">
-            <Package className="w-8 h-8" />
+          <div className="p-3 rounded-2xl bg-slate-100 text-slate-900 border border-slate-200">
+            <Package className="w-8 h-8 text-slate-900" />
           </div>
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 uppercase tracking-widest font-mono mb-1">
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-800 uppercase tracking-widest font-mono mb-1 border border-slate-200">
               Pillar 03 • Master Data MDM Engine
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900">Item Master Data &amp; Barcode Repository</h1>
