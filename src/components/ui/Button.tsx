@@ -47,7 +47,7 @@ export function Button({
       {...props}
     >
       {isLoading ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : leftIcon}
-      <span>{children}</span>
+      <span className="whitespace-nowrap inline-block">{children}</span>
       {!isLoading && rightIcon}
     </button>
   );

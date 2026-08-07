@@ -295,7 +295,17 @@ export default function MasterDataItemsPage() {
       item.itemName.toLowerCase().includes(search.toLowerCase()) ||
       item.sku.toLowerCase().includes(search.toLowerCase()) ||
       item.barcode.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = !categoryFilter || item.categoryId === categoryFilter;
+
+    const selectedCat = categories.find((c) => c.id === categoryFilter || c.slug === categoryFilter);
+    const matchesCategory =
+      !categoryFilter ||
+      item.categoryId === categoryFilter ||
+      (selectedCat && (
+        item.categoryId === selectedCat.id ||
+        item.categoryId === selectedCat.slug ||
+        (item.categoryName || '').toLowerCase() === selectedCat.name.toLowerCase()
+      ));
+
     const matchesUom = !uomFilter || item.uomId === uomFilter || item.uomCode === uomFilter;
     const matchesStatus = !statusFilter || item.status === statusFilter;
     return matchesSearch && matchesCategory && matchesUom && matchesStatus;
@@ -327,7 +337,10 @@ export default function MasterDataItemsPage() {
     {
       header: 'Taxonomy Category',
       cell: (row) => (
-        <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+        <span
+          className="inline-block max-w-[180px] truncate text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 align-middle whitespace-nowrap"
+          title={row.categoryName || 'General Hardware'}
+        >
           {row.categoryName || 'General Hardware'}
         </span>
       ),
