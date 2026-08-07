@@ -26,7 +26,7 @@ export function Button({
   const baseStyles = 'inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap shrink-0 font-bold transition-all rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantStyles: Record<ButtonVariant, string> = {
-    primary: 'bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/20 border border-slate-700/50',
+    primary: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 border border-indigo-500/30',
     secondary: 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200',
     outline: 'bg-transparent text-slate-700 hover:bg-slate-100 border border-slate-300',
     ghost: 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100',
