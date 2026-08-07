@@ -30,12 +30,14 @@ function ensureDirExists() {
 
 export function loadPersistentProducts(): Record<string, PersistentProduct> {
   ensureDirExists();
+  const seedProducts = getSeedDemoProducts();
   try {
     if (fs.existsSync(PRODUCTS_FILE)) {
-      return JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf-8'));
+      const parsed = JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf-8'));
+      return { ...seedProducts, ...parsed };
     }
   } catch (e) {}
-  return getSeedDemoProducts();
+  return seedProducts;
 }
 
 export function savePersistentProducts(products: Record<string, PersistentProduct>) {

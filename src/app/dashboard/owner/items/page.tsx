@@ -405,49 +405,49 @@ export default function MasterDataItemsPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="secondary" onClick={() => setIsCsvModalOpen(true)}>
+        <div className="flex items-center gap-3 shrink-0">
+          <Button variant="secondary" onClick={() => setIsCsvModalOpen(true)} className="whitespace-nowrap shrink-0">
             <Upload className="w-4 h-4" /> Bulk CSV Import
           </Button>
-          <Button onClick={() => handleOpenItemModal()}>
-            <Plus className="w-4 h-4" /> + Create Item Master
+          <Button onClick={() => handleOpenItemModal()} className="whitespace-nowrap shrink-0">
+            <Plus className="w-4 h-4" /> Create Item Master
           </Button>
         </div>
       </div>
 
       {/* Top Navigation Tabs: ITEMS | CATEGORIES | UOM */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab('ITEMS')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap shrink-0 transition-all ${
             activeTab === 'ITEMS'
               ? 'bg-slate-900 text-white shadow-md'
               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
         >
-          <Package className="w-4 h-4" /> Item Master Catalog ({items.length})
+          <Package className="w-4 h-4 text-indigo-400" /> Item Master Catalog ({items.length})
         </button>
 
         <button
           onClick={() => setActiveTab('CATEGORIES')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap shrink-0 transition-all ${
             activeTab === 'CATEGORIES'
               ? 'bg-slate-900 text-white shadow-md'
               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
         >
-          <FolderTree className="w-4 h-4" /> Category Taxonomy Tree ({categories.length})
+          <FolderTree className="w-4 h-4 text-purple-400" /> Category Taxonomy Tree ({categories.length})
         </button>
 
         <button
           onClick={() => setActiveTab('UOM')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap shrink-0 transition-all ${
             activeTab === 'UOM'
               ? 'bg-slate-900 text-white shadow-md'
               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
         >
-          <Ruler className="w-4 h-4" /> Unit of Measure (UOM) ({uoms.length})
+          <Ruler className="w-4 h-4 text-emerald-400" /> Unit of Measure (UOM) ({uoms.length})
         </button>
       </div>
 
@@ -526,7 +526,7 @@ export default function MasterDataItemsPage() {
               <h2 className="text-lg font-bold text-slate-900">Category &amp; Subcategory Hierarchy Taxonomy</h2>
               <p className="text-xs text-slate-500 font-mono">Manage Parent-Child Category Relationship Structures</p>
             </div>
-            <Button onClick={() => setIsCatModalOpen(true)}>
+            <Button onClick={() => setIsCatModalOpen(true)} className="whitespace-nowrap shrink-0">
               <Plus className="w-4 h-4" /> Add New Category
             </Button>
           </div>
@@ -545,7 +545,7 @@ export default function MasterDataItemsPage() {
               <h2 className="text-lg font-bold text-slate-900">System Units of Measure (UOM) Setup</h2>
               <p className="text-xs text-slate-500 font-mono">Standard 3PL Logistics Inventory Units</p>
             </div>
-            <Button onClick={() => setIsUomModalOpen(true)}>
+            <Button onClick={() => setIsUomModalOpen(true)} className="whitespace-nowrap shrink-0">
               <Plus className="w-4 h-4" /> Register New UOM
             </Button>
           </div>
