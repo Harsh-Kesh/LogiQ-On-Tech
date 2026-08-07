@@ -418,12 +418,12 @@ export default function MasterDataItemsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <Button variant="secondary" onClick={() => setIsCsvModalOpen(true)} className="whitespace-nowrap shrink-0">
-            <Upload className="w-4 h-4" /> Bulk CSV Import
+        <div className="flex flex-row items-center gap-3 shrink-0">
+          <Button variant="secondary" onClick={() => setIsCsvModalOpen(true)} leftIcon={<Upload className="w-4 h-4 shrink-0" />}>
+            Bulk CSV Import
           </Button>
-          <Button onClick={() => handleOpenItemModal()} className="whitespace-nowrap shrink-0">
-            <Plus className="w-4 h-4" /> Create Item Master
+          <Button onClick={() => handleOpenItemModal()} leftIcon={<Plus className="w-4 h-4 shrink-0" />}>
+            Create Item Master
           </Button>
         </div>
       </div>
@@ -539,8 +539,8 @@ export default function MasterDataItemsPage() {
               <h2 className="text-lg font-bold text-slate-900">Category &amp; Subcategory Hierarchy Taxonomy</h2>
               <p className="text-xs text-slate-500 font-mono">Manage Parent-Child Category Relationship Structures</p>
             </div>
-            <Button onClick={() => setIsCatModalOpen(true)} className="whitespace-nowrap shrink-0">
-              <Plus className="w-4 h-4" /> Add New Category
+            <Button onClick={() => setIsCatModalOpen(true)} leftIcon={<Plus className="w-4 h-4 shrink-0" />}>
+              Add New Category
             </Button>
           </div>
 
@@ -558,8 +558,8 @@ export default function MasterDataItemsPage() {
               <h2 className="text-lg font-bold text-slate-900">System Units of Measure (UOM) Setup</h2>
               <p className="text-xs text-slate-500 font-mono">Standard 3PL Logistics Inventory Units</p>
             </div>
-            <Button onClick={() => setIsUomModalOpen(true)} className="whitespace-nowrap shrink-0">
-              <Plus className="w-4 h-4" /> Register New UOM
+            <Button onClick={() => setIsUomModalOpen(true)} leftIcon={<Plus className="w-4 h-4 shrink-0" />}>
+              Register New UOM
             </Button>
           </div>
 

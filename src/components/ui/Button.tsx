@@ -23,7 +23,7 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center whitespace-nowrap shrink-0 font-bold transition-all rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap shrink-0 font-bold transition-all rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantStyles: Record<ButtonVariant, string> = {
     primary: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 border border-indigo-400/30',
@@ -47,7 +47,7 @@ export function Button({
       {...props}
     >
       {isLoading ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : leftIcon}
-      <span className="whitespace-nowrap inline-block">{children}</span>
+      <span className="inline-flex flex-row items-center gap-2 whitespace-nowrap shrink-0">{children}</span>
       {!isLoading && rightIcon}
     </button>
   );
