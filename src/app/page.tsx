@@ -157,36 +157,36 @@ export default function HomePage() {
               <div>
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    alt="Customer CRM"
+                    alt="Master Data MDM"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    src={getAssetPath("/images/stitch/ea517d840311.png")}
+                    src={getAssetPath("/images/pexels/partners-server-hardware.jpg")}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
                   <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-md">
                     03
                   </span>
                   <div className="absolute bottom-3 left-4 w-9 h-9 bg-white rounded-xl flex items-center justify-center text-slate-950 shadow-md border border-white">
-                    <ShoppingCart className="w-4 h-4 text-sky-600" />
+                    <Database className="w-4 h-4 text-purple-600" />
                   </div>
                 </div>
                 <div className="p-6 pb-2">
-                  <span className="text-[10px] font-bold text-sky-600 uppercase tracking-widest block mb-2 font-mono">
-                    CUSTOMER CRM
+                  <span className="text-[10px] font-bold text-purple-600 uppercase tracking-widest block mb-2 font-mono">
+                    MASTER DATA MDM
                   </span>
                   <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">
-                    Customer Sales Orders &amp; Invoicing
+                    Master Data &amp; Item Catalog Registry
                   </h3>
                   <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">
-                    Retail buyer sales order creation, real-time shipment tracking, customer lifecycle, and invoicing.
+                    SKU barcode registry, Unit of Measure (UOM) definitions, category taxonomy, and product masters.
                   </p>
                 </div>
               </div>
               <div className="px-6 pb-6 pt-0">
                 <Link
-                  href="/dashboard/customer"
+                  href="/dashboard/owner"
                   className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors"
                 >
-                  View Customer Portal
+                  View MDM Hub
                   <span className="w-7 h-7 rounded-full bg-white text-slate-950 border border-slate-300 shadow-sm flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-all">
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
@@ -264,7 +264,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-bold text-slate-950">4-Role RBAC &amp; TOTP MFA</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Full-stack role enforcement across Platform Owner, Vendor, Warehouse, and Customer with TOTP 2FA interceptors.
+                Full-stack role enforcement across Platform Owner, Vendor, Warehouse, and MDM with TOTP 2FA interceptors.
               </p>
               <ul className="space-y-2 pt-2 text-xs text-slate-700">
                 <li className="flex items-center gap-2">

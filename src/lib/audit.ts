@@ -5,7 +5,7 @@ export interface AuditEventParams {
   userId?: string;
   role?: UserRole;
   action: string;
-  module: 'GOVERNANCE' | 'VENDOR_MANAGEMENT' | 'WAREHOUSE_OPERATIONS' | 'CUSTOMER_CRM' | 'MASTER_DATA_MDM';
+  module: 'GOVERNANCE' | 'VENDOR_MANAGEMENT' | 'WAREHOUSE_OPERATIONS' | 'MASTER_DATA_MDM';
   targetId?: string;
   payloadJson?: Record<string, any>;
   ipAddress?: string;

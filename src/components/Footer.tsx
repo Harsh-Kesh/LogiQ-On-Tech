@@ -41,8 +41,8 @@ const FOOTER_COLUMNS = [
     links: [
       { label: "Request a Demo", href: "/request-demo" },
       { label: "Request a Quote", href: "/request-quote" },
-      { label: "Customer Login", href: "/customer-login" },
-      { label: "Vendor Login", href: "/vendor-login" },
+      { label: "Platform Sign In", href: "/auth/login" },
+      { label: "Vendor Portal", href: "/dashboard/vendor" },
     ],
   },
 ];
@@ -59,7 +59,7 @@ export default function Footer() {
   if (
     pathname === "/login" ||
     pathname === "/register" ||
-    pathname === "/customer-login" ||
+    pathname === "/auth/login" ||
     pathname === "/vendor-login"
   )
     return null;

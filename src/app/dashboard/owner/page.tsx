@@ -123,7 +123,7 @@ export default function PlatformOwnerDashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-900">User Directory &amp; RBAC</h3>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Provision users, assign roles (PLATFORM_OWNER, VENDOR, WAREHOUSE, CUSTOMER), and toggle account suspensions.
+            Provision users, assign roles (PLATFORM_OWNER, VENDOR, WAREHOUSE, MDM), and toggle account suspensions.
           </p>
           <Link
             href="/dashboard/owner/users"
@@ -155,7 +155,7 @@ export default function PlatformOwnerDashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-900">Multi-Tenant Portals</h3>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Test role isolation across Vendor Management, Warehouse Stock Ledgers, and Customer Sales Orders.
+            Test role isolation across Vendor Management, Warehouse Stock Ledgers, and Master Data MDM.
           </p>
           <Link
             href="/dashboard/vendor"

@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Shield, Building, Warehouse, ShoppingCart, Lock, FileText, CheckCircle2, UserCheck, ArrowRight, Clock, Key } from 'lucide-react';
+import { Shield, Building, Warehouse, Lock, FileText, CheckCircle2, UserCheck, ArrowRight, Clock, Key } from 'lucide-react';
 
 export default function MainDashboardPage() {
   const { data: session, status } = useSession();
@@ -18,7 +18,7 @@ export default function MainDashboardPage() {
     );
   }
 
-  const role = (session?.user as any)?.role || 'CUSTOMER';
+  const role = (session?.user as any)?.role || 'VENDOR';
   const email = session?.user?.email || 'N/A';
   const name = session?.user?.name || 'Authenticated User';
   const mfaEnabled = (session?.user as any)?.mfaEnabled || false;
@@ -45,13 +45,6 @@ export default function MainDashboardPage() {
       icon: Warehouse,
       desc: 'Bin allocations, stock balances & immutable ledger feed.',
     },
-    CUSTOMER: {
-      title: 'Customer CRM & Storefront',
-      href: '/dashboard/customer',
-      color: 'sky',
-      icon: ShoppingCart,
-      desc: 'Sales orders, real-time tracking & customer lifecycle.',
-    },
     MDM: {
       title: 'Master Data MDM Hub',
       href: '/dashboard/owner',
@@ -61,7 +54,7 @@ export default function MainDashboardPage() {
     },
   };
 
-  const currentPortal = rolePortalLinks[role] || rolePortalLinks.CUSTOMER;
+  const currentPortal = rolePortalLinks[role] || rolePortalLinks.VENDOR;
   const PortalIcon = currentPortal.icon;
 
   return (
