@@ -30,8 +30,8 @@ export const SOCIAL_LINKS: SocialLink[] = [
 export const UTILITY_LINKS: NavLink[] = [
   { key: "request-demo", label: "Request Demo", href: "/request-demo" },
   { key: "request-quote", label: "Request Quote", href: "/request-quote" },
-  { key: "customer-login", label: "Customer Login", href: "/customer-login" },
-  { key: "vendor-login", label: "Vendor Login", href: "/vendor-login" },
+  { key: "platform-login", label: "Sign In", href: "/auth/login" },
+  { key: "vendor-login", label: "Vendor Portal", href: "/vendor-login" },
 ];
 
 export function getAssetPath(path: string): string {

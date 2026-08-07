@@ -43,18 +43,7 @@ async function main() {
     },
   });
 
-  const customerUser = await prisma.user.upsert({
-    where: { email: 'customer@logiqon.tech' },
-    update: {},
-    create: {
-      email: 'customer@logiqon.tech',
-      passwordHash,
-      fullName: 'Sarah Customer',
-      role: UserRole.CUSTOMER,
-    },
-  });
-
-  console.log('✅ Users seeded: Admin, Vendor, Warehouse, Customer');
+  console.log('✅ Users seeded: Admin, Vendor, Warehouse');
 
   // 2. Vendor Company Profile (1-to-1 with Vendor User)
   const vendor = await prisma.vendor.upsert({

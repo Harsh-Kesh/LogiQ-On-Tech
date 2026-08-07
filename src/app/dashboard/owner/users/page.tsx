@@ -171,7 +171,7 @@ export default function UserManagementPage() {
         let variant: 'indigo' | 'amber' | 'emerald' | 'sky' | 'slate' = 'indigo';
         if (row.role === 'VENDOR') variant = 'amber';
         if (row.role === 'WAREHOUSE') variant = 'emerald';
-        if (row.role === 'CUSTOMER') variant = 'sky';
+        if (row.role === 'MDM') variant = 'sky';
         return <Badge variant={variant}>{row.role}</Badge>;
       },
     },
@@ -279,7 +279,6 @@ export default function UserManagementPage() {
                 { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
                 { value: 'VENDOR', label: 'Vendor' },
                 { value: 'WAREHOUSE', label: 'Warehouse Manager' },
-                { value: 'CUSTOMER', label: 'Customer' },
               ]}
             />
           </div>
@@ -328,7 +327,6 @@ export default function UserManagementPage() {
               { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
               { value: 'VENDOR', label: 'Vendor' },
               { value: 'WAREHOUSE', label: 'Warehouse Manager' },
-              { value: 'CUSTOMER', label: 'Customer' },
             ]}
           />
           <Input label="Initial Password" type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
@@ -353,7 +351,6 @@ export default function UserManagementPage() {
               { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
               { value: 'VENDOR', label: 'Vendor' },
               { value: 'WAREHOUSE', label: 'Warehouse Manager' },
-              { value: 'CUSTOMER', label: 'Customer' },
             ]}
           />
           <div className="flex justify-end gap-3 pt-2">

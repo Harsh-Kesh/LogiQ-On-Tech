@@ -66,20 +66,6 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: "📦",
     description: "Stock ledger, bin management & 3PL order fulfillment",
   },
-  {
-    id: "customer",
-    role: "Customer / Retail Buyer",
-    badge: "Customer Portal",
-    email: "customer@logiqon.com",
-    password: "Password123!",
-    portalName: "Customer Dashboard",
-    portalUrl: "/dashboard/customer",
-    color: "#16a34a",
-    bgColor: "#f0fdf4",
-    borderColor: "#bbf7d0",
-    icon: "👤",
-    description: "Equipment procurement, order checkout & shipment tracking",
-  },
 ];
 
 export default function LoginView() {

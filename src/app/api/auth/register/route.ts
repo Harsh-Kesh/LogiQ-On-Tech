@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const assignedRole: UserRole = role === 'VENDOR' ? 'VENDOR' : 'CUSTOMER';
+    const assignedRole: UserRole = (['VENDOR', 'WAREHOUSE', 'PLATFORM_OWNER'].includes(role) ? role : 'VENDOR') as UserRole;
 
     // 5. Strict Email Uniqueness Check across Runtime Store
     if (isUserRegistered(emailClean)) {
@@ -98,14 +98,6 @@ export async function POST(req: Request) {
           action: 'VENDOR_ACCOUNT_CREATED',
           module: 'VENDOR_MANAGEMENT',
           payloadJson: { companyName: finalCompanyName, abnAcn: finalAbn, status: 'PENDING' },
-        }).catch(() => {});
-      } else {
-        await logAuditEvent({
-          userId: user.id,
-          role: 'CUSTOMER',
-          action: 'CUSTOMER_REGISTERED',
-          module: 'CUSTOMER_CRM',
-          payloadJson: { email: user.email },
         }).catch(() => {});
       }
     } catch (dbError: any) {

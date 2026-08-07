@@ -13,7 +13,6 @@ const PROJECT_NAV_ITEMS = [
   { label: "Audit Logs", href: "/dashboard/owner/audit-logs" },
   { label: "Vendor Portal", href: "/dashboard/vendor" },
   { label: "Warehouse", href: "/dashboard/warehouse" },
-  { label: "Customer CRM", href: "/dashboard/customer" },
 ];
 
 export default function Header() {

@@ -7,14 +7,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Brand from '@/components/Brand';
-import { Shield, Building, Warehouse, ShoppingCart, Key, FileText, LogOut, Lock, Users } from 'lucide-react';
+import { Shield, Building, Warehouse, Key, FileText, LogOut, Lock, Users } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
 
-  const role = (session?.user as any)?.role || 'CUSTOMER';
+  const role = (session?.user as any)?.role || 'VENDOR';
   const mfaEnabled = (session?.user as any)?.mfaEnabled || false;
   const mfaVerified = (session?.user as any)?.mfaVerified || false;
 
@@ -41,9 +41,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Vendor Directory', href: '/dashboard/owner/vendors', roleRequired: ['PLATFORM_OWNER'], icon: Building },
     { name: 'Vendor Portal', href: '/dashboard/vendor', roleRequired: ['VENDOR'], icon: Building },
     { name: 'Warehouse Point', href: '/dashboard/warehouse', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: Warehouse },
-    { name: 'Customer CRM', href: '/dashboard/customer', roleRequired: ['CUSTOMER', 'PLATFORM_OWNER'], icon: ShoppingCart },
     { name: 'Audit Logs', href: '/dashboard/owner/audit-logs', roleRequired: ['PLATFORM_OWNER'], icon: FileText },
-    { name: 'MFA Security', href: '/dashboard/mfa-enrol', roleRequired: ['PLATFORM_OWNER', 'VENDOR', 'WAREHOUSE', 'CUSTOMER'], icon: Lock },
+    { name: 'MFA Security', href: '/dashboard/mfa-enrol', roleRequired: ['PLATFORM_OWNER', 'VENDOR', 'WAREHOUSE'], icon: Lock },
   ];
 
   return (

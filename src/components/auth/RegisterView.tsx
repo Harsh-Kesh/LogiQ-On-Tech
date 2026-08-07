@@ -297,25 +297,7 @@ export default function RegisterView() {
                   cursor: "pointer",
                 }}
               >
-                Warehouse
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole("CUSTOMER")}
-                style={{
-                  flex: 1,
-                  padding: "7px 10px",
-                  borderRadius: 7,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  border: "none",
-                  background: role === "CUSTOMER" ? "#ffffff" : "transparent",
-                  color: role === "CUSTOMER" ? "#0f172a" : "#64748b",
-                  boxShadow: role === "CUSTOMER" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                  cursor: "pointer",
-                }}
-              >
-                Customer
+                Warehouse Operator
               </button>
             </div>
 

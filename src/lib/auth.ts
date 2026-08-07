@@ -44,8 +44,6 @@ function getSeededDemoAccounts(): Record<string, PersistentUser> {
     'vendor@logiqon.com': { id: 'usr_vendor_02', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 910', status: 'APPROVED' },
     'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
     'warehouse@logiqon.com': { id: 'usr_wh_02', email: 'warehouse@logiqon.com', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'customer@logiqon.tech': { id: 'usr_cust_01', email: 'customer@logiqon.tech', fullName: 'Induja Retail Buyer', role: 'CUSTOMER', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'customer@logiqon.com': { id: 'usr_cust_02', email: 'customer@logiqon.com', fullName: 'Induja Retail Buyer', role: 'CUSTOMER', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
   };
 }
 

@@ -11,7 +11,6 @@ enum UserRole {
   PLATFORM_OWNER
   VENDOR
   WAREHOUSE
-  CUSTOMER
   MDM
 }
 
@@ -29,16 +28,6 @@ enum ItemStatus {
   DISCONTINUED
 }
 
-enum OrderStatus {
-  PLACED
-  PICKING
-  PACKED
-  DISPATCHED
-  DELIVERED
-  CANCELLED
-  RETURNED
-}
-
 enum LedgerMovementType {
   RECEIPT
   ISSUE
@@ -52,7 +41,7 @@ model User {
   email        String      @unique
   passwordHash String
   fullName     String
-  role         UserRole    @default(CUSTOMER)
+  role         UserRole    @default(VENDOR)
   mfaEnabled   Boolean     @default(false)
   mfaSecret    String?
   isSuspended  Boolean     @default(false)
@@ -60,7 +49,6 @@ model User {
   updatedAt    DateTime    @updatedAt
 
   vendor        Vendor?
-  orders        Order[]
   auditLogs     AuditLog[]
   ledgerEntries StockLedger[] @relation("LedgerCreatedBy")
 
@@ -167,7 +155,6 @@ model ItemMaster {
 
   stockItems     WarehouseStock[]
   ledgerEntries  StockLedger[]
-  orderItems     OrderItem[]
 
   @@index([vendorId])
   @@index([categoryId])
@@ -184,7 +171,6 @@ model Warehouse {
 
   stockItems        WarehouseStock[]
   ledgerEntries     StockLedger[]
-  orders            Order[]
   vendorAssignments VendorWarehouse[]
 
   @@map("warehouses")
@@ -227,43 +213,6 @@ model StockLedger {
   @@index([createdAt])
   @@index([referenceNumber])
   @@map("stock_ledger")
-}
-
-model Order {
-  id              String      @id @default(uuid())
-  orderNumber     String      @unique
-  customerId      String
-  customer        User        @relation(fields: [customerId], references: [id])
-  warehouseId     String
-  warehouse       Warehouse   @relation(fields: [warehouseId], references: [id])
-  status          OrderStatus @default(PLACED)
-  totalAmount     Decimal     @db.Decimal(12, 2)
-  shippingAddress String
-  trackingNumber  String?
-  carrierName     String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  items           OrderItem[]
-
-  @@index([customerId])
-  @@index([warehouseId])
-  @@index([status])
-  @@map("orders")
-}
-
-model OrderItem {
-  id           String     @id @default(uuid())
-  orderId      String
-  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  itemMasterId String
-  itemMaster   ItemMaster @relation(fields: [itemMasterId], references: [id])
-  quantity     Int
-  unitPrice    Decimal    @db.Decimal(12, 2)
-
-  @@index([orderId])
-  @@index([itemMasterId])
-  @@map("order_items")
 }
 
 model AuditLog {

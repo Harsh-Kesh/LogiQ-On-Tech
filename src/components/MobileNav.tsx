@@ -12,11 +12,8 @@ export default function MobileNav({ onNavigate }: { onNavigate: () => void }) {
         </Link>
       ))}
       <div className="mobile-actions">
-        <Link href="/login" className="btn btn-primary btn-block" onClick={onNavigate}>
-          Customer Login
-        </Link>
-        <Link href="/login?as=vendor" className="btn btn-ghost btn-block" onClick={onNavigate}>
-          Vendor Login
+        <Link href="/auth/login" className="btn btn-primary btn-block" onClick={onNavigate}>
+          Platform Sign In
         </Link>
         <Link href="/request?type=quote" className="btn btn-ghost btn-block" onClick={onNavigate}>
           Request Quote

@@ -4,7 +4,6 @@ export type AppModule =
   | 'GOVERNANCE'
   | 'VENDOR_MANAGEMENT'
   | 'WAREHOUSE_OPERATIONS'
-  | 'CUSTOMER_CRM'
   | 'MASTER_DATA_MDM';
 
 export type ActionType = 'CREATE' | 'READ' | 'UPDATE' | 'DELETE';
@@ -22,35 +21,24 @@ export const PERMISSION_MATRIX: Record<UserRole, Record<AppModule, PermissionRul
     GOVERNANCE: { create: true, read: true, update: true, delete: true },
     VENDOR_MANAGEMENT: { create: true, read: true, update: true, delete: true },
     WAREHOUSE_OPERATIONS: { create: true, read: true, update: true, delete: true },
-    CUSTOMER_CRM: { create: true, read: true, update: true, delete: true },
     MASTER_DATA_MDM: { create: true, read: true, update: true, delete: true },
   },
   VENDOR: {
     GOVERNANCE: { create: false, read: false, update: false, delete: false },
     VENDOR_MANAGEMENT: { create: true, read: true, update: true, delete: false },
     WAREHOUSE_OPERATIONS: { create: false, read: true, update: false, delete: false },
-    CUSTOMER_CRM: { create: false, read: false, update: false, delete: false },
     MASTER_DATA_MDM: { create: true, read: true, update: true, delete: false },
   },
   WAREHOUSE: {
     GOVERNANCE: { create: false, read: false, update: false, delete: false },
     VENDOR_MANAGEMENT: { create: false, read: true, update: false, delete: false },
     WAREHOUSE_OPERATIONS: { create: true, read: true, update: true, delete: false },
-    CUSTOMER_CRM: { create: false, read: true, update: true, delete: false },
-    MASTER_DATA_MDM: { create: false, read: true, update: false, delete: false },
-  },
-  CUSTOMER: {
-    GOVERNANCE: { create: false, read: false, update: false, delete: false },
-    VENDOR_MANAGEMENT: { create: false, read: false, update: false, delete: false },
-    WAREHOUSE_OPERATIONS: { create: false, read: false, update: false, delete: false },
-    CUSTOMER_CRM: { create: true, read: true, update: true, delete: false },
     MASTER_DATA_MDM: { create: false, read: true, update: false, delete: false },
   },
   MDM: {
     GOVERNANCE: { create: false, read: true, update: false, delete: false },
     VENDOR_MANAGEMENT: { create: false, read: true, update: false, delete: false },
     WAREHOUSE_OPERATIONS: { create: false, read: true, update: false, delete: false },
-    CUSTOMER_CRM: { create: false, read: true, update: false, delete: false },
     MASTER_DATA_MDM: { create: true, read: true, update: true, delete: true },
   },
 };
@@ -84,11 +72,9 @@ export function getDefaultDashboardForRole(role: UserRole): string {
       return '/dashboard/vendor';
     case 'WAREHOUSE':
       return '/dashboard/warehouse';
-    case 'CUSTOMER':
-      return '/dashboard/customer';
     case 'MDM':
       return '/dashboard/owner';
     default:
-      return '/dashboard/customer';
+      return '/dashboard/vendor';
   }
 }

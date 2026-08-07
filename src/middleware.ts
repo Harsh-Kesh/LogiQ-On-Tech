@@ -16,7 +16,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    const role = (token.role as UserRole) || 'CUSTOMER';
+    const role = (token.role as UserRole) || 'VENDOR';
 
     // Route RBAC Enforcement
     if (pathname.startsWith('/dashboard/owner') && role !== 'PLATFORM_OWNER' && role !== 'MDM') {
@@ -30,11 +30,6 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname.startsWith('/dashboard/warehouse') && role !== 'WAREHOUSE' && role !== 'PLATFORM_OWNER') {
-      const fallbackUrl = new URL(getDefaultDashboardForRole(role), req.url);
-      return NextResponse.redirect(fallbackUrl);
-    }
-
-    if (pathname.startsWith('/dashboard/customer') && role !== 'CUSTOMER' && role !== 'PLATFORM_OWNER') {
       const fallbackUrl = new URL(getDefaultDashboardForRole(role), req.url);
       return NextResponse.redirect(fallbackUrl);
     }
