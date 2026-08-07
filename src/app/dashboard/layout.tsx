@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Brand from '@/components/Brand';
-import { Shield, Building, Warehouse, Key, FileText, LogOut, Lock, Users } from 'lucide-react';
+import { Shield, Building, Warehouse, Key, FileText, LogOut, Lock, Users, Package } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -37,6 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navLinks = [
     { name: 'Platform Owner', href: '/dashboard/owner', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Shield },
+    { name: 'Item Master (MDM)', href: '/dashboard/owner/items', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Package },
     { name: 'User Directory', href: '/dashboard/owner/users', roleRequired: ['PLATFORM_OWNER'], icon: Users },
     { name: 'Vendor Directory', href: '/dashboard/owner/vendors', roleRequired: ['PLATFORM_OWNER'], icon: Building },
     { name: 'Vendor Portal', href: '/dashboard/vendor', roleRequired: ['VENDOR'], icon: Building },

@@ -1,5 +1,6 @@
 import { PrismaClient, UserRole, VendorStatus, ItemStatus, LedgerMovementType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { getSeedDemoProducts } from '../src/lib/products';
 
 const prisma = new PrismaClient();
 
@@ -45,7 +46,7 @@ async function main() {
 
   console.log('✅ Users seeded: Admin, Vendor, Warehouse');
 
-  // 2. Vendor Company Profile (1-to-1 with Vendor User)
+  // 2. Vendor Company Profile
   const vendor = await prisma.vendor.upsert({
     where: { abnAcn: '12345678901' },
     update: {},
@@ -61,19 +62,19 @@ async function main() {
   console.log('✅ Vendor profile seeded: Apex Hardware');
 
   // 3. Categories
-  const catElectronics = await prisma.category.upsert({
-    where: { slug: 'electronics' },
-    update: {},
-    create: { name: 'Industrial Electronics', slug: 'electronics' },
-  });
-
   const catHardware = await prisma.category.upsert({
-    where: { slug: 'warehouse-hardware' },
+    where: { slug: 'barcode-scanners' },
     update: {},
-    create: { name: 'Warehouse Hardware & Scanners', slug: 'warehouse-hardware' },
+    create: { name: 'Barcode Scanners', slug: 'barcode-scanners' },
   });
 
-  // 4. Units of Measure (UOM)
+  const catElectronics = await prisma.category.upsert({
+    where: { slug: 'rfid-tags' },
+    update: {},
+    create: { name: 'RFID Smart Labels & Tags', slug: 'rfid-tags' },
+  });
+
+  // 4. Units of Measure
   const uomPcs = await prisma.unitOfMeasure.upsert({
     where: { code: 'PCS' },
     update: {},
@@ -86,42 +87,38 @@ async function main() {
     create: { code: 'BOX', name: 'Box of 10', description: 'Box containing 10 pcs' },
   });
 
-  // 5. Item Master
-  const item1 = await prisma.itemMaster.upsert({
-    where: { sku: 'LOGIQ-SCN-001' },
-    update: {},
-    create: {
-      sku: 'LOGIQ-SCN-001',
-      barcode: '9312345678901',
-      itemName: 'Industrial Wireless Barcode Scanner HD-900',
-      description: 'Rugged IP65 rated handheld barcode scanner for warehouse picking.',
-      categoryId: catHardware.id,
-      uomId: uomPcs.id,
-      costPrice: 150.00,
-      sellingPrice: 299.00,
-      status: ItemStatus.ACTIVE,
-      vendorId: vendor.id,
-    },
-  });
+  // 5. Seed 22 Item Master Records from products library
+  const seedProducts = getSeedDemoProducts();
+  let firstItem: any = null;
 
-  const item2 = await prisma.itemMaster.upsert({
-    where: { sku: 'LOGIQ-TAG-002' },
-    update: {},
-    create: {
-      sku: 'LOGIQ-TAG-002',
-      barcode: '9312345678902',
-      itemName: 'Smart Asset Tracking RFID Labels (Pack of 100)',
-      description: 'High durability RFID adhesive tags for pallet and bin tracking.',
-      categoryId: catElectronics.id,
-      uomId: uomBox.id,
-      costPrice: 45.00,
-      sellingPrice: 89.00,
-      status: ItemStatus.ACTIVE,
-      vendorId: vendor.id,
-    },
-  });
+  for (const p of Object.values(seedProducts)) {
+    const item = await prisma.itemMaster.upsert({
+      where: { sku: p.sku },
+      update: {
+        itemName: p.itemName,
+        barcode: p.barcode,
+        costPrice: p.costPrice,
+        sellingPrice: p.sellingPrice,
+        status: p.status as ItemStatus,
+      },
+      create: {
+        id: p.id,
+        sku: p.sku,
+        barcode: p.barcode,
+        itemName: p.itemName,
+        description: p.description || '',
+        costPrice: p.costPrice,
+        sellingPrice: p.sellingPrice,
+        status: p.status as ItemStatus,
+        vendorId: vendor.id,
+        categoryId: catHardware.id,
+        uomId: uomPcs.id,
+      },
+    });
+    if (!firstItem) firstItem = item;
+  }
 
-  console.log('✅ Item Master Data seeded: 2 items');
+  console.log(`✅ Item Master Data seeded: ${Object.keys(seedProducts).length} items`);
 
   // 6. Warehouse & Vendor-Warehouse Assignment
   const warehouse1 = await prisma.warehouse.upsert({
@@ -150,38 +147,39 @@ async function main() {
 
   console.log('✅ Warehouse & Vendor-Warehouse Access Assignment seeded: WH-SYD-01');
 
-  // 7. Stock Ledger Entry (Immutable Movement linked to User createdBy)
-  await prisma.stockLedger.create({
-    data: {
-      warehouseId: warehouse1.id,
-      itemMasterId: item1.id,
-      binLocation: 'Aisle 2 - Bin B-04',
-      movementType: LedgerMovementType.RECEIPT,
-      quantityDelta: 100,
-      referenceNumber: 'PO-2026-0001',
-      reasonCode: 'INITIAL_STOCK_RECEIPT',
-      createdById: whUser.id,
-    },
-  });
-
-  // Update WarehouseStock summary table
-  await prisma.warehouseStock.upsert({
-    where: {
-      warehouseId_itemMasterId_binLocation: {
+  // 7. Stock Ledger Entry
+  if (firstItem) {
+    await prisma.stockLedger.create({
+      data: {
         warehouseId: warehouse1.id,
-        itemMasterId: item1.id,
+        itemMasterId: firstItem.id,
         binLocation: 'Aisle 2 - Bin B-04',
+        movementType: LedgerMovementType.RECEIPT,
+        quantityDelta: 100,
+        referenceNumber: 'PO-2026-0001',
+        reasonCode: 'INITIAL_STOCK_RECEIPT',
+        createdById: whUser.id,
       },
-    },
-    update: { quantityOnHand: 100 },
-    create: {
-      warehouseId: warehouse1.id,
-      itemMasterId: item1.id,
-      binLocation: 'Aisle 2 - Bin B-04',
-      quantityOnHand: 100,
-      quantityReserved: 0,
-    },
-  });
+    });
+
+    await prisma.warehouseStock.upsert({
+      where: {
+        warehouseId_itemMasterId_binLocation: {
+          warehouseId: warehouse1.id,
+          itemMasterId: firstItem.id,
+          binLocation: 'Aisle 2 - Bin B-04',
+        },
+      },
+      update: { quantityOnHand: 100 },
+      create: {
+        warehouseId: warehouse1.id,
+        itemMasterId: firstItem.id,
+        binLocation: 'Aisle 2 - Bin B-04',
+        quantityOnHand: 100,
+        quantityReserved: 0,
+      },
+    });
+  }
 
   console.log('✅ Stock Ledger & Balances seeded');
   console.log('🎉 Seeding completed successfully!');
