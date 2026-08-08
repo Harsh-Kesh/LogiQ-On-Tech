@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {
   Building, FileText, CheckCircle2, Upload, ShieldCheck, AlertCircle, AlertTriangle, XCircle,
-  Trash2, FileCheck, Lock, Info, Package, Plus, Search, Edit2, TrendingUp, Clock, Star, Layers
+  Trash2, FileCheck, Lock, Info, Package, Plus, Search, Edit2, TrendingUp, Clock, Star, Layers,
+  DollarSign, FolderTree, Tag, Ruler, Eye, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -12,6 +13,8 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Toast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
+import { CategoryItem } from '@/lib/categories';
+import { UnitOfMeasureItem } from '@/lib/uom';
 
 interface ComplianceDoc {
   id: string;
@@ -44,7 +47,16 @@ interface Product {
   description?: string;
   costPrice: number;
   sellingPrice: number;
+  wholesalePrice?: number;
+  marginPercent?: number;
+  markupPercent?: number;
+  moq?: number;
   status: 'ACTIVE' | 'DRAFT' | 'DISCONTINUED';
+  categoryId?: string;
+  categoryName?: string;
+  uomId?: string;
+  uomCode?: string;
+  attributes?: Record<string, string>;
   createdAt: string;
 }
 
@@ -55,6 +67,10 @@ export default function VendorDashboardPage() {
   const { data: session } = useSession();
   const [vendor, setVendor] = useState<VendorProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Categories & UOM Taxonomies
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [uoms, setUoms] = useState<UnitOfMeasureItem[]>([]);
 
   // Profile Form State
   const [companyName, setCompanyName] = useState('');
@@ -84,6 +100,8 @@ export default function VendorDashboardPage() {
   const [prodWholesale, setProdWholesale] = useState('');
   const [prodMoq, setProdMoq] = useState('1');
   const [prodStatus, setProdStatus] = useState<'ACTIVE' | 'DRAFT' | 'DISCONTINUED'>('ACTIVE');
+  const [prodCategoryId, setProdCategoryId] = useState('');
+  const [prodUomId, setProdUomId] = useState('');
   const [prodDesc, setProdDesc] = useState('');
   const [prodAttrPairs, setProdAttrPairs] = useState<Array<{ key: string; value: string }>>([
     { key: 'IP Rating', value: 'IP65' },
@@ -97,7 +115,21 @@ export default function VendorDashboardPage() {
   useEffect(() => {
     fetchVendorProfile();
     fetchVendorProducts();
+    fetchTaxonomies();
   }, []);
+
+  async function fetchTaxonomies() {
+    try {
+      const [catRes, uomRes] = await Promise.all([
+        fetch('/api/mdm/categories'),
+        fetch('/api/mdm/uom'),
+      ]);
+      const catData = await catRes.json();
+      const uomData = await uomRes.json();
+      setCategories(catData.categories || []);
+      setUoms(uomData.uoms || []);
+    } catch (e) {}
+  }
 
   async function fetchVendorProfile() {
     setLoading(true);
@@ -178,8 +210,7 @@ export default function VendorDashboardPage() {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      setFileValidationError(`File size (${sizeMB} MB) exceeds maximum allowed limit of 5.00 MB.`);
+      setFileValidationError(`File size exceeds maximum limit of 5MB (${(file.size / (1024 * 1024)).toFixed(2)}MB).`);
       setSelectedFile(null);
       return;
     }
@@ -190,42 +221,44 @@ export default function VendorDashboardPage() {
   async function handleUploadDocument(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedFile) {
-      setFileValidationError('Please select a valid document file to upload.');
+      setFileValidationError('Please select a file to upload.');
       return;
     }
 
     setUploading(true);
+    setFileValidationError('');
 
     try {
       const reader = new FileReader();
+      reader.readAsDataURL(selectedFile);
       reader.onload = async () => {
-        const fileDataUrl = reader.result as string;
+        const fileUrl = reader.result as string;
+
         const res = await fetch('/api/vendor/documents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             docType,
             fileName: selectedFile.name,
+            fileUrl,
             fileSize: selectedFile.size,
-            fileDataUrl,
           }),
         });
 
         const data = await res.json();
         if (res.ok) {
-          setToast({ message: data.message || `Successfully uploaded ${selectedFile.name}!`, type: 'success' });
+          setToast({ message: `Compliance document (${docType}) uploaded successfully!`, type: 'success' });
           setSelectedFile(null);
-          setFileValidationError('');
-          await fetchVendorProfile();
+          fetchVendorProfile();
         } else {
           setFileValidationError(data.error || 'Failed to upload document.');
-          setToast({ message: data.error || 'Upload failed.', type: 'error' });
+          setToast({ message: data.error || 'Failed to upload document.', type: 'error' });
         }
         setUploading(false);
       };
-      reader.readAsDataURL(selectedFile);
     } catch {
-      setToast({ message: 'Error processing file upload.', type: 'error' });
+      setFileValidationError('Network error uploading compliance document.');
+      setToast({ message: 'Network error uploading compliance document.', type: 'error' });
       setUploading(false);
     }
   }
@@ -280,6 +313,8 @@ export default function VendorDashboardPage() {
     setProdWholesale('');
     setProdMoq('1');
     setProdStatus('ACTIVE');
+    setProdCategoryId('');
+    setProdUomId('');
     setProdDesc('');
     setProdAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
     setProdFormError('');
@@ -296,6 +331,8 @@ export default function VendorDashboardPage() {
     setProdWholesale(p.wholesalePrice ? p.wholesalePrice.toString() : p.sellingPrice ? p.sellingPrice.toString() : '0');
     setProdMoq(p.moq ? p.moq.toString() : '1');
     setProdStatus(p.status || 'ACTIVE');
+    setProdCategoryId(p.categoryId || '');
+    setProdUomId(p.uomId || '');
     setProdDesc(p.description || '');
 
     if (p.attributes && typeof p.attributes === 'object' && Object.keys(p.attributes).length > 0) {
@@ -330,6 +367,8 @@ export default function VendorDashboardPage() {
       wholesalePrice: prodWholesale || prodSelling,
       moq: prodMoq || '1',
       status: prodStatus,
+      categoryId: prodCategoryId,
+      uomId: prodUomId,
       description: prodDesc,
       attributes: attributesObj,
     };
@@ -342,181 +381,105 @@ export default function VendorDashboardPage() {
       });
 
       const data = await res.json();
-      if (res.ok) {
-        setToast({ message: data.message || 'Product saved successfully!', type: 'success' });
-        setShowProductModal(false);
-        fetchVendorProducts();
-      } else {
+      if (!res.ok) {
         setProdFormError(data.error || 'Failed to save product.');
-        setToast({ message: data.error || 'Failed to save product.', type: 'error' });
+        return;
       }
+
+      setToast({
+        message: editingProductId ? 'Product updated successfully.' : 'New product created in your catalog.',
+        type: 'success',
+      });
+      setShowProductModal(false);
+      fetchVendorProducts();
     } catch {
       setProdFormError('Network error saving product.');
-      setToast({ message: 'Network error saving product.', type: 'error' });
     } finally {
       setProdSubmitting(false);
     }
   }
 
   async function handleDeleteProduct(id: string) {
-    if (!confirm('Are you sure you want to remove this item from your catalog?')) return;
+    if (!confirm('Are you sure you want to delete this product from your catalog?')) return;
     try {
       const res = await fetch(`/api/vendor/products?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
-        setToast({ message: 'Product removed from catalog.', type: 'info' });
-        setProducts((prev) => prev.filter((p) => p.id !== id));
-      } else {
-        const data = await res.json();
-        setToast({ message: data.error || 'Failed to delete product.', type: 'error' });
+        setToast({ message: 'Product deleted from catalog.', type: 'info' });
+        fetchVendorProducts();
       }
     } catch {
-      setToast({ message: 'Network error deleting product.', type: 'error' });
+      setToast({ message: 'Failed to delete product.', type: 'error' });
     }
   }
 
-  const currentStatus = vendor?.status || 'PENDING';
-  const isApproved = currentStatus === 'APPROVED';
+  const isApproved = vendor?.status === 'APPROVED';
   const existingDocOfType = vendor?.docs?.find((d) => d.docType === docType);
 
   const filteredProducts = products.filter(
     (p) =>
       p.itemName.toLowerCase().includes(productSearch.toLowerCase()) ||
       p.sku.toLowerCase().includes(productSearch.toLowerCase()) ||
-      p.barcode.includes(productSearch)
+      p.barcode.toLowerCase().includes(productSearch.toLowerCase())
   );
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="p-6 md:p-10 space-y-8 font-sans max-w-[1600px] mx-auto">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Light Header Banner */}
+      {/* Light Header Banner Card (Matching Owner Console UI Styling) */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 shrink-0">
+          <div className="p-3.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
             <Building className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold font-mono">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-              PILLAR 01 • VENDOR GOVERNANCE &amp; ATO COMPLIANCE
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+              VENDOR PORTAL • ATO COMPLIANCE & CATALOG
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {vendor?.companyName || 'Vendor Company Registration'}
+              Vendor Onboarding &amp; Product Portal
             </h1>
             <p className="text-xs text-slate-500 font-mono">
-              ABN/ACN: {vendor?.abnAcn || 'Pending Registration'} • Account: {session?.user?.email}
+              Manage statutory registration, upload compliance documents, and publish products.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <Badge
-            variant={
-              currentStatus === 'APPROVED'
-                ? 'emerald'
-                : currentStatus === 'UNDER_REVIEW'
-                ? 'amber'
-                : currentStatus === 'PENDING'
-                ? 'sky'
-                : 'danger'
-            }
-          >
-            Status: {currentStatus}
-          </Badge>
-        </div>
+        {vendor && (
+          <div className="flex items-center gap-2 font-mono shrink-0">
+            <span className="text-xs font-bold text-slate-500">Account Status:</span>
+            <Badge
+              variant={
+                vendor.status === 'APPROVED'
+                  ? 'emerald'
+                  : vendor.status === 'UNDER_REVIEW'
+                  ? 'amber'
+                  : vendor.status === 'PENDING'
+                  ? 'sky'
+                  : 'danger'
+              }
+            >
+              {vendor.status}
+            </Badge>
+          </div>
+        )}
       </div>
 
-      {/* Dynamic Lifecycle Status Alert Box */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-2">
-        <div className="flex items-center gap-2">
-          {currentStatus === 'APPROVED' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-          {currentStatus === 'UNDER_REVIEW' && <AlertTriangle className="w-5 h-5 text-amber-600" />}
-          {currentStatus === 'PENDING' && <AlertCircle className="w-5 h-5 text-sky-600" />}
-          {(currentStatus === 'SUSPENDED' || currentStatus === 'REJECTED') && <XCircle className="w-5 h-5 text-rose-600" />}
-          
-          <h2 className="text-base font-extrabold text-slate-900">
-            {currentStatus === 'APPROVED' && 'Vendor Access Granted & ATO Compliant'}
-            {currentStatus === 'UNDER_REVIEW' && 'Application Under Review by Platform Owner'}
-            {currentStatus === 'PENDING' && 'Registration Pending — Compliance Uploads Required'}
-            {currentStatus === 'SUSPENDED' && 'Vendor Account Suspended'}
-            {currentStatus === 'REJECTED' && 'Application Rejected'}
-          </h2>
-        </div>
-
-        <p className="text-xs text-slate-600 leading-relaxed pl-7">
-          {currentStatus === 'APPROVED' && 'Your company profile and statutory compliance documents are fully verified. Product catalog creation and 3PL warehouse allocations are active.'}
-          {currentStatus === 'UNDER_REVIEW' && 'Your registration details and uploaded certificates have been submitted to Platform Administrators for statutory audit inspection.'}
-          {currentStatus === 'PENDING' && 'Please complete your company details below and upload your required ATO ABN Registration Certificate and Insurance documents.'}
-          {currentStatus === 'SUSPENDED' && 'Access has been suspended due to expired liability insurance or statutory non-compliance. Please contact support to resolve.'}
-          {currentStatus === 'REJECTED' && `Reason: ${vendor?.rejectionReason || 'Document verification failed.'}`}
-        </p>
-      </div>
-
-      {/* Executed Vendor Performance Monitoring & Telemetry Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-            <span>Fulfillment Rate</span>
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 font-mono">
-            {isApproved ? `${vendor?.fulfillmentRate || 98.4}%` : 'N/A'}
-          </p>
-          <span className="text-[10px] text-emerald-700 font-bold font-mono">
-            {isApproved ? 'Target: >95.0% • Compliant' : 'Awaiting Initial Orders'}
-          </span>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-            <span>On-Time Delivery</span>
-            <Clock className="w-4 h-4 text-indigo-600" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 font-mono">
-            {isApproved ? `${vendor?.onTimeDeliveryRate || 96.8}%` : 'N/A'}
-          </p>
-          <span className="text-[10px] text-indigo-700 font-bold font-mono">
-            {isApproved ? '3PL SLA Index High' : 'Awaiting Initial Orders'}
-          </span>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-            <span>Quality Rating</span>
-            <Star className="w-4 h-4 text-amber-500" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 font-mono">
-            {isApproved ? `${vendor?.qualityRating || 4.9} / 5.0` : 'Pending'}
-          </p>
-          <span className="text-[10px] text-amber-700 font-bold font-mono">
-            {isApproved ? 'QA Certified Vendor' : 'Pending Audit Evaluation'}
-          </span>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
-            <span>Active Catalog SKUs</span>
-            <Layers className="w-4 h-4 text-slate-700" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 font-mono">
-            {products.length} Items
-          </p>
-          <span className="text-[10px] text-slate-500 font-bold font-mono">Scoped to Vendor ID</span>
-        </div>
-      </div>
-
-      {/* Main Grid: Registration Form & Compliance Document Upload */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Card 1: Company Profile Form */}
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      {/* Step 1 & 2 Grid: Statutory Registration + Document Upload */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Step 1 Card: Statutory Registration */}
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
-              <Building className="w-5 h-5 text-amber-600" />
-              <h3 className="text-lg font-bold text-slate-900">Company Registration Details</h3>
+              <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center font-mono">
+                1
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Statutory Entity Profile</h3>
             </div>
             {isApproved && (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                <Lock className="w-2.5 h-2.5" /> ATO Locked
+              <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> ATO Governance Approved
               </span>
             )}
           </div>
@@ -528,46 +491,47 @@ export default function VendorDashboardPage() {
             </div>
           )}
 
-          {isApproved && (
-            <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-800 text-xs font-medium flex items-center gap-2">
-              <Info className="w-4 h-4 shrink-0 text-amber-600" />
-              <span>Statutory Lock Active: Approved vendor profiles cannot alter legal entity ABNs directly. To update registered company details, contact Support.</span>
-            </div>
-          )}
-
-          <form onSubmit={handleRegisterProfile} className="space-y-4">
+          <form onSubmit={handleRegisterProfile} className="space-y-4 text-xs font-sans">
             <Input
-              label="Registered Company Name"
+              label="Registered Company / Entity Name"
               required
               disabled={isApproved}
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               placeholder="e.g. Apex Hardware & Logistics Ltd"
             />
-
             <Input
-              label="Australian ABN (11 digits) or ACN (9 digits)"
+              label="Australian Business Number (ABN 11-digits) or ACN (9-digits)"
               required
               disabled={isApproved}
               value={abnAcn}
               onChange={(e) => setAbnAcn(e.target.value)}
-              placeholder="e.g. 51 824 753 910"
-              helperText="Australian Business Number statutory identity verification (Must be exactly 11 digits)"
+              placeholder="e.g. 51824753910"
+              helperText="Must be exact numeric digits (e.g. 11 digits for ABN or 9 digits for ACN)."
             />
 
-            {!isApproved && (
+            {!isApproved ? (
               <Button type="submit" isLoading={profileSubmitting} className="w-full">
-                Save Company Profile
+                Save Statutory Profile
               </Button>
+            ) : (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 font-mono flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>Statutory Lock Active: Company name and ABN/ACN locked by ATO verification. Contact support for changes.</span>
+              </div>
             )}
           </form>
         </div>
 
-        {/* Card 2: Compliance Document Upload */}
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Upload className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-lg font-bold text-slate-900">Upload Compliance Certificates</h3>
+        {/* Step 2 Card: Compliance Certificate Upload */}
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center font-mono">
+                2
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Upload Compliance Documents</h3>
+            </div>
           </div>
 
           {fileValidationError && (
@@ -577,25 +541,16 @@ export default function VendorDashboardPage() {
             </div>
           )}
 
-          {existingDocOfType && (
-            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-semibold flex items-center gap-2">
-              <Info className="w-4 h-4 text-indigo-600 shrink-0" />
-              <span>
-                Replaces existing file ({existingDocOfType.fileName}). Uploading a new certificate will queue the file for review.
-              </span>
-            </div>
-          )}
-
-          <form onSubmit={handleUploadDocument} className="space-y-4">
+          <form onSubmit={handleUploadDocument} className="space-y-4 text-xs font-sans">
             <Select
-              label="Document Classification Type"
+              label="Document Type"
               value={docType}
               onChange={(e) => setDocType(e.target.value)}
               options={[
                 { value: 'ATO ABN Registration Certificate', label: 'ATO ABN Registration Certificate' },
                 { value: 'Public Liability Insurance Policy', label: 'Public Liability Insurance Policy' },
-                { value: 'ISO 9001 Quality Certificate', label: 'ISO 9001 Quality Certificate' },
-                { value: 'Trade Compliance Agreement', label: 'Trade Compliance Agreement' },
+                { value: 'ISO Quality & Compliance Cert', label: 'ISO Quality & Compliance Cert' },
+                { value: 'Trade License & Accreditation', label: 'Trade License & Accreditation' },
               ]}
             />
 
@@ -609,9 +564,6 @@ export default function VendorDashboardPage() {
                 onChange={handleFileSelect}
                 className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-indigo-600 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
               />
-              <p className="text-[11px] text-slate-500">
-                Supported: PDF, PNG, JPG, DOC, DOCX. Files over 5MB or executable formats (.exe, .zip) will be rejected.
-              </p>
             </div>
 
             <Button type="submit" variant="success" isLoading={uploading} className="w-full">
@@ -694,14 +646,14 @@ export default function VendorDashboardPage() {
         )}
       </div>
 
-      {/* Vendor Product & Catalog Management (CRUD Scoped to Owning Vendor) */}
+      {/* Vendor Product & Catalog Management (Item Master Entry Form matching Owner Console) */}
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2">
             <Package className="w-5 h-5 text-indigo-600" />
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Product &amp; Catalog Management (Item Master)</h3>
-              <p className="text-xs text-slate-500">Manage products, pricing, barcodes, and statuses scoped strictly to your vendor account.</p>
+              <h3 className="text-lg font-bold text-slate-900">Product Catalog Management (Item Master Entry)</h3>
+              <p className="text-xs text-slate-500 font-mono">Manage catalog products, pricing, barcode locks, and taxonomy scoped to your vendor entity.</p>
             </div>
           </div>
 
@@ -728,7 +680,7 @@ export default function VendorDashboardPage() {
           </div>
         )}
 
-        {/* Search & Filter Bar */}
+        {/* Search Bar */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
@@ -754,47 +706,68 @@ export default function VendorDashboardPage() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-mono">
-                  <th className="py-3.5 px-4 font-bold">Item Name</th>
-                  <th className="py-3.5 px-4 font-bold">SKU</th>
-                  <th className="py-3.5 px-4 font-bold">Barcode</th>
-                  <th className="py-3.5 px-4 font-bold">Cost Price</th>
-                  <th className="py-3.5 px-4 font-bold">Selling Price</th>
+                  <th className="py-3.5 px-4 font-bold">Item Name &amp; SKU</th>
+                  <th className="py-3.5 px-4 font-bold">Category &amp; UOM</th>
+                  <th className="py-3.5 px-4 font-bold">Retail &amp; Wholesale Price</th>
+                  <th className="py-3.5 px-4 font-bold">MOQ</th>
                   <th className="py-3.5 px-4 font-bold">Status</th>
                   <th className="py-3.5 px-4 font-bold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+              <tbody className="divide-y divide-slate-100">
                 {filteredProducts.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-slate-900">
-                      <div>{p.itemName}</div>
-                      {p.description && <div className="text-[10px] text-slate-400 font-sans truncate max-w-xs">{p.description}</div>}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-indigo-700 font-bold">{p.sku}</td>
-                    <td className="py-3.5 px-4 text-slate-600 font-mono">{p.barcode}</td>
-                    <td className="py-3.5 px-4 text-slate-600">${Number(p.costPrice).toFixed(2)}</td>
-                    <td className="py-3.5 px-4 font-bold text-emerald-700">${Number(p.sellingPrice).toFixed(2)}</td>
                     <td className="py-3.5 px-4">
-                      <Badge variant={p.status === 'ACTIVE' ? 'emerald' : p.status === 'DRAFT' ? 'amber' : 'danger'}>
+                      <div className="space-y-0.5">
+                        <div className="font-extrabold text-slate-900 text-xs">{p.itemName}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                            {p.sku}
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-500">EAN: {p.barcode}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-[11px]">
+                      <div className="space-y-0.5">
+                        <span className="inline-block text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                          {p.categoryName || 'General Hardware'}
+                        </span>
+                        <div className="text-[10px] text-slate-500">{p.uomCode || 'PCS'}</div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-[11px]">
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-slate-900">${Number(p.sellingPrice).toFixed(2)}</div>
+                        <div className="text-[10px] text-indigo-700">Wholesale: ${Number(p.wholesalePrice || p.sellingPrice).toFixed(2)}</div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-800">
+                      {p.moq || 1} units
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <Badge variant={p.status === 'ACTIVE' ? 'emerald' : p.status === 'DRAFT' ? 'amber' : 'neutral'}>
                         {p.status}
                       </Badge>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => openEditProductModal(p)}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
-                          title="Edit Product"
+                          leftIcon={<Edit2 className="w-3.5 h-3.5 text-indigo-600" />}
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => handleDeleteProduct(p.id)}
-                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer"
-                          title="Delete Product"
+                          leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-600" />}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                          Delete
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -805,110 +778,167 @@ export default function VendorDashboardPage() {
         )}
       </div>
 
-      {/* Create / Edit Product Modal (Using Central Clean Modal Component) */}
+      {/* CREATE / EDIT PRODUCT MODAL (IDENTICAL 5-CARD STRUCTURE AS OWNER ITEM MASTER) */}
       <Modal
         isOpen={showProductModal}
         onClose={() => setShowProductModal(false)}
-        title={editingProductId ? 'Edit Product Item' : 'Add New Product Item'}
-        subtitle="Item Master Catalog Entry • Scoped to Vendor ID"
+        title={editingProductId ? 'Edit Product Item Master' : 'Add New Product Item Master'}
+        subtitle="Catalog Entry Enforces Price Sanity, Taxonomy & Data Governance Locks"
+        maxWidth="4xl"
       >
-        <div className="space-y-4 text-xs font-sans">
+        <div className="space-y-6 text-xs font-sans max-w-4xl">
           {prodFormError && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 shrink-0" />
               <span>{prodFormError}</span>
             </div>
           )}
 
-          <form onSubmit={handleSaveProduct} className="space-y-4">
-            <Input
-              label="Product / Item Name"
-              required
-              value={prodName}
-              onChange={(e) => setProdName(e.target.value)}
-              placeholder="e.g. Thermal Printer 300DPI"
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="SKU Code"
-                value={prodSku}
-                onChange={(e) => setProdSku(e.target.value)}
-                placeholder="Auto-generated if blank"
-                helperText="e.g. SKU-HDW-9001"
-              />
-              <Input
-                label="Barcode (EAN / GTIN)"
-                value={prodBarcode}
-                onChange={(e) => setProdBarcode(e.target.value)}
-                placeholder="Auto-generated if blank"
-                helperText="e.g. 9312345000018"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Cost Price ($)"
-                type="number"
-                step="0.01"
-                required
-                value={prodCost}
-                onChange={(e) => setProdCost(e.target.value)}
-                placeholder="120.00"
-              />
-              <Input
-                label="Selling Price ($)"
-                type="number"
-                step="0.01"
-                required
-                value={prodSelling}
-                onChange={(e) => setProdSelling(e.target.value)}
-                placeholder="249.99"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Wholesale Tier Price ($)"
-                type="number"
-                step="0.01"
-                value={prodWholesale}
-                onChange={(e) => setProdWholesale(e.target.value)}
-                placeholder="185.00"
-                helperText="Must be <= Retail Selling Price"
-              />
-              <Input
-                label="Minimum Order Qty (MOQ)"
-                type="number"
-                min="1"
-                value={prodMoq}
-                onChange={(e) => setProdMoq(e.target.value)}
-                placeholder="1"
-                helperText="Default: 1 unit"
-              />
-            </div>
-
-            {/* Live Margin & Markup Calculations */}
-            {parseFloat(prodSelling || '0') > 0 && parseFloat(prodCost || '0') > 0 && (
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-semibold">
-                <span className="text-slate-600">Calculated Margin / Markup:</span>
-                <div className="flex items-center gap-3">
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold">
-                    Margin: {(((parseFloat(prodSelling) - parseFloat(prodCost)) / parseFloat(prodSelling)) * 100).toFixed(1)}%
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-bold">
-                    Markup: {(((parseFloat(prodSelling) - parseFloat(prodCost)) / parseFloat(prodCost)) * 100).toFixed(1)}%
-                  </span>
-                </div>
+          <form onSubmit={handleSaveProduct} className="space-y-6">
+            {/* SECTION 1: ITEM IDENTIFICATION & NAME */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <Package className="w-4 h-4 text-indigo-600" />
+                <span>1. Basic Identification &amp; Codes</span>
               </div>
-            )}
 
-            {/* Dynamic Attributes / Specifications Builder */}
-            <div className="space-y-2 pt-2 border-t border-slate-100 font-sans">
+              <Input
+                label="Product / Item Master Name"
+                required
+                value={prodName}
+                onChange={(e) => setProdName(e.target.value)}
+                placeholder="e.g. Industrial Barcode Scanner 2D"
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="SKU Code (Leave blank to auto-generate)"
+                  value={prodSku}
+                  onChange={(e) => setProdSku(e.target.value)}
+                  placeholder="e.g. LQ-SCN-00101"
+                  helperText="Must be unique across entire platform catalog"
+                />
+                <Input
+                  label="Barcode EAN-13 (Leave blank to auto-generate)"
+                  value={prodBarcode}
+                  onChange={(e) => setProdBarcode(e.target.value)}
+                  placeholder="e.g. 9312345678901"
+                  helperText="GS1 compliant 13-digit barcode"
+                />
+              </div>
+            </div>
+
+            {/* SECTION 2: SYSTEM TAXONOMY & UOM */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <FolderTree className="w-4 h-4 text-indigo-600" />
+                <span>2. System Taxonomy &amp; Unit of Measure</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select
+                  label="Taxonomy Category"
+                  value={prodCategoryId}
+                  onChange={(e) => setProdCategoryId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Select Category' },
+                    ...categories.map((c) => ({ value: c.id, label: c.name })),
+                  ]}
+                />
+                <Select
+                  label="Unit of Measure (UOM)"
+                  value={prodUomId}
+                  onChange={(e) => setProdUomId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Select UOM' },
+                    ...uoms.map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` })),
+                  ]}
+                />
+              </div>
+            </div>
+
+            {/* SECTION 3: PRICING ENGINE & MARGIN METRICS */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-indigo-600" />
+                <span>3. Pricing Engine &amp; Margin Calculations</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Cost Price ($ AUD)"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={prodCost}
+                  onChange={(e) => setProdCost(e.target.value)}
+                  placeholder="120.00"
+                />
+                <Input
+                  label="Retail Selling Price ($ AUD)"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={prodSelling}
+                  onChange={(e) => setProdSelling(e.target.value)}
+                  placeholder="249.99"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input
+                  label="Wholesale Tier Price ($)"
+                  type="number"
+                  step="0.01"
+                  value={prodWholesale}
+                  onChange={(e) => setProdWholesale(e.target.value)}
+                  placeholder="185.00"
+                  helperText="Must be <= Retail Selling Price"
+                />
+                <Input
+                  label="Minimum Order Qty (MOQ)"
+                  type="number"
+                  min="1"
+                  value={prodMoq}
+                  onChange={(e) => setProdMoq(e.target.value)}
+                  placeholder="1"
+                  helperText="Default: 1 unit"
+                />
+                <Select
+                  label="Item Status"
+                  value={prodStatus}
+                  onChange={(e) => setProdStatus(e.target.value as any)}
+                  options={[
+                    { value: 'ACTIVE', label: 'ACTIVE' },
+                    { value: 'DRAFT', label: 'DRAFT' },
+                    { value: 'DISCONTINUED', label: 'DISCONTINUED' },
+                  ]}
+                />
+              </div>
+
+              {/* Live Margin & Markup Calculation Bar */}
+              {parseFloat(prodSelling || '0') > 0 && parseFloat(prodCost || '0') > 0 && (
+                <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs font-semibold">
+                  <span className="text-slate-600 font-bold">Auto Margin &amp; Markup Metrics:</span>
+                  <div className="flex items-center gap-3">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold">
+                      Margin: {(((parseFloat(prodSelling) - parseFloat(prodCost)) / parseFloat(prodSelling)) * 100).toFixed(1)}%
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-bold">
+                      Markup: {(((parseFloat(prodSelling) - parseFloat(prodCost)) / parseFloat(prodCost)) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 4: TECHNICAL SPECIFICATIONS & DYNAMIC ATTRIBUTES */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Technical Specifications & Custom Attributes
-                </label>
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-indigo-600" />
+                  <span>4. Technical Specifications &amp; Dynamic Key-Value Attributes</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setProdAttrPairs([...prodAttrPairs, { key: '', value: '' }])}
@@ -955,36 +985,26 @@ export default function VendorDashboardPage() {
               ))}
             </div>
 
-            <Select
-              label="Product Status"
-              value={prodStatus}
-              onChange={(e) => setProdStatus(e.target.value as any)}
-              options={[
-                { value: 'ACTIVE', label: 'ACTIVE (Ready for Order Fulfillment)' },
-                { value: 'DRAFT', label: 'DRAFT (Internal Review)' },
-                { value: 'DISCONTINUED', label: 'DISCONTINUED (End of Life)' },
-              ]}
-            />
-
-            <div className="space-y-1 font-sans">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Product Description
+            {/* SECTION 5: DESCRIPTION */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-2">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                5. Product Description &amp; Packaging Notes
               </label>
               <textarea
-                rows={3}
                 value={prodDesc}
                 onChange={(e) => setProdDesc(e.target.value)}
-                placeholder="Enter specifications, dimensions, or packaging details..."
-                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                rows={3}
+                className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
+                placeholder="Enter technical details, dimensions, weight, operating conditions..."
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <Button type="button" variant="outline" onClick={() => setShowProductModal(false)}>
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <Button type="button" variant="secondary" onClick={() => setShowProductModal(false)}>
                 Cancel
               </Button>
               <Button type="submit" isLoading={prodSubmitting}>
-                {editingProductId ? 'Save Product Changes' : 'Create Product'}
+                {editingProductId ? 'Update Product' : 'Save & Register Product'}
               </Button>
             </div>
           </form>
