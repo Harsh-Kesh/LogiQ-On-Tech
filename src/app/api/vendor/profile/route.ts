@@ -15,29 +15,15 @@ export async function GET(req: Request) {
   const userId = user.id;
   const userEmail = (user.email || '').toLowerCase().trim();
 
-  // 1. Check persistent file store (contains live runtime profile edits & uploads)
+  // 1. Check persistent file store
   const persistentUsers = loadPersistentUsers();
   const persistentRecord = Object.values(persistentUsers).find(
     (u) => u.email.toLowerCase() === userEmail || u.id === userId
   );
 
-  if (persistentRecord && (persistentRecord.companyName || persistentRecord.abnAcn || (persistentRecord.docs && persistentRecord.docs.length > 0))) {
-    return NextResponse.json({
-      vendor: {
-        id: `vnd_${persistentRecord.id}`,
-        companyName: persistentRecord.companyName || '',
-        abnAcn: persistentRecord.abnAcn || '',
-        status: persistentRecord.status || 'PENDING',
-        userId: persistentRecord.id,
-        user: { email: persistentRecord.email, fullName: persistentRecord.fullName },
-        createdAt: persistentRecord.createdAt,
-        docs: persistentRecord.docs || [],
-      },
-    });
-  }
-
+  let dbVendor: any = null;
   try {
-    const vendor = await prisma.vendor.findUnique({
+    dbVendor = await prisma.vendor.findUnique({
       where: { userId },
       include: {
         user: { select: { email: true, fullName: true } },
@@ -45,37 +31,44 @@ export async function GET(req: Request) {
         warehouseAssignments: { include: { warehouse: true } },
       },
     });
+  } catch (e: any) {}
 
-    if (vendor) {
-      return NextResponse.json({ vendor });
-    }
-  } catch (e: any) {
-    console.warn('Prisma lookup failed:', e.message);
-  }
+  // Determine current status consistently
+  const effectiveStatus = persistentRecord?.status || dbVendor?.status || 'APPROVED';
 
-  if (persistentRecord) {
+  if (persistentRecord && (persistentRecord.companyName || persistentRecord.abnAcn || (persistentRecord.docs && persistentRecord.docs.length > 0))) {
     return NextResponse.json({
       vendor: {
-        id: `vnd_${persistentRecord.id}`,
-        companyName: persistentRecord.companyName || '',
-        abnAcn: persistentRecord.abnAcn || '',
-        status: persistentRecord.status || 'PENDING',
+        id: dbVendor?.id || `vnd_${persistentRecord.id}`,
+        companyName: persistentRecord.companyName || dbVendor?.companyName || '',
+        abnAcn: persistentRecord.abnAcn || dbVendor?.abnAcn || '',
+        status: effectiveStatus,
+        rejectionReason: persistentRecord.rejectionReason || dbVendor?.rejectionReason,
         userId: persistentRecord.id,
         user: { email: persistentRecord.email, fullName: persistentRecord.fullName },
         createdAt: persistentRecord.createdAt,
-        docs: persistentRecord.docs || [],
+        docs: persistentRecord.docs || dbVendor?.docs || [],
       },
     });
   }
 
-  // Demo seed account fallback ONLY for preset default vendor
+  if (dbVendor) {
+    return NextResponse.json({
+      vendor: {
+        ...dbVendor,
+        status: effectiveStatus,
+      },
+    });
+  }
+
+  // Demo seed account fallback for preset default vendor
   if (user.email === 'vendor@logiqon.com' || userId === 'usr_vendor_01') {
     return NextResponse.json({
       vendor: {
-        id: `vnd_${userId || 'demo'}`,
+        id: `vnd_${userId || 'usr_vendor_01'}`,
         companyName: 'Apex Hardware & Logistics Ltd',
         abnAcn: '51 824 753 910',
-        status: 'APPROVED',
+        status: effectiveStatus,
         userId: userId || 'usr_vendor_01',
         user: { email: user.email, fullName: user.name || 'Apex Hardware Manager' },
         createdAt: new Date().toISOString(),
@@ -103,13 +96,13 @@ export async function GET(req: Request) {
     });
   }
 
-  // Newly Registered Vendors start completely EMPTY
+  // Newly Registered Vendors start with PENDING
   return NextResponse.json({
     vendor: {
       id: `vnd_${userId}`,
       companyName: '',
       abnAcn: '',
-      status: 'PENDING',
+      status: persistentRecord?.status || 'PENDING',
       userId: userId,
       user: { email: user.email, fullName: user.name || 'New Vendor Account' },
       createdAt: new Date().toISOString(),
@@ -154,7 +147,6 @@ export async function POST(req: Request) {
       where: { userId: user.id },
     });
 
-    // 2. Statutory Lock Check: If Vendor is APPROVED, lock company details
     if (existingVendor && existingVendor.status === 'APPROVED' && existingVendor.abnAcn && existingVendor.companyName) {
       if (existingVendor.abnAcn !== cleanAbn || existingVendor.companyName !== companyName.trim()) {
         return NextResponse.json(

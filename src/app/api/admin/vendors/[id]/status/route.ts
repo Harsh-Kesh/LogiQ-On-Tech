@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, loadPersistentUsers, updateRuntimeVendorProfile } from '@/lib/auth';
+import { authOptions, loadPersistentUsers, savePersistentUsers, updateRuntimeVendorProfile } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 import { sendVendorApprovalEmail, sendVendorRejectionEmail } from '@/lib/email';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  PENDING: ['UNDER_REVIEW', 'REJECTED'],
+  PENDING: ['UNDER_REVIEW', 'REJECTED', 'APPROVED'],
   UNDER_REVIEW: ['APPROVED', 'REJECTED', 'PENDING'],
-  APPROVED: ['SUSPENDED', 'UNDER_REVIEW'],
-  SUSPENDED: ['APPROVED', 'REJECTED'],
-  REJECTED: ['PENDING'],
+  APPROVED: ['SUSPENDED', 'UNDER_REVIEW', 'REJECTED'],
+  SUSPENDED: ['APPROVED', 'REJECTED', 'UNDER_REVIEW'],
+  REJECTED: ['PENDING', 'UNDER_REVIEW', 'APPROVED'],
 };
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
@@ -34,8 +34,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   let dbVendor: any = null;
 
   try {
-    dbVendor = await prisma.vendor.findUnique({
-      where: { id: vendorId },
+    dbVendor = await prisma.vendor.findFirst({
+      where: { OR: [{ id: vendorId }, { userId: vendorId.replace('vnd_', '') }] },
       include: { user: true },
     });
     if (dbVendor) {
@@ -48,13 +48,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   // Check persistent store
   const persistentUsers = loadPersistentUsers();
   const rawUserId = vendorId.replace('vnd_', '');
-  const persistentRecord = Object.values(persistentUsers).find(
-    (u) =>
+  const persistentRecordKey = Object.keys(persistentUsers).find((k) => {
+    const u = persistentUsers[k];
+    return (
       u.id === rawUserId ||
       u.id === vendorId ||
       `vnd_${u.id}` === vendorId ||
-      (vendorEmail && u.email.toLowerCase() === vendorEmail.toLowerCase())
-  );
+      (vendorEmail && u.email.toLowerCase() === vendorEmail.toLowerCase()) ||
+      k.toLowerCase() === vendorEmail.toLowerCase()
+    );
+  });
+
+  const persistentRecord = persistentRecordKey ? persistentUsers[persistentRecordKey] : null;
 
   if (persistentRecord) {
     currentStatus = persistentRecord.status || currentStatus;
@@ -62,24 +67,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!companyName) companyName = persistentRecord.companyName || '';
   }
 
-  const allowedTargets = ALLOWED_TRANSITIONS[currentStatus] || [];
-
-  // Validate State Machine Allowed Transition
-  if (!allowedTargets.includes(targetStatus)) {
-    return NextResponse.json(
-      {
-        error: `Illegal state transition. Cannot move vendor status directly from ${currentStatus} to ${targetStatus}. Allowed transitions from ${currentStatus} are: ${allowedTargets.join(', ')}.`,
-      },
-      { status: 400 }
-    );
-  }
-
-  // 1. Synchronize status transition to persistent store (registered_users.json)
+  // 1. Synchronize status transition to persistent store
   if (vendorEmail) {
     updateRuntimeVendorProfile(vendorEmail, undefined, undefined, targetStatus, targetStatus === 'REJECTED' ? rejectionReason : undefined);
   }
   if (persistentRecord) {
     updateRuntimeVendorProfile(persistentRecord.id, undefined, undefined, targetStatus, targetStatus === 'REJECTED' ? rejectionReason : undefined);
+    persistentUsers[persistentRecordKey!].status = targetStatus;
+    savePersistentUsers(persistentUsers);
   }
   updateRuntimeVendorProfile(vendorId, undefined, undefined, targetStatus, targetStatus === 'REJECTED' ? rejectionReason : undefined);
 
@@ -87,7 +82,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (dbVendor) {
     try {
       await prisma.vendor.update({
-        where: { id: vendorId },
+        where: { id: dbVendor.id },
         data: {
           status: targetStatus as any,
           rejectionReason: targetStatus === 'REJECTED' ? rejectionReason || 'Failed compliance evaluation' : null,
@@ -100,7 +95,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           where: { id: dbVendor.userId },
           data: { isSuspended: true },
         }).catch(() => {});
-      } else if (targetStatus === 'APPROVED' && dbVendor.user.isSuspended) {
+      } else if (targetStatus === 'APPROVED' && dbVendor.user?.isSuspended) {
         await prisma.user.update({
           where: { id: dbVendor.userId },
           data: { isSuspended: false },
@@ -111,7 +106,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
   }
 
-  // 3. Trigger Real Transactional Email Dispatch directly to recipient's email address!
+  // 3. Trigger Real Transactional Email Dispatch directly to recipient's email address
   let emailResult: any = null;
   if (vendorEmail) {
     if (targetStatus === 'APPROVED') {

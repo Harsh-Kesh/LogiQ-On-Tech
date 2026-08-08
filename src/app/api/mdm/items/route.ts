@@ -282,6 +282,13 @@ export async function PUT(req: Request) {
       );
     }
 
+    if (wholesale > selling) {
+      return NextResponse.json(
+        { error: `Data Governance Lock: Wholesale tier price ($${wholesale.toFixed(2)}) cannot exceed retail selling price ($${selling.toFixed(2)}).` },
+        { status: 400 }
+      );
+    }
+
     const cleanSku = sku ? sku.trim().toUpperCase() : item.sku;
     const cleanBarcode = barcode ? barcode.trim() : item.barcode;
     const existingItems = Object.values(persistentProducts);

@@ -20,6 +20,7 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   emptyMessage?: string;
   actions?: (row: T) => React.ReactNode;
+  showSearch?: boolean;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -31,6 +32,7 @@ export function DataTable<T extends Record<string, any>>({
   isLoading = false,
   emptyMessage = 'No matching records found',
   actions,
+  showSearch = true,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,24 +54,26 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <div className="space-y-4">
       {/* Search Header */}
-      <div className="flex items-center justify-between gap-4 p-4 border-b border-slate-100">
-        <div className="relative w-full max-w-sm">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder={searchPlaceholder}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 transition-all font-medium"
-          />
+      {showSearch && (
+        <div className="flex items-center justify-between gap-4 p-4 border-b border-slate-100">
+          <div className="relative w-full max-w-sm">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder={searchPlaceholder}
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 transition-all font-medium"
+            />
+          </div>
+          <div className="text-xs font-mono text-slate-500 shrink-0">
+            Total: <span className="text-slate-900 font-bold">{filteredData.length}</span> entries
+          </div>
         </div>
-        <div className="text-xs font-mono text-slate-500 shrink-0">
-          Total: <span className="text-slate-900 font-bold">{filteredData.length}</span> entries
-        </div>
-      </div>
+      )}
 
       {/* Table */}
       <div className="bg-white overflow-hidden">

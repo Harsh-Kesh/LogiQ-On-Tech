@@ -49,14 +49,29 @@ function getSeededDemoAccounts(): Record<string, PersistentUser> {
 
 export function loadPersistentUsers(): Record<string, PersistentUser> {
   ensureStorageDirExists();
+  const seeds = getSeededDemoAccounts();
   try {
     if (fs.existsSync(STORAGE_FILE)) {
       const data = fs.readFileSync(STORAGE_FILE, 'utf-8');
       const parsed = JSON.parse(data);
-      return { ...getSeededDemoAccounts(), ...parsed };
+      const merged = { ...seeds, ...parsed };
+
+      // Ensure default demo vendor accounts maintain APPROVED status unless explicitly changed
+      if (merged['vendor@logiqon.com'] && (!merged['vendor@logiqon.com'].status || merged['vendor@logiqon.com'].status === 'PENDING')) {
+        merged['vendor@logiqon.com'].status = 'APPROVED';
+        merged['vendor@logiqon.com'].companyName = 'Apex Hardware & Logistics Ltd';
+        merged['vendor@logiqon.com'].abnAcn = '51 824 753 910';
+      }
+      if (merged['vendor@logiqon.tech'] && (!merged['vendor@logiqon.tech'].status || merged['vendor@logiqon.tech'].status === 'PENDING')) {
+        merged['vendor@logiqon.tech'].status = 'APPROVED';
+        merged['vendor@logiqon.tech'].companyName = 'Apex Hardware & Logistics Ltd';
+        merged['vendor@logiqon.tech'].abnAcn = '51 824 753 910';
+      }
+
+      return merged;
     }
   } catch (e) {}
-  return getSeededDemoAccounts();
+  return seeds;
 }
 
 export function savePersistentUsers(users: Record<string, PersistentUser>) {
@@ -66,11 +81,17 @@ export function savePersistentUsers(users: Record<string, PersistentUser>) {
   } catch (e) {}
 }
 
-export function updateRuntimeVendorProfile(userEmailOrId: string, companyName?: string, abnAcn?: string, status?: string, rejectionReason?: string) {
+export function updateRuntimeVendorProfile(
+  userEmailOrId: string,
+  companyName?: string,
+  abnAcn?: string,
+  status?: string,
+  rejectionReason?: string
+) {
   const users = loadPersistentUsers();
   const searchKey = (userEmailOrId || '').toLowerCase().trim();
   const rawId = searchKey.replace('vnd_', '');
-  
+
   let entry = users[searchKey] || Object.values(users).find(
     (u) => u.email.toLowerCase() === searchKey || u.id === searchKey || u.id === rawId || `vnd_${u.id}` === searchKey
   );
@@ -98,7 +119,7 @@ export function updateRuntimeVendorProfile(userEmailOrId: string, companyName?: 
     if (rejectionReason !== undefined) entry.rejectionReason = rejectionReason;
     users[entry.email.toLowerCase()] = entry;
   }
-  
+
   savePersistentUsers(users);
 }
 

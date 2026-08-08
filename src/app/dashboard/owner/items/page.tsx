@@ -32,6 +32,7 @@ import {
   Tag,
   DollarSign,
   Layers,
+  Sparkles,
 } from 'lucide-react';
 
 interface StatusHistoryItem {
@@ -315,7 +316,7 @@ export default function MasterDataItemsPage() {
     }
   };
 
-  // Multi-Attribute Filter Logic
+  // Multi-Attribute & Flexible Spec Filtering Logic
   const filteredItems = items.filter((item) => {
     const matchesSearch =
       search === '' ||
@@ -341,35 +342,40 @@ export default function MasterDataItemsPage() {
     const matchesMaxPrice = isNaN(maxP) || item.sellingPrice <= maxP;
 
     let matchesAttr = true;
-    if (attrFilterKey && attrFilterVal) {
+    if (attrFilterKey || attrFilterVal) {
       if (!item.attributes) {
         matchesAttr = false;
-      } else {
+      } else if (attrFilterKey && attrFilterVal) {
         const val = item.attributes[attrFilterKey];
         matchesAttr = Boolean(val && val.toLowerCase().includes(attrFilterVal.toLowerCase().trim()));
+      } else if (attrFilterKey && !attrFilterVal) {
+        matchesAttr = Boolean(item.attributes[attrFilterKey]);
+      } else if (!attrFilterKey && attrFilterVal) {
+        const query = attrFilterVal.toLowerCase().trim();
+        matchesAttr = Object.values(item.attributes).some((v) => v.toLowerCase().includes(query));
       }
     }
 
     return matchesSearch && matchesCategory && matchesUom && matchesStatus && matchesMinPrice && matchesMaxPrice && matchesAttr;
   });
 
-  // Extract unique attribute keys present across items for the attribute filter dropdown
+  // Extract unique attribute keys present across all items for dropdown selector
   const allAttrKeys = Array.from(
     new Set(
       items.flatMap((item) => (item.attributes ? Object.keys(item.attributes) : []))
     )
   );
 
-  // Table Columns Setup
+  // Clean, High-Readability Table Columns Setup
   const itemColumns: Column<ItemMaster>[] = [
     {
       header: 'Item Master Name & SKU',
       accessorKey: 'itemName',
       cell: (item) => (
         <div className="space-y-1">
-          <div className="font-bold text-slate-900 line-clamp-1">{item.itemName}</div>
+          <div className="font-extrabold text-slate-900 text-sm line-clamp-1">{item.itemName}</div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+            <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
               {item.sku}
             </span>
             <span className="font-mono text-[11px] text-slate-500">EAN: {item.barcode}</span>
@@ -405,28 +411,6 @@ export default function MasterDataItemsPage() {
             <div className="font-bold text-slate-900">${Number(item.sellingPrice).toFixed(2)}</div>
             <div className="text-[10px] text-slate-500">Cost: ${Number(item.costPrice).toFixed(2)}</div>
             <div className="text-[10px] font-bold text-emerald-700">Margin: {margin}%</div>
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Attributes / Specs',
-      accessorKey: 'attributes',
-      cell: (item) => {
-        if (!item.attributes || Object.keys(item.attributes).length === 0) {
-          return <span className="text-[11px] text-slate-400 font-mono">Standard Specs</span>;
-        }
-        const entries = Object.entries(item.attributes).slice(0, 2);
-        return (
-          <div className="flex flex-wrap gap-1 max-w-[200px]">
-            {entries.map(([k, v]) => (
-              <span key={k} className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded">
-                {k}: {v}
-              </span>
-            ))}
-            {Object.keys(item.attributes).length > 2 && (
-              <span className="text-[10px] font-mono text-slate-500">+{Object.keys(item.attributes).length - 2} more</span>
-            )}
           </div>
         );
       },
@@ -508,7 +492,7 @@ export default function MasterDataItemsPage() {
             Bulk CSV Import
           </Button>
           <Button variant="primary" onClick={openNewItemModal} leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
-            + Create Item Master
+            Create Item Master
           </Button>
         </div>
       </div>
@@ -555,104 +539,104 @@ export default function MasterDataItemsPage() {
       {/* TAB 1: ITEM MASTER CATALOG */}
       {activeTab === 'ITEMS' && (
         <div className="space-y-6">
-          {/* MULTI-ATTRIBUTE & PRICE FILTER BAR */}
-          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4 font-sans">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              {/* Keyword Search */}
-              <div className="relative flex-1 min-w-[260px]">
+          {/* USER-FRIENDLY INTUITIVE FILTER CARD */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4 font-sans">
+            {/* ROW 1: SEARCH BAR + CATEGORY + UOM + LIFECYCLE STATUS DROPDOWNS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
-                  placeholder="Search by Name, SKU, Barcode, or Description..."
+                  placeholder="Search Name, SKU, Barcode..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
                 />
               </div>
 
-              {/* Filters Group */}
-              <div className="flex flex-wrap items-center gap-3">
-                <Select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  options={[
-                    { value: '', label: 'All Categories' },
-                    ...categories.map((c) => ({ value: c.id, label: c.name })),
-                  ]}
-                  className="min-w-[150px]"
-                />
+              <Select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All Categories' },
+                  ...categories.map((c) => ({ value: c.id, label: c.name })),
+                ]}
+              />
 
-                <Select
-                  value={uomFilter}
-                  onChange={(e) => setUomFilter(e.target.value)}
-                  options={[
-                    { value: '', label: 'All UOMs' },
-                    ...uoms.map((u) => ({ value: u.code, label: `${u.code} - ${u.name}` })),
-                  ]}
-                  className="min-w-[120px]"
-                />
+              <Select
+                value={uomFilter}
+                onChange={(e) => setUomFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All UOMs' },
+                  ...uoms.map((u) => ({ value: u.code, label: `${u.code} - ${u.name}` })),
+                ]}
+              />
 
-                <Select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  options={[
-                    { value: '', label: 'All Lifecycle Statuses' },
-                    { value: 'ACTIVE', label: 'ACTIVE' },
-                    { value: 'DRAFT', label: 'DRAFT' },
-                    { value: 'DISCONTINUED', label: 'DISCONTINUED' },
-                  ]}
-                  className="min-w-[160px]"
-                />
-              </div>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All Lifecycle Statuses' },
+                  { value: 'ACTIVE', label: 'ACTIVE' },
+                  { value: 'DRAFT', label: 'DRAFT' },
+                  { value: 'DISCONTINUED', label: 'DISCONTINUED' },
+                ]}
+              />
             </div>
 
-            {/* Advanced Price & Attribute Filter Row */}
-            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100 text-xs">
-              <div className="flex items-center gap-1.5 text-slate-600 font-bold">
-                <DollarSign className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Price Range ($):</span>
-              </div>
-              <input
-                type="number"
-                placeholder="Min $"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
-              />
-              <span className="text-slate-400">-</span>
-              <input
-                type="number"
-                placeholder="Max $"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
-              />
+            {/* ROW 2: PRICE RANGE + TECHNICAL SPECIFICATION FILTER */}
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-100 text-xs">
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Price Range Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-indigo-700 flex items-center gap-1">
+                    <DollarSign className="w-3.5 h-3.5" /> Price Range ($):
+                  </span>
+                  <input
+                    type="number"
+                    placeholder="Min $"
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                  <span className="text-slate-400">-</span>
+                  <input
+                    type="number"
+                    placeholder="Max $"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
 
-              <div className="h-4 w-px bg-slate-200 mx-1" />
+                <div className="hidden sm:block h-4 w-px bg-slate-200 mx-1" />
 
-              <div className="flex items-center gap-1.5 text-slate-600 font-bold">
-                <Tag className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Spec Filter:</span>
+                {/* Technical Specification Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-indigo-700 flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5" /> Spec Filter:
+                  </span>
+                  <select
+                    value={attrFilterKey}
+                    onChange={(e) => setAttrFilterKey(e.target.value)}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600 font-semibold"
+                  >
+                    <option value="">Select Spec Key</option>
+                    {allAttrKeys.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Spec Value (e.g. IP65)"
+                    value={attrFilterVal}
+                    onChange={(e) => setAttrFilterVal(e.target.value)}
+                    className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
               </div>
-              <select
-                value={attrFilterKey}
-                onChange={(e) => setAttrFilterKey(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600 font-semibold"
-              >
-                <option value="">Select Spec Key</option>
-                {allAttrKeys.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                placeholder="Spec Value (e.g. IP65)"
-                value={attrFilterVal}
-                onChange={(e) => setAttrFilterVal(e.target.value)}
-                className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
-              />
 
               {(search || categoryFilter || uomFilter || statusFilter || minPrice || maxPrice || attrFilterKey || attrFilterVal) && (
                 <button
@@ -685,7 +669,13 @@ export default function MasterDataItemsPage() {
               </Button>
             </div>
 
-            <DataTable data={filteredItems} columns={itemColumns} isLoading={loading} emptyMessage="No Item Master records match your search filter criteria." />
+            <DataTable
+              data={filteredItems}
+              columns={itemColumns}
+              isLoading={loading}
+              showSearch={false}
+              emptyMessage="No Item Master records match your search filter criteria."
+            />
           </div>
         </div>
       )}
@@ -737,141 +727,166 @@ export default function MasterDataItemsPage() {
         </div>
       )}
 
-      {/* MODAL 1: CREATE / EDIT ITEM MASTER */}
+      {/* MODAL 1: CREATE / EDIT ITEM MASTER (SPACIOUS & STRUCTURED IN 5 CARDS) */}
       <Modal
         isOpen={isItemModalOpen}
         onClose={() => setIsItemModalOpen(false)}
         title={formId ? 'Edit Item Master Record' : 'Create New Item Master Record'}
         subtitle="Enforces Data Governance Rules, Price Sanity & Unique SKU/Barcode Locks"
       >
-        <div className="space-y-4 text-xs font-sans">
+        <div className="space-y-6 text-xs font-sans max-w-4xl">
           {governanceError && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 shrink-0" />
               <span>{governanceError}</span>
             </div>
           )}
 
-          <form onSubmit={handleSaveItem} className="space-y-4">
-            <Input
-              label="Item Master Name"
-              required
-              value={itemName}
-              onChange={(e) => setItemName(e.target.value)}
-              placeholder="e.g. Industrial Barcode Scanner 2D"
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="SKU (Leave blank to auto-generate)"
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                placeholder="e.g. LQ-SCN-00101"
-                helperText="Must be unique across entire system"
-              />
-              <Input
-                label="Barcode EAN-13 (Leave blank to auto-generate)"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                placeholder="e.g. 9312345678901"
-                helperText="GS1 compliant 13-digit barcode"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Select
-                label="Taxonomy Category"
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                options={[
-                  { value: '', label: 'Select Category' },
-                  ...categories.map((c) => ({ value: c.id, label: c.name })),
-                ]}
-              />
-              <Select
-                label="Unit of Measure (UOM)"
-                value={uomId}
-                onChange={(e) => setUomId(e.target.value)}
-                options={[
-                  { value: '', label: 'Select UOM' },
-                  ...uoms.map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` })),
-                ]}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Cost Price ($ AUD)"
-                type="number"
-                step="0.01"
-                required
-                value={costPrice}
-                onChange={(e) => setCostPrice(e.target.value)}
-                placeholder="120.00"
-              />
-              <Input
-                label="Retail Selling Price ($ AUD)"
-                type="number"
-                step="0.01"
-                required
-                value={sellingPrice}
-                onChange={(e) => setSellingPrice(e.target.value)}
-                placeholder="249.99"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Input
-                label="Wholesale Tier Price ($)"
-                type="number"
-                step="0.01"
-                value={wholesalePrice}
-                onChange={(e) => setWholesalePrice(e.target.value)}
-                placeholder="185.00"
-                helperText="Must be <= Retail Selling Price"
-              />
-              <Input
-                label="Minimum Order Qty (MOQ)"
-                type="number"
-                min="1"
-                value={moq}
-                onChange={(e) => setMoq(e.target.value)}
-                placeholder="1"
-                helperText="Default: 1 unit"
-              />
-              <Select
-                label="Item Status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as any)}
-                options={[
-                  { value: 'ACTIVE', label: 'ACTIVE' },
-                  { value: 'DRAFT', label: 'DRAFT' },
-                  { value: 'DISCONTINUED', label: 'DISCONTINUED' },
-                ]}
-              />
-            </div>
-
-            {/* Live Margin & Markup Calculation Bar */}
-            {parseFloat(sellingPrice || '0') > 0 && parseFloat(costPrice || '0') > 0 && (
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-semibold">
-                <span className="text-slate-600 font-bold">Auto Margin & Markup Metrics:</span>
-                <div className="flex items-center gap-3">
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold">
-                    Margin: {(((parseFloat(sellingPrice) - parseFloat(costPrice)) / parseFloat(sellingPrice)) * 100).toFixed(1)}%
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-bold">
-                    Markup: {(((parseFloat(sellingPrice) - parseFloat(costPrice)) / parseFloat(costPrice)) * 100).toFixed(1)}%
-                  </span>
-                </div>
+          <form onSubmit={handleSaveItem} className="space-y-6">
+            {/* SECTION 1: ITEM IDENTIFICATION & NAME */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <Package className="w-4 h-4 text-indigo-600" />
+                <span>1. Basic Identification & Codes</span>
               </div>
-            )}
 
-            {/* Dynamic Attributes / Specifications Pair Builder */}
-            <div className="space-y-2 pt-2 border-t border-slate-100 font-sans">
+              <Input
+                label="Item Master Name"
+                required
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                placeholder="e.g. Industrial Barcode Scanner 2D"
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="SKU Code (Leave blank to auto-generate)"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  placeholder="e.g. LQ-SCN-00101"
+                  helperText="Must be unique across entire system"
+                />
+                <Input
+                  label="Barcode EAN-13 (Leave blank to auto-generate)"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  placeholder="e.g. 9312345678901"
+                  helperText="GS1 compliant 13-digit barcode"
+                />
+              </div>
+            </div>
+
+            {/* SECTION 2: SYSTEM TAXONOMY & UOM */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <FolderTree className="w-4 h-4 text-indigo-600" />
+                <span>2. System Taxonomy & Unit of Measure</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select
+                  label="Taxonomy Category"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Select Category' },
+                    ...categories.map((c) => ({ value: c.id, label: c.name })),
+                  ]}
+                />
+                <Select
+                  label="Unit of Measure (UOM)"
+                  value={uomId}
+                  onChange={(e) => setUomId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Select UOM' },
+                    ...uoms.map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` })),
+                  ]}
+                />
+              </div>
+            </div>
+
+            {/* SECTION 3: PRICING ENGINE & MARGIN METRICS */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-indigo-600" />
+                <span>3. Pricing Engine & Margin Calculations</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Cost Price ($ AUD)"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={costPrice}
+                  onChange={(e) => setCostPrice(e.target.value)}
+                  placeholder="120.00"
+                />
+                <Input
+                  label="Retail Selling Price ($ AUD)"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                  placeholder="249.99"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input
+                  label="Wholesale Tier Price ($)"
+                  type="number"
+                  step="0.01"
+                  value={wholesalePrice}
+                  onChange={(e) => setWholesalePrice(e.target.value)}
+                  placeholder="185.00"
+                  helperText="Must be <= Retail Selling Price"
+                />
+                <Input
+                  label="Minimum Order Qty (MOQ)"
+                  type="number"
+                  min="1"
+                  value={moq}
+                  onChange={(e) => setMoq(e.target.value)}
+                  placeholder="1"
+                  helperText="Default: 1 unit"
+                />
+                <Select
+                  label="Item Status"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as any)}
+                  options={[
+                    { value: 'ACTIVE', label: 'ACTIVE' },
+                    { value: 'DRAFT', label: 'DRAFT' },
+                    { value: 'DISCONTINUED', label: 'DISCONTINUED' },
+                  ]}
+                />
+              </div>
+
+              {/* Live Margin & Markup Calculation Bar */}
+              {parseFloat(sellingPrice || '0') > 0 && parseFloat(costPrice || '0') > 0 && (
+                <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs font-semibold">
+                  <span className="text-slate-600 font-bold">Auto Margin & Markup Metrics:</span>
+                  <div className="flex items-center gap-3">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold">
+                      Margin: {(((parseFloat(sellingPrice) - parseFloat(costPrice)) / parseFloat(sellingPrice)) * 100).toFixed(1)}%
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-bold">
+                      Markup: {(((parseFloat(sellingPrice) - parseFloat(costPrice)) / parseFloat(costPrice)) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 4: TECHNICAL SPECIFICATIONS & DYNAMIC ATTRIBUTES */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Technical Specifications & Dynamic Key-Value Attributes
-                </label>
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-indigo-600" />
+                  <span>4. Technical Specifications & Dynamic Key-Value Attributes</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setAttrPairs([...attrPairs, { key: '', value: '' }])}
@@ -918,18 +933,21 @@ export default function MasterDataItemsPage() {
               ))}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Item Description</label>
+            {/* SECTION 5: DESCRIPTION */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-2">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                5. Product Description & Packaging Notes
+              </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
-                placeholder="Technical specifications, dimensions, rating..."
+                className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
+                placeholder="Enter technical details, dimensions, weight, operating conditions..."
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-3">
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
               <Button type="button" variant="secondary" onClick={() => setIsItemModalOpen(false)}>
                 Cancel
               </Button>

@@ -16,11 +16,12 @@ export async function GET(req: Request) {
   const searchQuery = searchParams.get('search')?.toLowerCase() || '';
 
   const combinedMap = new Map<string, any>();
+  const persistentUsers = loadPersistentUsers();
 
   // 1. Seed Mock Demo Vendors
   const mockVendors = [
     {
-      id: 'vnd_01',
+      id: 'vnd_usr_vendor_01',
       companyName: 'Apex Hardware & Logistics Ltd',
       abnAcn: '51 824 753 910',
       status: 'APPROVED',
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
       ],
     },
     {
-      id: 'vnd_02',
+      id: 'vnd_usr_vendor_02',
       companyName: 'Nexus Global Supply Chain Solutions',
       abnAcn: '12 908 172 364',
       status: 'UNDER_REVIEW',
@@ -46,7 +47,7 @@ export async function GET(req: Request) {
       ],
     },
     {
-      id: 'vnd_03',
+      id: 'vnd_usr_vendor_03',
       companyName: 'Pacific Freight & Logistics Group',
       abnAcn: '88 123 456 789',
       status: 'PENDING',
@@ -57,7 +58,11 @@ export async function GET(req: Request) {
     },
   ];
 
-  mockVendors.forEach((v) => combinedMap.set(v.user.email.toLowerCase(), v));
+  mockVendors.forEach((v) => {
+    const pUser = persistentUsers[v.user.email.toLowerCase()];
+    const realStatus = pUser?.status || v.status;
+    combinedMap.set(v.user.email.toLowerCase(), { ...v, status: realStatus });
+  });
 
   // 2. Fetch PostgreSQL DB Users with role VENDOR
   try {
@@ -77,17 +82,19 @@ export async function GET(req: Request) {
       const emailLower = u.email.toLowerCase();
       const existing = combinedMap.get(emailLower);
       const v = u.vendor;
+      const pUser = persistentUsers[emailLower];
+      const realStatus = pUser?.status || v?.status || existing?.status || 'PENDING';
 
       combinedMap.set(emailLower, {
         id: v?.id || `vnd_${u.id}`,
-        companyName: v?.companyName || existing?.companyName || '',
-        abnAcn: v?.abnAcn || existing?.abnAcn || '',
-        status: v?.status || existing?.status || 'PENDING',
-        rejectionReason: v?.rejectionReason || existing?.rejectionReason,
+        companyName: v?.companyName || pUser?.companyName || existing?.companyName || '',
+        abnAcn: v?.abnAcn || pUser?.abnAcn || existing?.abnAcn || '',
+        status: realStatus,
+        rejectionReason: v?.rejectionReason || pUser?.rejectionReason || existing?.rejectionReason,
         userId: u.id,
         user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: u.isSuspended },
         createdAt: v?.createdAt?.toISOString() || u.createdAt.toISOString(),
-        docs: v?.docs && v.docs.length > 0 ? v.docs : existing?.docs || [],
+        docs: v?.docs && v.docs.length > 0 ? v.docs : pUser?.docs || existing?.docs || [],
       });
     });
   } catch (e: any) {
@@ -95,7 +102,6 @@ export async function GET(req: Request) {
   }
 
   // 3. Fetch Persistent File-Store Registered Users with role VENDOR
-  const persistentUsers = loadPersistentUsers();
   Object.values(persistentUsers)
     .filter((u) => u.role === 'VENDOR')
     .forEach((u) => {
@@ -106,9 +112,8 @@ export async function GET(req: Request) {
         id: existing?.id || `vnd_${u.id}`,
         companyName: u.companyName || existing?.companyName || '',
         abnAcn: u.abnAcn || existing?.abnAcn || '',
-        // Prioritize explicit runtime status changes (e.g. APPROVED) over stale DB defaults
         status: u.status || existing?.status || 'PENDING',
-        rejectionReason: existing?.rejectionReason,
+        rejectionReason: u.rejectionReason || existing?.rejectionReason,
         userId: u.id,
         user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: false },
         createdAt: u.createdAt,
