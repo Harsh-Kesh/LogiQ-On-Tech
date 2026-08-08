@@ -74,6 +74,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (persistentRecord) {
     updateRuntimeVendorProfile(persistentRecord.id, undefined, undefined, targetStatus, targetStatus === 'REJECTED' ? rejectionReason : undefined);
     persistentUsers[persistentRecordKey!].status = targetStatus;
+
+    // Automatically mark compliance documents as APPROVED when vendor account is approved
+    if (targetStatus === 'APPROVED' && persistentUsers[persistentRecordKey!].docs) {
+      persistentUsers[persistentRecordKey!].docs?.forEach((doc) => {
+        if (doc.status === 'PENDING' || doc.status === 'UNDER_REVIEW') {
+          doc.status = 'APPROVED';
+        }
+      });
+    }
+
     savePersistentUsers(persistentUsers);
   }
   updateRuntimeVendorProfile(vendorId, undefined, undefined, targetStatus, targetStatus === 'REJECTED' ? rejectionReason : undefined);
@@ -89,6 +99,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           approvedAt: targetStatus === 'APPROVED' ? new Date() : dbVendor.approvedAt,
         },
       });
+
+      if (targetStatus === 'APPROVED') {
+        await prisma.complianceDoc.updateMany({
+          where: { vendorId: dbVendor.id, status: 'PENDING' },
+          data: { status: 'APPROVED' },
+        }).catch(() => {});
+      }
 
       if (targetStatus === 'SUSPENDED') {
         await prisma.user.update({

@@ -370,13 +370,70 @@ export default function AdminVendorsPage() {
                           {doc.fileName} • {(doc.fileSize / (1024 * 1024)).toFixed(2)} MB
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDoc(doc)}
-                        className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
-                      >
-                        <FileCheck className="w-3.5 h-3.5" /> View / Open Certificate
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
+                            doc.status === 'APPROVED'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : doc.status === 'REJECTED'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}
+                        >
+                          {doc.status || 'PENDING'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDoc(doc)}
+                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <FileCheck className="w-3.5 h-3.5" /> View Doc
+                        </button>
+                        {doc.status !== 'APPROVED' && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/admin/vendors/${selectedVendor.id}/documents`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ docId: doc.id, status: 'APPROVED' }),
+                                });
+                                if (res.ok) {
+                                  doc.status = 'APPROVED';
+                                  setToast({ message: `Document '${doc.docType}' approved!`, type: 'success' });
+                                  fetchVendors();
+                                }
+                              } catch (e) {}
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {doc.status !== 'REJECTED' && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/admin/vendors/${selectedVendor.id}/documents`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ docId: doc.id, status: 'REJECTED' }),
+                                });
+                                if (res.ok) {
+                                  doc.status = 'REJECTED';
+                                  setToast({ message: `Document '${doc.docType}' marked as rejected.`, type: 'error' });
+                                  fetchVendors();
+                                }
+                              } catch (e) {}
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            Reject
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

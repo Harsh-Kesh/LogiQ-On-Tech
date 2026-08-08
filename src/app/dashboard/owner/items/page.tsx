@@ -473,21 +473,27 @@ export default function MasterDataItemsPage() {
     <div className="p-6 md:p-10 space-y-8 font-sans max-w-[1600px] mx-auto">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* HEADER ROW */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Package className="w-8 h-8 text-indigo-600 shrink-0" />
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">
-              Master Data Management (MDM) Catalog
-            </h1>
+      {/* Light Header Banner (Matching Vendor & User Directory UI Style) */}
+      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
+            <Package className="w-8 h-8" />
           </div>
-          <p className="text-xs text-slate-500 font-mono">
-            Item Master Core • Auto SKU/Barcode Engine • Multi-Attribute Data Governance
-          </p>
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
+              <Layers className="w-3.5 h-3.5 text-indigo-600" />
+              PILLAR 02 • MASTER DATA MANAGEMENT (MDM) HUB
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Item Master &amp; Product Governance Catalog
+            </h1>
+            <p className="text-xs text-slate-500 font-mono">
+              Centralized SKU/Barcode Registry • Multi-Tier Pricing • Dynamic Technical Attributes
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <Button variant="outline" onClick={() => setIsCsvModalOpen(true)} leftIcon={<Upload className="w-4 h-4 shrink-0 text-indigo-600" />}>
             Bulk CSV Import
           </Button>
@@ -733,6 +739,7 @@ export default function MasterDataItemsPage() {
         onClose={() => setIsItemModalOpen(false)}
         title={formId ? 'Edit Item Master Record' : 'Create New Item Master Record'}
         subtitle="Enforces Data Governance Rules, Price Sanity & Unique SKU/Barcode Locks"
+        maxWidth="4xl"
       >
         <div className="space-y-6 text-xs font-sans max-w-4xl">
           {governanceError && (
@@ -965,6 +972,7 @@ export default function MasterDataItemsPage() {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           title={`Item Master Detail & GS1 Barcode: ${selectedItem.sku}`}
+          maxWidth="3xl"
         >
           <div className="space-y-6 text-xs font-sans">
             {/* Visual Barcode Renderer Box */}
