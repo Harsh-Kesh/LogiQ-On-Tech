@@ -81,8 +81,13 @@ export default function VendorDashboardPage() {
   const [prodBarcode, setProdBarcode] = useState('');
   const [prodCost, setProdCost] = useState('');
   const [prodSelling, setProdSelling] = useState('');
+  const [prodWholesale, setProdWholesale] = useState('');
+  const [prodMoq, setProdMoq] = useState('1');
   const [prodStatus, setProdStatus] = useState<'ACTIVE' | 'DRAFT' | 'DISCONTINUED'>('ACTIVE');
   const [prodDesc, setProdDesc] = useState('');
+  const [prodAttrPairs, setProdAttrPairs] = useState<Array<{ key: string; value: string }>>([
+    { key: 'IP Rating', value: 'IP65' },
+  ]);
   const [prodFormError, setProdFormError] = useState('');
   const [prodSubmitting, setProdSubmitting] = useState(false);
 
@@ -272,21 +277,33 @@ export default function VendorDashboardPage() {
     setProdBarcode('');
     setProdCost('');
     setProdSelling('');
+    setProdWholesale('');
+    setProdMoq('1');
     setProdStatus('ACTIVE');
     setProdDesc('');
+    setProdAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
     setProdFormError('');
     setShowProductModal(true);
   }
 
-  function openEditProductModal(p: Product) {
+  function openEditProductModal(p: any) {
     setEditingProductId(p.id);
     setProdName(p.itemName);
     setProdSku(p.sku);
     setProdBarcode(p.barcode);
-    setProdCost(p.costPrice.toString());
-    setProdSelling(p.sellingPrice.toString());
-    setProdStatus(p.status);
+    setProdCost(p.costPrice ? p.costPrice.toString() : '0');
+    setProdSelling(p.sellingPrice ? p.sellingPrice.toString() : '0');
+    setProdWholesale(p.wholesalePrice ? p.wholesalePrice.toString() : p.sellingPrice ? p.sellingPrice.toString() : '0');
+    setProdMoq(p.moq ? p.moq.toString() : '1');
+    setProdStatus(p.status || 'ACTIVE');
     setProdDesc(p.description || '');
+
+    if (p.attributes && typeof p.attributes === 'object' && Object.keys(p.attributes).length > 0) {
+      setProdAttrPairs(Object.entries(p.attributes).map(([key, value]) => ({ key, value: String(value) })));
+    } else {
+      setProdAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
+    }
+
     setProdFormError('');
     setShowProductModal(true);
   }
@@ -296,6 +313,13 @@ export default function VendorDashboardPage() {
     setProdFormError('');
     setProdSubmitting(true);
 
+    const attributesObj: Record<string, string> = {};
+    prodAttrPairs.forEach((pair) => {
+      if (pair.key.trim() && pair.value.trim()) {
+        attributesObj[pair.key.trim()] = pair.value.trim();
+      }
+    });
+
     const payload = {
       id: editingProductId,
       itemName: prodName,
@@ -303,8 +327,11 @@ export default function VendorDashboardPage() {
       barcode: prodBarcode,
       costPrice: prodCost,
       sellingPrice: prodSelling,
+      wholesalePrice: prodWholesale || prodSelling,
+      moq: prodMoq || '1',
       status: prodStatus,
       description: prodDesc,
+      attributes: attributesObj,
     };
 
     try {
@@ -838,6 +865,94 @@ export default function VendorDashboardPage() {
                 onChange={(e) => setProdSelling(e.target.value)}
                 placeholder="249.99"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Wholesale Tier Price ($)"
+                type="number"
+                step="0.01"
+                value={prodWholesale}
+                onChange={(e) => setProdWholesale(e.target.value)}
+                placeholder="185.00"
+                helperText="Must be <= Retail Selling Price"
+              />
+              <Input
+                label="Minimum Order Qty (MOQ)"
+                type="number"
+                min="1"
+                value={prodMoq}
+                onChange={(e) => setProdMoq(e.target.value)}
+                placeholder="1"
+                helperText="Default: 1 unit"
+              />
+            </div>
+
+            {/* Live Margin & Markup Calculations */}
+            {parseFloat(prodSelling || '0') > 0 && parseFloat(prodCost || '0') > 0 && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-semibold">
+                <span className="text-slate-600">Calculated Margin / Markup:</span>
+                <div className="flex items-center gap-3">
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold">
+                    Margin: {(((parseFloat(prodSelling) - parseFloat(prodCost)) / parseFloat(prodSelling)) * 100).toFixed(1)}%
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-bold">
+                    Markup: {(((parseFloat(prodSelling) - parseFloat(prodCost)) / parseFloat(prodCost)) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Dynamic Attributes / Specifications Builder */}
+            <div className="space-y-2 pt-2 border-t border-slate-100 font-sans">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Technical Specifications & Custom Attributes
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setProdAttrPairs([...prodAttrPairs, { key: '', value: '' }])}
+                  className="text-xs text-indigo-600 font-bold hover:underline"
+                >
+                  + Add Spec Pair
+                </button>
+              </div>
+
+              {prodAttrPairs.map((pair, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Spec Name (e.g. IP Rating)"
+                    value={pair.key}
+                    onChange={(e) => {
+                      const updated = [...prodAttrPairs];
+                      updated[idx].key = e.target.value;
+                      setProdAttrPairs(updated);
+                    }}
+                    className="w-1/2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Spec Value (e.g. IP65)"
+                    value={pair.value}
+                    onChange={(e) => {
+                      const updated = [...prodAttrPairs];
+                      updated[idx].value = e.target.value;
+                      setProdAttrPairs(updated);
+                    }}
+                    className="w-1/2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                  />
+                  {prodAttrPairs.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setProdAttrPairs(prodAttrPairs.filter((_, i) => i !== idx))}
+                      className="p-2 text-rose-500 hover:text-rose-700 font-bold"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
 
             <Select

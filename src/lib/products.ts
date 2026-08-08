@@ -9,6 +9,10 @@ export interface PersistentProduct {
   description?: string;
   costPrice: number;
   sellingPrice: number;
+  wholesalePrice?: number;
+  marginPercent?: number;
+  markupPercent?: number;
+  moq?: number;
   status: 'ACTIVE' | 'DRAFT' | 'DISCONTINUED';
   vendorId: string;
   vendorEmail: string;
@@ -17,6 +21,14 @@ export interface PersistentProduct {
   uomId?: string;
   uomCode?: string;
   uomName?: string;
+  attributes?: Record<string, string>;
+  statusHistory?: Array<{
+    from: string;
+    to: string;
+    changedBy: string;
+    changedAt: string;
+    reason?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,6 +59,15 @@ export function savePersistentProducts(products: Record<string, PersistentProduc
   } catch (e) {}
 }
 
+export function calculateMarginAndMarkup(cost: number, selling: number) {
+  const margin = selling > 0 ? ((selling - cost) / selling) * 100 : 0;
+  const markup = cost > 0 ? ((selling - cost) / cost) * 100 : 0;
+  return {
+    marginPercent: parseFloat(margin.toFixed(2)),
+    markupPercent: parseFloat(markup.toFixed(2)),
+  };
+}
+
 export function getSeedDemoProducts(): Record<string, PersistentProduct> {
   const now = new Date().toISOString();
   return {
@@ -58,6 +79,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Heavy-duty IP65 Bluetooth 2D barcode scanner for warehouse receiving and bin picking.',
       costPrice: 120.00,
       sellingPrice: 249.99,
+      wholesalePrice: 185.00,
+      marginPercent: 52.00,
+      markupPercent: 108.33,
+      moq: 5,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -66,6 +91,16 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'IP Rating': 'IP65',
+        'Connectivity': 'Bluetooth 5.0 / USB-C',
+        'Operating Temp': '-20C to 50C',
+        'Weight': '320g',
+        'Battery Life': '16 Hours Continuous',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -77,6 +112,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'High-speed industrial thermal label printer with Ethernet, USB & Wi-Fi module.',
       costPrice: 310.00,
       sellingPrice: 599.00,
+      wholesalePrice: 450.00,
+      marginPercent: 48.25,
+      markupPercent: 93.23,
+      moq: 2,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -85,6 +124,15 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Print Resolution': '300 DPI',
+        'Max Speed': '152 mm/sec',
+        'Interface': 'Ethernet / USB / Wi-Fi',
+        'Max Ribbon Length': '300 Meters',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -96,6 +144,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Enterprise 5.5-inch rugged mobile terminal with 2D zebra scan engine & 4G SIM.',
       costPrice: 450.00,
       sellingPrice: 899.00,
+      wholesalePrice: 680.00,
+      marginPercent: 49.94,
+      markupPercent: 99.78,
+      moq: 3,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -104,6 +156,15 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'OS': 'Android 13 Enterprise',
+        'Screen': '5.5 inch HD Touchscreen',
+        'IP Rating': 'IP67 Waterproof',
+        'Scan Engine': 'Zebra SE4710 2D',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -115,6 +176,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'High-durability printable UHF RFID adhesive tags for pallet and container tracking.',
       costPrice: 45.00,
       sellingPrice: 89.00,
+      wholesalePrice: 65.00,
+      marginPercent: 49.44,
+      markupPercent: 97.78,
+      moq: 10,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -123,6 +188,15 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pk',
       uomCode: 'PK',
       uomName: 'Pack of 100',
+      attributes: {
+        'Frequency': 'UHF 860-960 MHz',
+        'Protocol': 'EPC Class 1 Gen 2 (ISO 18000-6C)',
+        'Read Range': 'Up to 6 Meters',
+        'Adhesive': '3M Permanent Acrylic',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -134,6 +208,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Premium permanent adhesive direct thermal freight labels for parcel dispatch.',
       costPrice: 12.50,
       sellingPrice: 24.90,
+      wholesalePrice: 18.00,
+      marginPercent: 49.80,
+      markupPercent: 99.20,
+      moq: 20,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -142,6 +220,14 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_box',
       uomCode: 'BOX',
       uomName: 'Box of 10',
+      attributes: {
+        'Dimensions': '100mm x 150mm',
+        'Labels per Roll': '500 Labels',
+        'Type': 'Direct Thermal Premium',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -153,6 +239,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Smudge-resistant black resin ribbon for outdoor chemical and asset tags.',
       costPrice: 18.00,
       sellingPrice: 38.50,
+      wholesalePrice: 28.00,
+      marginPercent: 53.25,
+      markupPercent: 113.89,
+      moq: 10,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -161,6 +251,14 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_box',
       uomCode: 'BOX',
       uomName: 'Box of 10',
+      attributes: {
+        'Ribbon Type': 'Full Resin',
+        'Size': '110mm x 300m',
+        'Color': 'Black',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -172,6 +270,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Australian standard rackable plastic pallet with 1500kg dynamic rating.',
       costPrice: 85.00,
       sellingPrice: 149.00,
+      wholesalePrice: 115.00,
+      marginPercent: 42.95,
+      markupPercent: 75.29,
+      moq: 10,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -180,6 +282,14 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Dynamic Load': '1500 kg',
+        'Static Load': '5000 kg',
+        'Material': 'High Density Polyethylene (HDPE)',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -191,6 +301,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Long-range retro-reflective barcode sign for overhead warehouse racking aisles.',
       costPrice: 15.00,
       sellingPrice: 29.00,
+      wholesalePrice: 22.00,
+      marginPercent: 48.28,
+      markupPercent: 93.33,
+      moq: 5,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -199,6 +313,13 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Scan Range': 'Up to 15 Meters',
+        'Material': 'Reflective Aluminum Composite',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -210,6 +331,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Industrial 4-port UHF RFID reader for automatic dock door pallet scanning.',
       costPrice: 950.00,
       sellingPrice: 1850.00,
+      wholesalePrice: 1450.00,
+      marginPercent: 48.65,
+      markupPercent: 94.74,
+      moq: 1,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -218,6 +343,14 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Ports': '4 Antenna Ports (RP-TNC)',
+        'IP Rating': 'IP67 Waterproof',
+        'Power': 'PoE+ (Power over Ethernet)',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -229,6 +362,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Conveyor belt high-speed barcode reader for automated package sortation.',
       costPrice: 620.00,
       sellingPrice: 1190.00,
+      wholesalePrice: 920.00,
+      marginPercent: 47.90,
+      markupPercent: 91.94,
+      moq: 1,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -237,6 +374,13 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Scan Speed': '60 Scans/sec',
+        'Interface': 'EtherNet/IP & RS-232',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -248,6 +392,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Heavy metal casing 6-inch wide industrial barcode label printer for manufacturing lines.',
       costPrice: 1250.00,
       sellingPrice: 2399.00,
+      wholesalePrice: 1850.00,
+      marginPercent: 47.89,
+      markupPercent: 91.92,
+      moq: 1,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -256,6 +404,13 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Print Width': '6.6 Inches (168mm)',
+        'Duty Cycle': '24/7 Continuous Operation',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -267,6 +422,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Heavy-duty PUR jacketed Ethernet cable for dock door readers and IP cameras.',
       costPrice: 9.50,
       sellingPrice: 19.90,
+      wholesalePrice: 14.00,
+      marginPercent: 52.26,
+      markupPercent: 109.47,
+      moq: 10,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -275,6 +434,13 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Cable Length': '5 Meters',
+        'Jacket Material': 'Industrial PUR Flame Retardant',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -286,6 +452,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Encapsulated IP68 rugged RFID tag for metallic container and forklift tracking.',
       costPrice: 3.50,
       sellingPrice: 7.90,
+      wholesalePrice: 5.50,
+      marginPercent: 55.70,
+      markupPercent: 125.71,
+      moq: 50,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -294,6 +464,13 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_box',
       uomCode: 'BOX',
       uomName: 'Box of 10',
+      attributes: {
+        'IP Rating': 'IP68 Submersible',
+        'Mounting': 'Rivet / Screws / 3M VHB Tape',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -305,6 +482,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Yellow high-contrast 2D Datamatrix bin barcodes for shelf edge marking.',
       costPrice: 22.00,
       sellingPrice: 45.00,
+      wholesalePrice: 32.00,
+      marginPercent: 51.11,
+      markupPercent: 104.55,
+      moq: 5,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -313,6 +494,13 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pk',
       uomCode: 'PK',
       uomName: 'Pack of 100',
+      attributes: {
+        'Material': 'Laminated Tough Vinyl',
+        'Color': 'Yellow High Contrast',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -324,6 +512,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Vibration-resistant touchscreen vehicle computer with integrated power regulator.',
       costPrice: 1100.00,
       sellingPrice: 2150.00,
+      wholesalePrice: 1650.00,
+      marginPercent: 48.84,
+      markupPercent: 95.45,
+      moq: 1,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -332,6 +524,13 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Vibration Rating': 'MIL-STD-810G Vehicle Mount',
+        'Power Input': '9-60V DC Direct Vehicle Ignition',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -343,6 +542,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Specialized laser DPM scanner for etched serial numbers on automotive parts.',
       costPrice: 580.00,
       sellingPrice: 1120.00,
+      wholesalePrice: 850.00,
+      marginPercent: 48.21,
+      markupPercent: 93.10,
+      moq: 2,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -351,6 +554,12 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'DPM Capability': 'Laser Etched / Dot Peen Barcodes',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -362,6 +571,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Compact 2-inch Bluetooth mobile printer for cross-docking and markdown labelling.',
       costPrice: 190.00,
       sellingPrice: 380.00,
+      wholesalePrice: 280.00,
+      marginPercent: 50.00,
+      markupPercent: 100.00,
+      moq: 2,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -370,6 +583,13 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Connectivity': 'Bluetooth 4.2 / NFC Pairing',
+        'Drop Rating': '1.8m Concrete Drop Resistant',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -381,6 +601,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'High-clarity cast stretch film for unitizing pallet loads for freight.',
       costPrice: 42.00,
       sellingPrice: 79.00,
+      wholesalePrice: 58.00,
+      marginPercent: 46.84,
+      markupPercent: 88.10,
+      moq: 5,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -389,6 +613,12 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_ctn',
       uomCode: 'CTN',
       uomName: 'Carton of 50',
+      attributes: {
+        'Gauge': '20 Micron Cast Stretch',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -400,6 +630,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Outdoor weatherproof RFID antenna for gate portals and warehouse conveyor belts.',
       costPrice: 180.00,
       sellingPrice: 340.00,
+      wholesalePrice: 250.00,
+      marginPercent: 47.06,
+      markupPercent: 88.89,
+      moq: 2,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -408,6 +642,12 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Gain': '9 dBi Circular Polarized',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -419,6 +659,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Tear-proof silver polyester barcodes resistant to oil, water, and solvents.',
       costPrice: 35.00,
       sellingPrice: 69.00,
+      wholesalePrice: 48.00,
+      marginPercent: 49.28,
+      markupPercent: 97.14,
+      moq: 5,
       status: 'ACTIVE',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -427,6 +671,12 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pk',
       uomCode: 'PK',
       uomName: 'Pack of 100',
+      attributes: {
+        'Material': 'Silver Matte Polyester',
+      },
+      statusHistory: [
+        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -438,6 +688,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Hands-free presentation scanner for high-throughput retail checkout and packing stations.',
       costPrice: 140.00,
       sellingPrice: 289.00,
+      wholesalePrice: 210.00,
+      marginPercent: 51.56,
+      markupPercent: 106.43,
+      moq: 2,
       status: 'DRAFT',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -446,6 +700,12 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Scan Pattern': 'Omnidirectional 2D Imaging',
+      },
+      statusHistory: [
+        { from: 'NEW', to: 'DRAFT', changedBy: 'System Seed', changedAt: now, reason: 'Specification review pending' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
@@ -457,6 +717,10 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       description: 'Genuine thermal printhead replacement module for 300DPI LogiPrint industrial models.',
       costPrice: 280.00,
       sellingPrice: 490.00,
+      wholesalePrice: 380.00,
+      marginPercent: 42.86,
+      markupPercent: 75.00,
+      moq: 1,
       status: 'DISCONTINUED',
       vendorId: 'vnd_usr_vendor_01',
       vendorEmail: 'vendor@logiqon.com',
@@ -465,6 +729,12 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       uomId: 'uom_pcs',
       uomCode: 'PCS',
       uomName: 'Pieces',
+      attributes: {
+        'Compatibility': 'LogiPrint-HD6 Series',
+      },
+      statusHistory: [
+        { from: 'ACTIVE', to: 'DISCONTINUED', changedBy: 'System Seed', changedAt: now, reason: 'Model replaced by 600DPI series' },
+      ],
       createdAt: now,
       updatedAt: now,
     },
