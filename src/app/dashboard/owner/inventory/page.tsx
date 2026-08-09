@@ -490,13 +490,8 @@ export default function OwnerInventoryPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 space-y-6">
-      {/* Standardized Global Toast Feedback (Matching Item Master & Vendor Portal) */}
-      {toast && (
-        <div className="fixed top-5 right-5 z-[100] max-w-md w-full font-sans shadow-xl animate-in fade-in slide-in-from-top-4 duration-200">
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-        </div>
-      )}
+    <div className="p-6 md:p-10 space-y-8 font-sans max-w-[1600px] mx-auto">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Global Enterprise Master Inventory Banner (Styled in Emerald Green) */}
       <div className="p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 font-sans">
