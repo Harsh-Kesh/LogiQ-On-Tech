@@ -52,9 +52,9 @@ export default function WarehouseDashboardPage() {
 
   const activeWarehouse = isGlobal
     ? {
-        code: 'GLOBAL-3PL-ALL',
-        name: 'LogiQ-On Global Logistics & Multi-Warehouse Fleet Desk',
-        address: 'Enterprise Operations Directorate • Nationwide 3PL Logistics Network',
+        code: 'GLOBAL-3PL',
+        name: 'LogiQ-On Global Logistics Fleet',
+        address: 'Enterprise Operations • 3PL Network',
         bins: warehouses.flatMap((w) => w.bins || []),
       }
     : warehouses.find((w) => w.code === selectedWarehouseCode) || {
@@ -66,11 +66,11 @@ export default function WarehouseDashboardPage() {
 
   const activeManager = isGlobal
     ? {
-        name: 'Enterprise Logistics Directorate',
+        name: 'Logistics Directorate',
         email: session?.user?.email || 'global.ops@logiqon.tech',
       }
     : WAREHOUSE_MANAGERS[selectedWarehouseCode] || {
-        name: session?.user?.name || 'Warehouse Facility Manager',
+        name: session?.user?.name || 'Warehouse Manager',
         email: session?.user?.email || 'warehouse@logiqon.tech',
       };
 
@@ -87,25 +87,25 @@ export default function WarehouseDashboardPage() {
   return (
     <div className="space-y-6 font-sans">
       {/* Emerald Green Header Banner with Default Global View */}
-      <div className="p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
+      <div className="p-6 md:p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex items-center gap-4 min-w-0">
           <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
             {isGlobal ? <Globe className="w-8 h-8" /> : <Warehouse className="w-8 h-8" />}
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              {isGlobal ? 'PILLAR 03 • GLOBAL 3PL FLEET MONITORING DESK' : 'PILLAR 03 • FACILITY OPERATOR DESK'}
+              {isGlobal ? 'PILLAR 03 • GLOBAL 3PL FLEET DESK' : 'PILLAR 03 • FACILITY OPERATOR DESK'}
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
                 {activeWarehouse.name}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-mono font-bold">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-mono font-bold shrink-0">
                 {activeWarehouse.code}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-mono flex items-center gap-2">
+            <p className="text-xs text-slate-500 font-mono flex flex-wrap items-center gap-x-2 gap-y-1">
               <span><MapPin className="w-3.5 h-3.5 text-emerald-600 inline" /> {activeWarehouse.address}</span>
               <span>•</span>
               <span className="text-emerald-700 font-bold"><UserCheck className="w-3.5 h-3.5 inline" /> {activeManager.name} ({activeManager.email})</span>

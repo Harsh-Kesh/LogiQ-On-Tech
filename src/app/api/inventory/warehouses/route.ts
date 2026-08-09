@@ -74,14 +74,21 @@ export async function POST(req: Request) {
 
     if (binCode) {
       const rawCodes = binCode.split(',').map((c: string) => c.trim().toUpperCase()).filter(Boolean);
+      const rawZones = binZone ? binZone.split(',').map((z: string) => z.trim()).filter(Boolean) : [];
+
       if (rawCodes.length > 0) {
-        parsedBins = rawCodes.map((bc: string, idx: number) => ({
-          id: `bin_${Date.now()}_${idx}`,
-          code: bc,
-          zone: binZone || `Zone ${String.fromCharCode(65 + (idx % 4))}`,
-          capacityUnits: parseInt(binCapacity, 10) || 1000,
-          isOccupied: false,
-        }));
+        parsedBins = rawCodes.map((bc: string, idx: number) => {
+          const zoneForBin = rawZones.length === 1
+            ? rawZones[0]
+            : (rawZones[idx] || rawZones[0] || `Zone ${String.fromCharCode(65 + (idx % 4))}`);
+          return {
+            id: `bin_${Date.now()}_${idx}`,
+            code: bc,
+            zone: zoneForBin,
+            capacityUnits: parseInt(binCapacity, 10) || 1000,
+            isOccupied: false,
+          };
+        });
       }
     }
 

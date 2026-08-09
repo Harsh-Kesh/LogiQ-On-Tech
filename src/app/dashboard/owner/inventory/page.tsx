@@ -1059,8 +1059,8 @@ export default function OwnerInventoryPage() {
               <Input value={binCode} onChange={(e) => setBinCode(e.target.value)} placeholder="BIN-A1-01, BIN-A1-02, BIN-B2-01" className="text-xs font-mono uppercase" />
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Bin Zone / Area</label>
-              <Input value={binZone} onChange={(e) => setBinZone(e.target.value)} placeholder="Zone A - Fast Pick" className="text-xs" />
+              <label className="text-xs font-bold text-slate-700 block mb-1">Bin Zone / Area (Single or comma-separated)</label>
+              <Input value={binZone} onChange={(e) => setBinZone(e.target.value)} placeholder="Zone A, Zone A, Zone B" className="text-xs" />
             </div>
           </div>
 
