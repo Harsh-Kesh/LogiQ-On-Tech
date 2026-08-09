@@ -171,6 +171,12 @@ export async function POST(req: Request) {
     const { marginPercent, markupPercent } = calculateMarginAndMarkup(cost, selling);
     const itemId = `item_${Date.now()}`;
 
+    // Resolve vendor ownership (Category 1: Vendor Supplied vs Category 2: Internal Platform Stock)
+    const inputVendorId = body.vendorId;
+    const isVendorProvided = inputVendorId && inputVendorId !== 'PLATFORM' && inputVendorId !== '';
+    const resolvedVendorId = isVendorProvided ? inputVendorId : null;
+    const resolvedVendorName = body.vendorName || (isVendorProvided ? 'Vendor Partner' : 'LogiQ-On Internal Stock');
+
     const newItem: PersistentProduct = {
       id: itemId,
       sku: finalSku,
@@ -184,8 +190,9 @@ export async function POST(req: Request) {
       markupPercent,
       moq: parsedMoq,
       status: finalStatus as any,
-      vendorId: user.role === 'VENDOR' ? `vnd_${user.id}` : 'vnd_admin_owner',
-      vendorEmail: user.email || 'admin@logiqon.tech',
+      vendorId: resolvedVendorId,
+      vendorEmail: isVendorProvided ? body.vendorEmail || 'vendor@logiqon.com' : undefined,
+      vendorName: resolvedVendorName,
       categoryId: catObj ? catObj.id : undefined,
       categoryName: catName,
       uomId: uomObj ? uomObj.id : undefined,

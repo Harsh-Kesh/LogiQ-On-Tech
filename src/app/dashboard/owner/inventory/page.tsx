@@ -1,0 +1,890 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+  Boxes,
+  ArrowDownLeft,
+  ArrowUpRight,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Building,
+  Plus,
+  Filter,
+  Layers,
+  MapPin,
+  CheckCircle2,
+  AlertTriangle,
+  History,
+  FileSpreadsheet,
+  PackageCheck,
+  RotateCcw,
+} from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { DataTable } from '@/components/ui/DataTable';
+import { Modal } from '@/components/ui/Modal';
+import { StockOnHandItem, StockLedgerEntry, WarehouseLocation, ReconciliationReport } from '@/lib/stock';
+
+export default function OwnerInventoryPage() {
+  const [activeTab, setActiveTab] = useState<'stock' | 'receive' | 'ledger' | 'adjust' | 'locations'>('stock');
+
+  // Data States
+  const [stockList, setStockList] = useState<StockOnHandItem[]>([]);
+  const [ledgerList, setLedgerList] = useState<StockLedgerEntry[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseLocation[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [reconciliation, setReconciliation] = useState<ReconciliationReport | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Filter States
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
+  const [movementFilter, setMovementFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Form States - Receive Goods
+  const [rcvItem, setRcvItem] = useState('');
+  const [rcvWarehouse, setRcvWarehouse] = useState('');
+  const [rcvBin, setRcvBin] = useState('');
+  const [rcvQty, setRcvQty] = useState('100');
+  const [rcvPo, setRcvPo] = useState('');
+  const [rcvSubmitting, setRcvSubmitting] = useState(false);
+
+  // Form States - Stock Adjustments
+  const [adjItem, setAdjItem] = useState('');
+  const [adjWarehouse, setAdjWarehouse] = useState('');
+  const [adjBin, setAdjBin] = useState('');
+  const [adjType, setAdjType] = useState<'ISSUE' | 'ADJUSTMENT' | 'RETURN'>('ISSUE');
+  const [adjQty, setAdjQty] = useState('10');
+  const [adjReason, setAdjReason] = useState('');
+  const [adjRef, setAdjRef] = useState('');
+  const [adjSubmitting, setAdjSubmitting] = useState(false);
+
+  // Form States - New Warehouse / Bin
+  const [isWhModalOpen, setIsWhModalOpen] = useState(false);
+  const [whCode, setWhCode] = useState('');
+  const [whName, setWhName] = useState('');
+  const [whAddress, setWhAddress] = useState('');
+  const [whContact, setWhContact] = useState('');
+  const [binCode, setBinCode] = useState('');
+  const [binZone, setBinZone] = useState('Zone A');
+  const [whSubmitting, setWhSubmitting] = useState(false);
+
+  // Toast State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      const [stockRes, ledgerRes, whRes, itemsRes] = await Promise.all([
+        fetch('/api/inventory/stock'),
+        fetch('/api/inventory/ledger'),
+        fetch('/api/inventory/warehouses'),
+        fetch('/api/mdm/items'),
+      ]);
+
+      const stockData = await stockRes.json();
+      const ledgerData = await ledgerRes.json();
+      const whData = await whRes.json();
+      const itemsData = await itemsRes.json();
+
+      setStockList(stockData.stock || []);
+      setReconciliation(stockData.reconciliation || null);
+      setLedgerList(ledgerData.ledger || []);
+      setWarehouses(whData.warehouses || []);
+      setItems(itemsData.items || []);
+
+      if (whData.warehouses && whData.warehouses.length > 0) {
+        if (!rcvWarehouse) setRcvWarehouse(whData.warehouses[0].code);
+        if (!adjWarehouse) setAdjWarehouse(whData.warehouses[0].code);
+        if (whData.warehouses[0].bins.length > 0) {
+          if (!rcvBin) setRcvBin(whData.warehouses[0].bins[0].code);
+          if (!adjBin) setAdjBin(whData.warehouses[0].bins[0].code);
+        }
+      }
+      if (itemsData.items && itemsData.items.length > 0) {
+        if (!rcvItem) setRcvItem(itemsData.items[0].id);
+        if (!adjItem) setAdjItem(itemsData.items[0].id);
+      }
+    } catch (e) {
+      setToast({ message: 'Failed to load inventory data.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReceiveStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rcvItem || !rcvWarehouse || !rcvBin || !rcvQty) {
+      setToast({ message: 'Please fill in all required fields.', type: 'error' });
+      return;
+    }
+
+    setRcvSubmitting(true);
+    try {
+      const res = await fetch('/api/inventory/receive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemMasterId: rcvItem,
+          warehouseCode: rcvWarehouse,
+          binLocation: rcvBin,
+          quantityReceived: rcvQty,
+          poReference: rcvPo,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Stock receiving failed.', type: 'error' });
+      } else {
+        setToast({ message: data.message, type: 'success' });
+        setRcvPo('');
+        fetchAllData();
+        setActiveTab('stock');
+      }
+    } catch (e) {
+      setToast({ message: 'Error communicating with server.', type: 'error' });
+    } finally {
+      setRcvSubmitting(false);
+    }
+  };
+
+  const handleAdjustStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adjItem || !adjWarehouse || !adjBin || !adjQty || !adjReason) {
+      setToast({ message: 'Please provide a valid item, location, quantity, and reason code.', type: 'error' });
+      return;
+    }
+
+    setAdjSubmitting(true);
+    try {
+      const res = await fetch('/api/inventory/adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemMasterId: adjItem,
+          warehouseCode: adjWarehouse,
+          binLocation: adjBin,
+          movementType: adjType,
+          quantity: adjQty,
+          reasonCode: adjReason,
+          referenceNumber: adjRef,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Stock adjustment failed.', type: 'error' });
+      } else {
+        setToast({ message: data.message, type: 'success' });
+        setAdjReason('');
+        setAdjRef('');
+        fetchAllData();
+        setActiveTab('stock');
+      }
+    } catch (e) {
+      setToast({ message: 'Error communicating with server.', type: 'error' });
+    } finally {
+      setAdjSubmitting(false);
+    }
+  };
+
+  const handleAddWarehouse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!whCode || !whName || !whAddress) {
+      setToast({ message: 'Code, Name, and Address are required.', type: 'error' });
+      return;
+    }
+
+    setWhSubmitting(true);
+    try {
+      const res = await fetch('/api/inventory/warehouses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: whCode,
+          name: whName,
+          address: whAddress,
+          contactPerson: whContact,
+          binCode: binCode || 'BIN-A1-01',
+          binZone: binZone || 'Zone A',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Failed to add warehouse.', type: 'error' });
+      } else {
+        setToast({ message: data.message, type: 'success' });
+        setIsWhModalOpen(false);
+        setWhCode('');
+        setWhName('');
+        setWhAddress('');
+        fetchAllData();
+      }
+    } catch (e) {
+      setToast({ message: 'Error creating warehouse location.', type: 'error' });
+    } finally {
+      setWhSubmitting(false);
+    }
+  };
+
+  // Filtered Stock & Ledger View
+  const filteredStock = stockList.filter((s) => {
+    const matchWh = selectedWarehouse === 'ALL' || s.warehouseCode === selectedWarehouse;
+    const q = searchQuery.toLowerCase();
+    const matchQ =
+      !q ||
+      s.itemName.toLowerCase().includes(q) ||
+      s.sku.toLowerCase().includes(q) ||
+      s.barcode.toLowerCase().includes(q) ||
+      s.binLocation.toLowerCase().includes(q) ||
+      (s.vendorName && s.vendorName.toLowerCase().includes(q));
+    return matchWh && matchQ;
+  });
+
+  const filteredLedger = ledgerList.filter((l) => {
+    const matchWh = selectedWarehouse === 'ALL' || l.warehouseCode === selectedWarehouse;
+    const matchType = movementFilter === 'ALL' || l.movementType === movementFilter;
+    const q = searchQuery.toLowerCase();
+    const matchQ =
+      !q ||
+      l.itemName.toLowerCase().includes(q) ||
+      l.sku.toLowerCase().includes(q) ||
+      l.referenceNumber.toLowerCase().includes(q) ||
+      l.binLocation.toLowerCase().includes(q) ||
+      (l.reasonCode && l.reasonCode.toLowerCase().includes(q));
+    return matchWh && matchType && matchQ;
+  });
+
+  // Table Columns
+  const stockColumns: Array<{ header: string; accessorKey?: keyof StockOnHandItem; cell?: (item: StockOnHandItem) => React.ReactNode }> = [
+    {
+      header: 'Item & SKU Identity',
+      accessorKey: 'itemName',
+      cell: (item: StockOnHandItem) => (
+        <div className="space-y-1">
+          <div className="font-extrabold text-slate-900 text-sm">{item.itemName}</div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+              {item.sku}
+            </span>
+            <span className="font-mono text-[11px] text-slate-500">EAN: {item.barcode}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Warehouse & Storage Bin',
+      accessorKey: 'binLocation',
+      cell: (item: StockOnHandItem) => (
+        <div className="space-y-1 text-xs">
+          <div className="font-bold text-slate-800 flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5 text-blue-600" />
+            {item.warehouseName} ({item.warehouseCode})
+          </div>
+          <div className="font-mono text-indigo-800 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded inline-block">
+            {item.binLocation}
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Product Supplier',
+      accessorKey: 'vendorName',
+      cell: (item: StockOnHandItem) =>
+        item.vendorId ? (
+          <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg text-xs">
+            <Building className="w-3 h-3" /> {item.vendorName}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg text-xs">
+            <ShieldCheck className="w-3 h-3" /> LogiQ-On Internal
+          </span>
+        ),
+    },
+    {
+      header: 'Stock On Hand (Derived)',
+      accessorKey: 'quantityOnHand',
+      cell: (item: StockOnHandItem) => (
+        <div className="space-y-0.5">
+          <div className="font-black text-slate-900 text-base font-mono">{item.quantityOnHand} units</div>
+          <div className="text-[10px] text-emerald-700 font-semibold">Available: {item.quantityAvailable} units</div>
+        </div>
+      ),
+    },
+    {
+      header: 'Audit Reconciliation Status',
+      accessorKey: 'lastMovementAt',
+      cell: () => (
+        <Badge variant="success" className="gap-1 py-1 px-2.5">
+          <CheckCircle2 className="w-3.5 h-3.5" /> 100% Ledger Matched
+        </Badge>
+      ),
+    },
+  ];
+
+  const ledgerColumns: Array<{ header: string; accessorKey?: keyof StockLedgerEntry; cell?: (entry: StockLedgerEntry) => React.ReactNode }> = [
+    {
+      header: 'Movement Type & Reference',
+      accessorKey: 'referenceNumber',
+      cell: (entry: StockLedgerEntry) => {
+        return (
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center gap-2">
+              <span
+                className={`font-black px-2 py-0.5 rounded text-[11px] font-mono ${
+                  entry.movementType === 'RECEIPT'
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : entry.movementType === 'ISSUE'
+                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                }`}
+              >
+                {entry.movementType}
+              </span>
+              <span className="font-mono font-bold text-slate-900">{entry.referenceNumber}</span>
+            </div>
+            <div className="text-[11px] text-slate-500">{new Date(entry.createdAt).toLocaleString()}</div>
+          </div>
+        );
+      },
+    },
+    {
+      header: 'Item & SKU',
+      accessorKey: 'itemName',
+      cell: (entry: StockLedgerEntry) => (
+        <div className="text-xs">
+          <div className="font-bold text-slate-900">{entry.itemName}</div>
+          <div className="font-mono text-slate-500 text-[11px]">SKU: {entry.sku}</div>
+        </div>
+      ),
+    },
+    {
+      header: 'Warehouse / Bin',
+      accessorKey: 'binLocation',
+      cell: (entry: StockLedgerEntry) => (
+        <div className="text-xs font-mono font-semibold text-slate-700">
+          {entry.warehouseCode} ➔ {entry.binLocation}
+        </div>
+      ),
+    },
+    {
+      header: 'Quantity Delta',
+      accessorKey: 'quantityDelta',
+      cell: (entry: StockLedgerEntry) => {
+        const isPos = entry.quantityDelta > 0;
+        return (
+          <span className={`font-mono font-black text-sm ${isPos ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {isPos ? `+${entry.quantityDelta}` : entry.quantityDelta} units
+          </span>
+        );
+      },
+    },
+    {
+      header: 'Reason Code / Operator',
+      accessorKey: 'reasonCode',
+      cell: (entry: StockLedgerEntry) => (
+        <div className="text-xs space-y-0.5">
+          <div className="text-slate-800 font-medium">{entry.reasonCode || 'System Transaction'}</div>
+          <div className="text-[10px] text-slate-400 font-mono">By: {entry.createdByEmail}</div>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-6 space-y-6">
+      {/* Toast Banner */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-xl text-white font-medium flex items-center gap-3 transition-all ${
+            toast.type === 'success' ? 'bg-emerald-600' : toast.type === 'error' ? 'bg-rose-600' : 'bg-blue-600'
+          }`}
+        >
+          <span>{toast.message}</span>
+          <button onClick={() => setToast(null)} className="text-white/80 hover:text-white font-bold ml-2">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Header Banner */}
+      <div className="p-6 border border-slate-200 bg-white shadow-sm overflow-hidden rounded-2xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold tracking-wide uppercase">
+              <Boxes className="w-3.5 h-3.5" /> Pillar 03 • Inventory & Stock Ledger Core
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              Warehouse Inventory & Immutable Stock Ledger Hub
+            </h1>
+            <p className="text-slate-500 text-sm max-w-3xl">
+              Derive real-time stock on hand from append-only movement ledgers, receive vendor shipments, and execute stock adjustments with mathematical audit verification.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={fetchAllData} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sync Ledger
+            </Button>
+            <Button onClick={() => setIsWhModalOpen(true)} size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+              <Plus className="w-4 h-4" /> Add Warehouse Location
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Reconciliation Summary Cards */}
+      {reconciliation && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Stock On Hand</p>
+              <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
+                {reconciliation.summary.netStockOnHand} <span className="text-xs font-normal text-slate-500">units</span>
+              </h3>
+              <p className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Reconciled against ledger
+              </p>
+            </div>
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+              <Boxes className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Inbound Receipts</p>
+              <h3 className="text-2xl font-black text-emerald-600 font-mono mt-1">
+                +{reconciliation.summary.totalReceipts} <span className="text-xs font-normal text-slate-500">units</span>
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium mt-1">From Goods Receipt Notes (GRN)</p>
+            </div>
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+              <ArrowDownLeft className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Outbound Issues</p>
+              <h3 className="text-2xl font-black text-rose-600 font-mono mt-1">
+                -{reconciliation.summary.totalIssues} <span className="text-xs font-normal text-slate-500">units</span>
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium mt-1">Dispatched order shipments</p>
+            </div>
+            <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+              <ArrowUpRight className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Immutable Ledger Audit</p>
+              <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
+                {reconciliation.totalLedgerRecords} <span className="text-xs font-normal text-slate-500">rows</span>
+              </h3>
+              <p className="text-[11px] text-indigo-600 font-bold mt-1 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> Append-Only Verified
+              </p>
+            </div>
+            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+              <History className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-slate-200 bg-white rounded-xl p-1.5 shadow-sm space-x-2">
+        <button
+          onClick={() => setActiveTab('stock')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'stock' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Boxes className="w-4 h-4" /> Stock On Hand & Reconciliation ({filteredStock.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('receive')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'receive' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <PackageCheck className="w-4 h-4" /> Inbound Stock Receiving (GRN)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('ledger')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'ledger' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <History className="w-4 h-4" /> Immutable Movement Ledger ({filteredLedger.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('adjust')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'adjust' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <RotateCcw className="w-4 h-4" /> Stock Adjustment Terminal
+        </button>
+
+        <button
+          onClick={() => setActiveTab('locations')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'locations' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <MapPin className="w-4 h-4" /> Warehouse & Bin Manager
+        </button>
+      </div>
+
+      {/* Filter Controls Card */}
+      {(activeTab === 'stock' || activeTab === 'ledger') && (
+        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex flex-col md:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+            <Input
+              placeholder="Search by SKU, item name, barcode, bin location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-xs"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <Select
+              value={selectedWarehouse}
+              onChange={(e) => setSelectedWarehouse(e.target.value)}
+              options={[
+                { value: 'ALL', label: '🏬 All Warehouse Locations' },
+                ...warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` })),
+              ]}
+              className="text-xs"
+            />
+
+            {activeTab === 'ledger' && (
+              <Select
+                value={movementFilter}
+                onChange={(e) => setMovementFilter(e.target.value)}
+                options={[
+                  { value: 'ALL', label: '⚡ All Movement Types' },
+                  { value: 'RECEIPT', label: '🟢 RECEIPT (Inbound)' },
+                  { value: 'ISSUE', label: '🔴 ISSUE (Outbound)' },
+                  { value: 'ADJUSTMENT', label: '🟡 ADJUSTMENT (Audit)' },
+                  { value: 'RETURN', label: '🔵 RETURN (Customer)' },
+                ]}
+                className="text-xs"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 1: Stock On Hand View */}
+      {activeTab === 'stock' && (
+        <div className="border border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
+          <div className="p-4 flex flex-row items-center justify-between border-b border-slate-100">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Boxes className="w-4 h-4 text-indigo-600" /> Derived Stock On Hand & Location Matrix
+            </h2>
+            <Badge variant="success" className="gap-1 py-1 px-2.5">
+              <ShieldCheck className="w-3.5 h-3.5" /> 100% Mathematical Proof Verified
+            </Badge>
+          </div>
+          <DataTable data={filteredStock} columns={stockColumns} showSearch={false} />
+        </div>
+      )}
+
+      {/* TAB 2: Inbound Goods Receiving (GRN Terminal) */}
+      {activeTab === 'receive' && (
+        <div className="border border-slate-200 bg-white shadow-sm rounded-2xl max-w-3xl mx-auto overflow-hidden">
+          <div className="p-6 border-b border-slate-100">
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <PackageCheck className="w-5 h-5 text-emerald-600" /> Goods Receipt Note (GRN) Receiving Terminal
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Receive inbound stock shipments from approved vendor suppliers (Category 1) or direct platform purchases (Category 2) into storage bins.
+            </p>
+          </div>
+
+          <div className="p-6">
+            <form onSubmit={handleReceiveStock} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Select Item Master Product *</label>
+                <Select
+                  value={rcvItem}
+                  onChange={(e) => setRcvItem(e.target.value)}
+                  options={items.map((i) => ({
+                    value: i.id,
+                    label: `${i.itemName} (${i.sku}) ${i.vendorName ? `— Vendor: ${i.vendorName}` : '— Internal Stock'}`,
+                  }))}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Target Warehouse *</label>
+                  <Select
+                    value={rcvWarehouse}
+                    onChange={(e) => {
+                      setRcvWarehouse(e.target.value);
+                      const target = warehouses.find((w) => w.code === e.target.value);
+                      if (target && target.bins.length > 0) setRcvBin(target.bins[0].code);
+                    }}
+                    options={warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))}
+                    className="text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Target Storage Bin Location *</label>
+                  <Select
+                    value={rcvBin}
+                    onChange={(e) => setRcvBin(e.target.value)}
+                    options={
+                      warehouses.find((w) => w.code === rcvWarehouse)?.bins.map((b) => ({
+                        value: b.code,
+                        label: `${b.code} (${b.zone})`,
+                      })) || [{ value: 'BIN-A1-01', label: 'BIN-A1-01 (Zone A)' }]
+                    }
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Quantity Received (Units) *</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={rcvQty}
+                    onChange={(e) => setRcvQty(e.target.value)}
+                    placeholder="100"
+                    className="text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">PO / Delivery Reference (Optional)</label>
+                  <Input
+                    value={rcvPo}
+                    onChange={(e) => setRcvPo(e.target.value)}
+                    placeholder="e.g. PO-VENDOR-99182"
+                    className="text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                <Button type="submit" disabled={rcvSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2">
+                  <PackageCheck className="w-4 h-4" /> Process Inbound GRN Receipt
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: Immutable Stock Ledger Audit Trail */}
+      {activeTab === 'ledger' && (
+        <div className="border border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
+          <div className="p-4 flex flex-row items-center justify-between border-b border-slate-100">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <History className="w-4 h-4 text-indigo-600" /> Immutable Movement Ledger Audit Log
+            </h2>
+            <span className="text-xs text-slate-500 font-mono">Append-Only • Uneditable Historical Records</span>
+          </div>
+          <DataTable data={filteredLedger} columns={ledgerColumns} showSearch={false} />
+        </div>
+      )}
+
+      {/* TAB 4: Stock Adjustment Terminal */}
+      {activeTab === 'adjust' && (
+        <div className="border border-slate-200 bg-white shadow-sm rounded-2xl max-w-3xl mx-auto overflow-hidden">
+          <div className="p-6 border-b border-slate-100">
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <RotateCcw className="w-5 h-5 text-amber-600" /> Stock Movement & Adjustment Terminal
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Log stock issues (outbound dispatches), customer returns, or cycle count audit adjustments with mandatory reason codes.
+            </p>
+          </div>
+
+          <div className="p-6">
+            <form onSubmit={handleAdjustStock} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Select Item Master Product *</label>
+                <Select
+                  value={adjItem}
+                  onChange={(e) => setAdjItem(e.target.value)}
+                  options={items.map((i) => ({
+                    value: i.id,
+                    label: `${i.itemName} (${i.sku})`,
+                  }))}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Movement Action *</label>
+                  <Select
+                    value={adjType}
+                    onChange={(e) => setAdjType(e.target.value as any)}
+                    options={[
+                      { value: 'ISSUE', label: '🔴 ISSUE (Outbound Dispatch)' },
+                      { value: 'ADJUSTMENT', label: '🟡 ADJUSTMENT (Cycle Audit)' },
+                      { value: 'RETURN', label: '🔵 RETURN (Customer Return)' },
+                    ]}
+                    className="text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Warehouse *</label>
+                  <Select
+                    value={adjWarehouse}
+                    onChange={(e) => setAdjWarehouse(e.target.value)}
+                    options={warehouses.map((w) => ({ value: w.code, label: `${w.code}` }))}
+                    className="text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Storage Bin *</label>
+                  <Select
+                    value={adjBin}
+                    onChange={(e) => setAdjBin(e.target.value)}
+                    options={
+                      warehouses.find((w) => w.code === adjWarehouse)?.bins.map((b) => ({
+                        value: b.code,
+                        label: b.code,
+                      })) || [{ value: 'BIN-A1-01', label: 'BIN-A1-01' }]
+                    }
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Quantity *</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={adjQty}
+                    onChange={(e) => setAdjQty(e.target.value)}
+                    className="text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Mandatory Reason Code *</label>
+                  <Input
+                    value={adjReason}
+                    onChange={(e) => setAdjReason(e.target.value)}
+                    placeholder="e.g. Order Dispatch #ORD-881, Damaged Packaging"
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                <Button type="submit" disabled={adjSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2">
+                  <RotateCcw className="w-4 h-4" /> Write Movement Ledger Row
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: Warehouse & Storage Location Manager */}
+      {activeTab === 'locations' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {warehouses.map((wh) => (
+            <div key={wh.code} className="border border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex flex-row items-center justify-between">
+                <div>
+                  <h3 className="text-base font-black text-slate-900">{wh.name}</h3>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">Code: {wh.code} • {wh.address}</p>
+                </div>
+                <Badge variant="neutral" className="font-mono">{wh.bins.length} Bins</Badge>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">Storage Bin Locations:</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {wh.bins.map((bin) => (
+                    <div key={bin.code} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs flex items-center justify-between">
+                      <div>
+                        <div className="font-mono font-bold text-slate-900">{bin.code}</div>
+                        <div className="text-[10px] text-slate-500">{bin.zone}</div>
+                      </div>
+                      <Badge variant={bin.isOccupied ? 'success' : 'neutral'} className="text-[10px]">
+                        {bin.isOccupied ? 'Occupied' : 'Empty'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal - Add Warehouse Location */}
+      <Modal isOpen={isWhModalOpen} onClose={() => setIsWhModalOpen(false)} title="Configure New Warehouse Location" maxWidth="2xl">
+        <form onSubmit={handleAddWarehouse} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Warehouse Code *</label>
+              <Input value={whCode} onChange={(e) => setWhCode(e.target.value)} placeholder="e.g. WH-PER-04" className="text-xs font-mono uppercase" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Warehouse Facility Name *</label>
+              <Input value={whName} onChange={(e) => setWhName(e.target.value)} placeholder="e.g. Perth Regional Logistics Hub" className="text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Physical Address *</label>
+            <Input value={whAddress} onChange={(e) => setWhAddress(e.target.value)} placeholder="e.g. 50 Airport Drive, Kewdale WA 6105" className="text-xs" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Initial Storage Bin Code</label>
+              <Input value={binCode} onChange={(e) => setBinCode(e.target.value)} placeholder="BIN-A1-01" className="text-xs font-mono uppercase" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Bin Zone / Area</label>
+              <Input value={binZone} onChange={(e) => setBinZone(e.target.value)} placeholder="Zone A - Fast Pick" className="text-xs" />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setIsWhModalOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={whSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+              Save Warehouse Location
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}

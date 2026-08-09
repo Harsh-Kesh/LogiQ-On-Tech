@@ -14,8 +14,9 @@ export interface PersistentProduct {
   markupPercent?: number;
   moq?: number;
   status: 'ACTIVE' | 'DRAFT' | 'DISCONTINUED';
-  vendorId: string;
-  vendorEmail: string;
+  vendorId?: string | null;
+  vendorEmail?: string;
+  vendorName?: string;
   categoryId?: string;
   categoryName?: string;
   uomId?: string;

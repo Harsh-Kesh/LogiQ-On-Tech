@@ -56,6 +56,8 @@ interface ItemMaster {
   markupPercent?: number;
   moq?: number;
   status: 'ACTIVE' | 'DRAFT' | 'DISCONTINUED';
+  vendorId?: string | null;
+  vendorName?: string;
   categoryId?: string;
   categoryName?: string;
   uomId?: string;
@@ -127,6 +129,9 @@ export default function MasterDataItemsPage() {
   // Toast
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  const [vendorsList, setVendorsList] = useState<Array<{ id: string; companyName: string }>>([]);
+  const [vendorId, setVendorId] = useState('PLATFORM');
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -134,18 +139,21 @@ export default function MasterDataItemsPage() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [itemsRes, catRes, uomRes] = await Promise.all([
+      const [itemsRes, catRes, uomRes, vndRes] = await Promise.all([
         fetch('/api/mdm/items'),
         fetch('/api/mdm/categories'),
         fetch('/api/mdm/uom'),
+        fetch('/api/admin/vendors'),
       ]);
       const itemsData = await itemsRes.json();
       const catData = await catRes.json();
       const uomData = await uomRes.json();
+      const vndData = await vndRes.json();
 
       setItems(itemsData.items || []);
       setCategories(catData.categories || []);
       setUoms(uomData.uoms || []);
+      setVendorsList(Array.isArray(vndData.vendors) ? vndData.vendors.map((v: any) => ({ id: v.id, companyName: v.companyName || v.user?.email })) : []);
     } catch (e) {
       setToast({ message: 'Failed to load Master Data.', type: 'error' });
     } finally {
@@ -382,6 +390,20 @@ export default function MasterDataItemsPage() {
           </div>
         </div>
       ),
+    },
+    {
+      header: 'Product Ownership',
+      accessorKey: 'categoryName',
+      cell: (item) =>
+        item.vendorId ? (
+          <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg text-xs">
+            🏢 {item.categoryName ? 'Vendor Supplied' : 'Vendor Partner'}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg text-xs">
+            🛡️ LogiQ-On Internal
+          </span>
+        ),
     },
     {
       header: 'Category Taxonomy',
