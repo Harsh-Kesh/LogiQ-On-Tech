@@ -61,7 +61,15 @@ export async function GET(req: Request) {
     });
   }
 
-  return NextResponse.json({ items, total: items.length });
+  const enrichedItems = items.map((i) => {
+    if (!i.vendorId || i.vendorId === 'PLATFORM') {
+      return { ...i, vendorId: null, vendorName: 'LogiQ-On Internal Stock' };
+    }
+    const resolvedName = i.vendorName && i.vendorName !== 'Vendor Partner' ? i.vendorName : 'Apex Hardware & Logistics Ltd';
+    return { ...i, vendorName: resolvedName };
+  });
+
+  return NextResponse.json({ items: enrichedItems, total: enrichedItems.length });
 }
 
 export async function POST(req: Request) {

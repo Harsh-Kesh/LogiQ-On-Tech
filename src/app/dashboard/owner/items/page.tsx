@@ -377,33 +377,30 @@ export default function MasterDataItemsPage() {
   // Clean, High-Readability Table Columns Setup
   const itemColumns: Column<ItemMaster>[] = [
     {
-      header: 'Item Master Name & SKU',
+      header: 'Item Master Name & Ownership',
       accessorKey: 'itemName',
       cell: (item) => (
-        <div className="space-y-1">
-          <div className="font-extrabold text-slate-900 text-sm line-clamp-1">{item.itemName}</div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+        <div className="space-y-1.5 py-0.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-extrabold text-slate-900 text-sm">{item.itemName}</span>
+            {item.vendorId ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg text-xs shrink-0">
+                🏢 {item.vendorName || 'Apex Hardware & Logistics Ltd'}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-lg text-xs shrink-0">
+                🛡️ LogiQ-On Internal Stock
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs font-bold text-indigo-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
               {item.sku}
             </span>
             <span className="font-mono text-[11px] text-slate-500">EAN: {item.barcode}</span>
           </div>
         </div>
       ),
-    },
-    {
-      header: 'Product Ownership',
-      accessorKey: 'categoryName',
-      cell: (item) =>
-        item.vendorId ? (
-          <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg text-xs">
-            🏢 {item.vendorName || 'Vendor Partner'}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg text-xs">
-            🛡️ LogiQ-On Internal
-          </span>
-        ),
     },
     {
       header: 'Category Taxonomy',
