@@ -252,7 +252,39 @@ export function loadPersistentStockLedger(): StockLedgerEntry[] {
   try {
     if (fs.existsSync(LEDGER_FILE)) {
       const data = fs.readFileSync(LEDGER_FILE, 'utf-8');
-      const parsed: StockLedgerEntry[] = JSON.parse(data);
+      let parsed: StockLedgerEntry[] = JSON.parse(data);
+
+      // Auto-normalize legacy IDs and item names
+      parsed = parsed.map((entry) => {
+        if (entry.itemMasterId === 'prod_seed_01' || entry.sku === 'LQ-SCN-00101') {
+          return {
+            ...entry,
+            itemMasterId: 'item_01',
+            sku: 'LQ-SCN-00101',
+            barcode: '9312345001015',
+            itemName: 'Industrial Handheld Wireless Barcode Scanner 2D (HD-900)',
+          };
+        }
+        if (entry.itemMasterId === 'prod_seed_02' || entry.sku === 'LQ-PRN-00201' || entry.sku === 'LQ-PRT-00102') {
+          return {
+            ...entry,
+            itemMasterId: 'item_02',
+            sku: 'LQ-PRT-00102',
+            barcode: '9312345001022',
+            itemName: 'Thermal Transfer Desktop Label Printer 300DPI (LogiPrint-30)',
+          };
+        }
+        if (entry.itemMasterId === 'prod_seed_03' || entry.sku === 'LQ-PLT-00301') {
+          return {
+            ...entry,
+            itemMasterId: 'item_09',
+            sku: 'LQ-PLT-00301',
+            barcode: '9312345678903',
+            itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
+          };
+        }
+        return entry;
+      });
 
       // Merge seeded records if missing
       const existingIds = new Set(parsed.map((l) => l.id));
