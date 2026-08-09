@@ -72,6 +72,20 @@ export default function OwnerInventoryPage() {
   const [binZone, setBinZone] = useState('Zone A');
   const [whSubmitting, setWhSubmitting] = useState(false);
 
+  // Form State - Add Storage Bin to Existing Warehouse
+  const [isAddBinModalOpen, setIsAddBinModalOpen] = useState(false);
+  const [targetWhCode, setTargetWhCode] = useState('');
+  const [newBinCode, setNewBinCode] = useState('');
+  const [newBinZone, setNewBinZone] = useState('Zone A');
+  const [newBinCapacity, setNewBinCapacity] = useState('1000');
+  const [binSubmitting, setBinSubmitting] = useState(false);
+
+  // Searchable Item Selector States
+  const [rcvItemSearch, setRcvItemSearch] = useState('');
+  const [isRcvItemDropdownOpen, setIsRcvItemDropdownOpen] = useState(false);
+  const [adjItemSearch, setAdjItemSearch] = useState('');
+  const [isAdjItemDropdownOpen, setIsAdjItemDropdownOpen] = useState(false);
+
   // Toast State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -233,6 +247,42 @@ export default function OwnerInventoryPage() {
       setToast({ message: 'Error creating warehouse location.', type: 'error' });
     } finally {
       setWhSubmitting(false);
+    }
+  };
+
+  const handleAddBinToWarehouse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetWhCode || !newBinCode) {
+      setToast({ message: 'Target warehouse and new bin code are required.', type: 'error' });
+      return;
+    }
+
+    setBinSubmitting(true);
+    try {
+      const res = await fetch('/api/inventory/warehouses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: targetWhCode,
+          binCode: newBinCode,
+          binZone: newBinZone || 'Zone A',
+          binCapacity: newBinCapacity || '1000',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Failed to add storage bin.', type: 'error' });
+      } else {
+        setToast({ message: `Storage bin '${newBinCode.toUpperCase()}' added to ${targetWhCode}!`, type: 'success' });
+        setIsAddBinModalOpen(false);
+        setNewBinCode('');
+        fetchAllData();
+      }
+    } catch {
+      setToast({ message: 'Error adding storage bin.', type: 'error' });
+    } finally {
+      setBinSubmitting(false);
     }
   };
 
@@ -622,17 +672,77 @@ export default function OwnerInventoryPage() {
 
           <div className="p-6">
             <form onSubmit={handleReceiveStock} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Select Item Master Product *</label>
-                <Select
-                  value={rcvItem}
-                  onChange={(e) => setRcvItem(e.target.value)}
-                  options={items.map((i) => ({
-                    value: i.id,
-                    label: `${i.itemName} (${i.sku}) ${i.vendorName ? `— Vendor: ${i.vendorName}` : '— Internal Stock'}`,
-                  }))}
-                  className="text-xs"
-                />
+              <div className="relative">
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  🔍 Type to Search & Select Item Master Product *
+                </label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Type item name, SKU, or barcode (e.g. Scanner, LQ-SCN)..."
+                    value={rcvItemSearch || (items.find((i) => i.id === rcvItem)?.itemName ? `${items.find((i) => i.id === rcvItem)?.itemName} (${items.find((i) => i.id === rcvItem)?.sku})` : '')}
+                    onFocus={() => setIsRcvItemDropdownOpen(true)}
+                    onChange={(e) => {
+                      setRcvItemSearch(e.target.value);
+                      setIsRcvItemDropdownOpen(true);
+                    }}
+                    className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 font-semibold text-slate-900"
+                  />
+                  {rcvItem && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRcvItem('');
+                        setRcvItemSearch('');
+                        setIsRcvItemDropdownOpen(true);
+                      }}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+
+                  {isRcvItemDropdownOpen && (
+                    <div className="absolute z-30 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100 font-sans">
+                      {items
+                        .filter((i) => {
+                          if (!rcvItemSearch) return true;
+                          const q = rcvItemSearch.toLowerCase();
+                          return (
+                            i.itemName.toLowerCase().includes(q) ||
+                            i.sku.toLowerCase().includes(q) ||
+                            i.barcode.toLowerCase().includes(q) ||
+                            (i.vendorName && i.vendorName.toLowerCase().includes(q))
+                          );
+                        })
+                        .map((i) => (
+                          <div
+                            key={i.id}
+                            onClick={() => {
+                              setRcvItem(i.id);
+                              setRcvItemSearch(`${i.itemName} (${i.sku})`);
+                              setIsRcvItemDropdownOpen(false);
+                            }}
+                            className={`p-3 text-xs hover:bg-indigo-50 cursor-pointer flex items-center justify-between transition-colors ${
+                              rcvItem === i.id ? 'bg-indigo-50/80 font-bold' : ''
+                            }`}
+                          >
+                            <div>
+                              <div className="font-extrabold text-slate-900">{i.itemName}</div>
+                              <div className="flex items-center gap-2 mt-0.5 font-mono text-[11px] text-slate-500">
+                                <span className="text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">{i.sku}</span>
+                                <span>EAN: {i.barcode}</span>
+                              </div>
+                            </div>
+                            <span className="text-[11px] font-semibold text-slate-600">
+                              {i.vendorId ? `🏢 ${i.vendorName || 'Vendor'}` : '🛡️ Platform'}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -727,17 +837,77 @@ export default function OwnerInventoryPage() {
 
           <div className="p-6">
             <form onSubmit={handleAdjustStock} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Select Item Master Product *</label>
-                <Select
-                  value={adjItem}
-                  onChange={(e) => setAdjItem(e.target.value)}
-                  options={items.map((i) => ({
-                    value: i.id,
-                    label: `${i.itemName} (${i.sku})`,
-                  }))}
-                  className="text-xs"
-                />
+              <div className="relative">
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  🔍 Type to Search & Select Item Master Product *
+                </label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Type item name, SKU, or barcode (e.g. Industrial Barcode Scanner 2D, LQ-SCN)..."
+                    value={adjItemSearch || (items.find((i) => i.id === adjItem)?.itemName ? `${items.find((i) => i.id === adjItem)?.itemName} (${items.find((i) => i.id === adjItem)?.sku})` : '')}
+                    onFocus={() => setIsAdjItemDropdownOpen(true)}
+                    onChange={(e) => {
+                      setAdjItemSearch(e.target.value);
+                      setIsAdjItemDropdownOpen(true);
+                    }}
+                    className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 font-semibold text-slate-900"
+                  />
+                  {adjItem && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdjItem('');
+                        setAdjItemSearch('');
+                        setIsAdjItemDropdownOpen(true);
+                      }}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+
+                  {isAdjItemDropdownOpen && (
+                    <div className="absolute z-30 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100 font-sans">
+                      {items
+                        .filter((i) => {
+                          if (!adjItemSearch) return true;
+                          const q = adjItemSearch.toLowerCase();
+                          return (
+                            i.itemName.toLowerCase().includes(q) ||
+                            i.sku.toLowerCase().includes(q) ||
+                            i.barcode.toLowerCase().includes(q) ||
+                            (i.vendorName && i.vendorName.toLowerCase().includes(q))
+                          );
+                        })
+                        .map((i) => (
+                          <div
+                            key={i.id}
+                            onClick={() => {
+                              setAdjItem(i.id);
+                              setAdjItemSearch(`${i.itemName} (${i.sku})`);
+                              setIsAdjItemDropdownOpen(false);
+                            }}
+                            className={`p-3 text-xs hover:bg-indigo-50 cursor-pointer flex items-center justify-between transition-colors ${
+                              adjItem === i.id ? 'bg-indigo-50/80 font-bold' : ''
+                            }`}
+                          >
+                            <div>
+                              <div className="font-extrabold text-slate-900">{i.itemName}</div>
+                              <div className="flex items-center gap-2 mt-0.5 font-mono text-[11px] text-slate-500">
+                                <span className="text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">{i.sku}</span>
+                                <span>EAN: {i.barcode}</span>
+                              </div>
+                            </div>
+                            <span className="text-[11px] font-semibold text-slate-600">
+                              {i.vendorId ? `🏢 ${i.vendorName || 'Vendor'}` : '🛡️ Platform'}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -759,22 +929,26 @@ export default function OwnerInventoryPage() {
                   <label className="text-xs font-bold text-slate-700 block mb-1">Warehouse *</label>
                   <Select
                     value={adjWarehouse}
-                    onChange={(e) => setAdjWarehouse(e.target.value)}
-                    options={warehouses.map((w) => ({ value: w.code, label: `${w.code}` }))}
+                    onChange={(e) => {
+                      setAdjWarehouse(e.target.value);
+                      const target = warehouses.find((w) => w.code === e.target.value);
+                      if (target && target.bins.length > 0) setAdjBin(target.bins[0].code);
+                    }}
+                    options={warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))}
                     className="text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Storage Bin *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Storage Bin Location *</label>
                   <Select
                     value={adjBin}
                     onChange={(e) => setAdjBin(e.target.value)}
                     options={
                       warehouses.find((w) => w.code === adjWarehouse)?.bins.map((b) => ({
                         value: b.code,
-                        label: b.code,
-                      })) || [{ value: 'BIN-A1-01', label: 'BIN-A1-01' }]
+                        label: `${b.code} (${b.zone})`,
+                      })) || [{ value: 'BIN-A1-01', label: 'BIN-A1-01 (Zone A)' }]
                     }
                     className="text-xs"
                   />
@@ -783,12 +957,13 @@ export default function OwnerInventoryPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Quantity *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Quantity Delta *</label>
                   <Input
                     type="number"
                     min="1"
                     value={adjQty}
                     onChange={(e) => setAdjQty(e.target.value)}
+                    placeholder="10"
                     className="text-xs font-mono font-bold"
                   />
                 </div>
@@ -818,28 +993,42 @@ export default function OwnerInventoryPage() {
       {activeTab === 'locations' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {warehouses.map((wh) => (
-            <div key={wh.code} className="border border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex flex-row items-center justify-between">
-                <div>
-                  <h3 className="text-base font-black text-slate-900">{wh.name}</h3>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">Code: {wh.code} • {wh.address}</p>
+            <div key={wh.code} className="border border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden flex flex-col justify-between">
+              <div>
+                <div className="p-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">{wh.name}</h3>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">Code: {wh.code} • {wh.address}</p>
+                  </div>
+                  <Badge variant="neutral" className="font-mono text-xs">{wh.bins.length} Bins</Badge>
                 </div>
-                <Badge variant="neutral" className="font-mono">{wh.bins.length} Bins</Badge>
-              </div>
-              <div className="p-4 space-y-3">
-                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">Storage Bin Locations:</div>
-                <div className="grid grid-cols-2 gap-2">
-                  {wh.bins.map((bin) => (
-                    <div key={bin.code} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs flex items-center justify-between">
-                      <div>
-                        <div className="font-mono font-bold text-slate-900">{bin.code}</div>
-                        <div className="text-[10px] text-slate-500">{bin.zone}</div>
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Storage Bin Locations:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetWhCode(wh.code);
+                        setIsAddBinModalOpen(true);
+                      }}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Storage Bin
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {wh.bins.map((bin) => (
+                      <div key={bin.code} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs flex items-center justify-between">
+                        <div>
+                          <div className="font-mono font-bold text-slate-900">{bin.code}</div>
+                          <div className="text-[10px] text-slate-500">{bin.zone}</div>
+                        </div>
+                        <Badge variant={bin.isOccupied ? 'success' : 'neutral'} className="text-[10px]">
+                          {bin.isOccupied ? 'Occupied' : 'Empty'}
+                        </Badge>
                       </div>
-                      <Badge variant={bin.isOccupied ? 'success' : 'neutral'} className="text-[10px]">
-                        {bin.isOccupied ? 'Occupied' : 'Empty'}
-                      </Badge>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -868,8 +1057,8 @@ export default function OwnerInventoryPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Initial Storage Bin Code</label>
-              <Input value={binCode} onChange={(e) => setBinCode(e.target.value)} placeholder="BIN-A1-01" className="text-xs font-mono uppercase" />
+              <label className="text-xs font-bold text-slate-700 block mb-1">Initial Bin Code(s) (Separate multiple with commas)</label>
+              <Input value={binCode} onChange={(e) => setBinCode(e.target.value)} placeholder="BIN-A1-01, BIN-A1-02, BIN-B2-01" className="text-xs font-mono uppercase" />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Bin Zone / Area</label>
@@ -881,6 +1070,34 @@ export default function OwnerInventoryPage() {
             <Button type="button" variant="outline" onClick={() => setIsWhModalOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={whSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
               Save Warehouse Location
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal - Add Storage Bin to Existing Warehouse */}
+      <Modal isOpen={isAddBinModalOpen} onClose={() => setIsAddBinModalOpen(false)} title={`Add Storage Bin to Warehouse (${targetWhCode})`}>
+        <form onSubmit={handleAddBinToWarehouse} className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">New Storage Bin Code *</label>
+            <Input value={newBinCode} onChange={(e) => setNewBinCode(e.target.value)} placeholder="e.g. BIN-C3-09" className="text-xs font-mono uppercase" required />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Zone / Area Name</label>
+              <Input value={newBinZone} onChange={(e) => setNewBinZone(e.target.value)} placeholder="Zone C - Bulk Storage" className="text-xs" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Bin Capacity (Units)</label>
+              <Input type="number" value={newBinCapacity} onChange={(e) => setNewBinCapacity(e.target.value)} placeholder="1000" className="text-xs font-mono" />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setIsAddBinModalOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={binSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+              Add Bin to Warehouse
             </Button>
           </div>
         </form>

@@ -39,32 +39,35 @@ export default function WarehouseDashboardPage() {
       {/* Light Welcome Banner */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
+          <div className="p-3.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
             <Warehouse className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              PILLAR 03 • WAREHOUSE & INVENTORY LEDGER PORTAL
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+              PILLAR 03 • WAREHOUSE OPERATOR DESK
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
               Sydney Central Logistics Hub (WH-SYD-01)
             </h1>
             <p className="text-xs text-slate-500 font-mono">
-              Bin Location Tracking • 3PL Movements • Account: {session?.user?.email || 'warehouse@logiqon.com'}
+              Facility Location: 100 Logistics Way, Eastern Creek NSW 2766 • Desk: {session?.user?.email || 'warehouse@logiqon.com'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold font-mono flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Operations Online
-          </div>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
           <Link
             href="/dashboard/owner/inventory"
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer font-mono"
           >
             <PackageCheck className="w-4 h-4" /> Receive Inbound Stock (GRN)
+          </Link>
+          <Link
+            href="/dashboard/owner/inventory"
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer font-mono"
+          >
+            <RefreshCw className="w-4 h-4" /> Stock Adjustment
           </Link>
         </div>
       </div>

@@ -16,7 +16,43 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { items: rawItems } = await req.json();
+    let rawItems: any[] = [];
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const file = formData.get('file') as File;
+      if (!file) {
+        return NextResponse.json({ error: 'No CSV file provided in upload.' }, { status: 400 });
+      }
+      const text = await file.text();
+      const lines = text.trim().split('\n');
+      if (lines.length <= 1) {
+        return NextResponse.json({ error: 'CSV file is empty or missing data rows.' }, { status: 400 });
+      }
+      const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+      rawItems = lines.slice(1).map((line) => {
+        const parts = line.split(',').map((p) => p.trim());
+        const item: any = {};
+        headers.forEach((h, i) => {
+          if (h.includes('name')) item.itemName = parts[i];
+          else if (h.includes('sku')) item.sku = parts[i];
+          else if (h.includes('barcode')) item.barcode = parts[i];
+          else if (h.includes('cost')) item.costPrice = parts[i];
+          else if (h.includes('sell') || h.includes('price')) item.sellingPrice = parts[i];
+          else if (h.includes('wholesale')) item.wholesalePrice = parts[i];
+          else if (h.includes('cat')) item.category = parts[i];
+          else if (h.includes('uom')) item.uom = parts[i];
+          else if (h.includes('status')) item.status = parts[i];
+          else if (h.includes('desc')) item.description = parts[i];
+        });
+        if (!item.itemName) item.itemName = parts[0];
+        return item;
+      });
+    } else {
+      const body = await req.json();
+      rawItems = body.items || [];
+    }
 
     if (!Array.isArray(rawItems) || rawItems.length === 0) {
       return NextResponse.json({ error: 'CSV items payload array is required.' }, { status: 400 });

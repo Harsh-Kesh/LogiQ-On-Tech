@@ -31,7 +31,8 @@ export async function GET(req: Request) {
             contactPerson: 'Operations Desk',
             contactEmail: 'warehouse@logiqon.com',
             bins: [
-              { id: `bin_${dbW.id}_01`, code: 'BIN-A1-01', zone: 'Zone A', capacityUnits: 1000, isOccupied: false },
+              { id: `bin_${dbW.id}_01`, code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacityUnits: 1000, isOccupied: false },
+              { id: `bin_${dbW.id}_02`, code: 'BIN-A1-02', zone: 'Zone A - Reserve', capacityUnits: 2000, isOccupied: false },
             ],
             createdAt: dbW.createdAt.toISOString(),
           });
@@ -51,18 +52,49 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized: Admin or Warehouse operator role required.' }, { status: 403 });
   }
 
-  const { code, name, address, contactPerson, contactEmail, binCode, binZone, binCapacity } = await req.json();
+  const { code, name, address, contactPerson, contactEmail, binCode, binZone, binCapacity, initialBins } = await req.json();
 
-  if (!code || !name || !address) {
-    return NextResponse.json({ error: 'Warehouse Code, Name, and Address are required.' }, { status: 400 });
+  if (!code) {
+    return NextResponse.json({ error: 'Warehouse Code is required.' }, { status: 400 });
   }
 
   const cleanCode = code.trim().toUpperCase();
   const persistentWarehouses = loadPersistentWarehouses();
-
   let targetWh = persistentWarehouses[cleanCode];
 
   if (!targetWh) {
+    if (!name || !address) {
+      return NextResponse.json({ error: 'Warehouse Name and Address are required for new location.' }, { status: 400 });
+    }
+
+    // Build initial bins list
+    let parsedBins = [
+      { id: `bin_${Date.now()}_1`, code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacityUnits: 1000, isOccupied: false },
+    ];
+
+    if (binCode) {
+      const rawCodes = binCode.split(',').map((c: string) => c.trim().toUpperCase()).filter(Boolean);
+      if (rawCodes.length > 0) {
+        parsedBins = rawCodes.map((bc: string, idx: number) => ({
+          id: `bin_${Date.now()}_${idx}`,
+          code: bc,
+          zone: binZone || `Zone ${String.fromCharCode(65 + (idx % 4))}`,
+          capacityUnits: parseInt(binCapacity, 10) || 1000,
+          isOccupied: false,
+        }));
+      }
+    }
+
+    if (Array.isArray(initialBins) && initialBins.length > 0) {
+      parsedBins = initialBins.map((ib: any, idx: number) => ({
+        id: `bin_${Date.now()}_${idx}`,
+        code: (ib.code || `BIN-B${idx + 1}-01`).trim().toUpperCase(),
+        zone: ib.zone || 'Zone A',
+        capacityUnits: parseInt(ib.capacity, 10) || 1000,
+        isOccupied: false,
+      }));
+    }
+
     targetWh = {
       id: `wh_${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`,
       code: cleanCode,
@@ -70,24 +102,24 @@ export async function POST(req: Request) {
       address: address.trim(),
       contactPerson: contactPerson || user.name || 'Operations Manager',
       contactEmail: contactEmail || user.email || 'warehouse@logiqon.com',
-      bins: binCode
-        ? [{ id: `bin_${Date.now()}`, code: binCode.trim().toUpperCase(), zone: binZone || 'Zone A', capacityUnits: parseInt(binCapacity, 10) || 1000, isOccupied: false }]
-        : [{ id: `bin_${Date.now()}`, code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacityUnits: 1000, isOccupied: false }],
+      bins: parsedBins,
       createdAt: new Date().toISOString(),
     };
   } else {
-    // Add new bin if provided
+    // Adding a new bin location to an existing warehouse
     if (binCode) {
-      const cleanBinCode = binCode.trim().toUpperCase();
-      if (!targetWh.bins.some((b) => b.code === cleanBinCode)) {
-        targetWh.bins.push({
-          id: `bin_${Date.now()}`,
-          code: cleanBinCode,
-          zone: binZone || 'Zone A',
-          capacityUnits: parseInt(binCapacity, 10) || 1000,
-          isOccupied: false,
-        });
-      }
+      const rawCodes = binCode.split(',').map((c: string) => c.trim().toUpperCase()).filter(Boolean);
+      rawCodes.forEach((bc: string, idx: number) => {
+        if (!targetWh.bins.some((b) => b.code === bc)) {
+          targetWh.bins.push({
+            id: `bin_${Date.now()}_${idx}`,
+            code: bc,
+            zone: binZone || 'Zone A',
+            capacityUnits: parseInt(binCapacity, 10) || 1000,
+            isOccupied: false,
+          });
+        }
+      });
     }
   }
 
@@ -113,7 +145,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     success: true,
-    message: `Warehouse Location '${cleanCode}' updated with ${targetWh.bins.length} bin locations.`,
+    message: `Warehouse '${cleanCode}' updated with ${targetWh.bins.length} bin locations.`,
     warehouse: targetWh,
   });
 }
