@@ -3,10 +3,17 @@
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
-  Warehouse, ArrowRight, ShieldCheck, Box, RefreshCw, CheckCircle2,
-  TrendingUp, History, PackageCheck, MapPin
+  Warehouse, ArrowRight, ShieldCheck, Box, CheckCircle2,
+  TrendingUp, History, PackageCheck, MapPin, UserCheck
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+
+const WAREHOUSE_MANAGERS: Record<string, { name: string; email: string }> = {
+  'WH-SYD-01': { name: 'Jack Taylor (Sydney Warehouse Manager)', email: 'jack.taylor@logiqon.tech' },
+  'WH-MEL-02': { name: 'Sarah Jenkins (Melbourne Operations Lead)', email: 'sarah.jenkins@logiqon.tech' },
+  'WH-BNE-03': { name: 'Michael Chang (Brisbane Hub Supervisor)', email: 'michael.chang@logiqon.tech' },
+  'WH-PER-04': { name: 'David Wilson (Perth Regional Manager)', email: 'david.wilson@logiqon.tech' },
+};
 
 export default function WarehouseDashboardPage() {
   const { data: session } = useSession();
@@ -51,6 +58,11 @@ export default function WarehouseDashboardPage() {
     bins: [{ code: 'BIN-A1-01' }, { code: 'BIN-A1-02' }],
   };
 
+  const activeManager = WAREHOUSE_MANAGERS[selectedWarehouseCode] || {
+    name: session?.user?.name || 'Warehouse Facility Manager',
+    email: session?.user?.email || 'warehouse@logiqon.tech',
+  };
+
   const filteredStock = selectedWarehouseCode === 'ALL'
     ? stock
     : stock.filter((s) => s.warehouseCode === selectedWarehouseCode);
@@ -63,7 +75,7 @@ export default function WarehouseDashboardPage() {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Emerald Green Header Banner with Active Facility Selector */}
+      {/* Emerald Green Header Banner with Facility & Manager Selector */}
       <div className="p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
@@ -72,7 +84,7 @@ export default function WarehouseDashboardPage() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              PILLAR 03 • WAREHOUSE OPERATOR DESK
+              PILLAR 03 • WAREHOUSE FACILITY OPERATOR DESK
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -82,8 +94,10 @@ export default function WarehouseDashboardPage() {
                 {activeWarehouse.code}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-mono flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-emerald-600" /> {activeWarehouse.address} • Desk: {session?.user?.email || 'warehouse@logiqon.com'}
+            <p className="text-xs text-slate-500 font-mono flex items-center gap-2">
+              <span><MapPin className="w-3.5 h-3.5 text-emerald-600 inline" /> {activeWarehouse.address}</span>
+              <span>•</span>
+              <span className="text-emerald-700 font-bold"><UserCheck className="w-3.5 h-3.5 inline" /> {activeManager.name} ({activeManager.email})</span>
             </p>
           </div>
         </div>
@@ -92,14 +106,14 @@ export default function WarehouseDashboardPage() {
           {/* Facility Location Selector */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">
-              Switch Facility Desk:
+              Facility Location:
             </label>
             <select
               value={selectedWarehouseCode}
               onChange={(e) => setSelectedWarehouseCode(e.target.value)}
               className="px-3 py-2 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 focus:outline-none focus:border-emerald-600 font-mono"
             >
-              <option value="ALL">All Warehouses (Global Desk)</option>
+              <option value="ALL">All Warehouses (Global View)</option>
               {warehouses.map((w) => (
                 <option key={w.code} value={w.code}>
                   {w.name} ({w.code})
@@ -113,19 +127,13 @@ export default function WarehouseDashboardPage() {
               href="/dashboard/owner/inventory"
               className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer font-mono"
             >
-              <PackageCheck className="w-4 h-4" /> Receive Inbound Stock (GRN)
-            </Link>
-            <Link
-              href="/dashboard/owner/inventory"
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer font-mono"
-            >
-              <RefreshCw className="w-4 h-4" /> Stock Adjustment
+              <PackageCheck className="w-4 h-4" /> Inventory Management
             </Link>
           </div>
         </div>
       </div>
 
-      {/* 4 Metric Cards - Styled in Emerald / Green */}
+      {/* 4 Metric Cards - Emerald / Green Styled */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
@@ -134,7 +142,7 @@ export default function WarehouseDashboardPage() {
           </div>
           <div className="text-2xl font-extrabold text-slate-900">{activeWarehouse.bins?.length || 2} Storage Bins</div>
           <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" /> Allocated at {activeWarehouse.code}
+            <TrendingUp className="w-3.5 h-3.5" /> Assigned to {activeManager.name.split(' ')[0]}
           </p>
         </div>
 
