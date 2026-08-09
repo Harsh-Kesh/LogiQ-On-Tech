@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized: Admin or Warehouse operator role required.' }, { status: 403 });
   }
 
-  const { code, name, address, contactPerson, contactEmail, binCode, binZone, binCapacity, initialBins } = await req.json();
+  const { code, name, address, contactPerson, contactEmail, managerName, managerEmail, binCode, binZone, binCapacity, initialBins } = await req.json();
 
   if (!code) {
     return NextResponse.json({ error: 'Warehouse Code is required.' }, { status: 400 });
@@ -102,13 +102,16 @@ export async function POST(req: Request) {
       }));
     }
 
+    const assignedManagerName = managerName || contactPerson || 'Jack Taylor (Warehouse Lead)';
+    const assignedManagerEmail = managerEmail || contactEmail || 'sydney.manager@logiqon.com';
+
     targetWh = {
       id: `wh_${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`,
       code: cleanCode,
       name: name.trim(),
       address: address.trim(),
-      contactPerson: contactPerson || user.name || 'Operations Manager',
-      contactEmail: contactEmail || user.email || 'warehouse@logiqon.com',
+      contactPerson: assignedManagerName,
+      contactEmail: assignedManagerEmail,
       bins: parsedBins,
       createdAt: new Date().toISOString(),
     };

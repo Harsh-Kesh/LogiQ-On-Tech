@@ -70,6 +70,8 @@ export default function OwnerInventoryPage() {
   const [whName, setWhName] = useState('');
   const [whAddress, setWhAddress] = useState('');
   const [whContact, setWhContact] = useState('');
+  const [whManagerEmail, setWhManagerEmail] = useState('sydney.manager@logiqon.com');
+  const [whManagerName, setWhManagerName] = useState('Jack Taylor (Sydney Warehouse Manager)');
   const [binRows, setBinRows] = useState<Array<{ code: string; zone: string; capacity: string }>>([
     { code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacity: '1000' },
     { code: 'BIN-A1-02', zone: 'Zone A - Reserve', capacity: '2000' },
@@ -253,7 +255,10 @@ export default function OwnerInventoryPage() {
           code: whCode,
           name: whName,
           address: whAddress,
-          contactPerson: whContact,
+          contactPerson: whContact || whManagerName,
+          contactEmail: whManagerEmail,
+          managerName: whManagerName,
+          managerEmail: whManagerEmail,
           initialBins: binRows.map((r) => ({
             code: r.code,
             zone: r.zone,
@@ -1074,17 +1079,40 @@ export default function OwnerInventoryPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Warehouse Code *</label>
-              <Input value={whCode} onChange={(e) => setWhCode(e.target.value)} placeholder="e.g. WH-PER-04" className="text-xs font-mono uppercase" />
+              <Input value={whCode} onChange={(e) => setWhCode(e.target.value)} placeholder="e.g. WH-PER-04" className="text-xs font-mono uppercase" required />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Warehouse Facility Name *</label>
-              <Input value={whName} onChange={(e) => setWhName(e.target.value)} placeholder="e.g. Perth Regional Logistics Hub" className="text-xs" />
+              <Input value={whName} onChange={(e) => setWhName(e.target.value)} placeholder="e.g. Perth Regional Logistics Hub" className="text-xs" required />
             </div>
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Physical Address *</label>
-            <Input value={whAddress} onChange={(e) => setWhAddress(e.target.value)} placeholder="e.g. 50 Airport Drive, Kewdale WA 6105" className="text-xs" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Physical Address *</label>
+              <Input value={whAddress} onChange={(e) => setWhAddress(e.target.value)} placeholder="e.g. 50 Airport Drive, Kewdale WA 6105" className="text-xs" required />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Assigned Warehouse Manager *</label>
+              <Select
+                value={whManagerEmail}
+                onChange={(e) => {
+                  const selectedEmail = e.target.value;
+                  setWhManagerEmail(selectedEmail);
+                  if (selectedEmail === 'sydney.manager@logiqon.com') setWhManagerName('Jack Taylor (Sydney Warehouse Manager)');
+                  else if (selectedEmail === 'melbourne.manager@logiqon.com') setWhManagerName('Sarah Jenkins (Melbourne Operations Lead)');
+                  else if (selectedEmail === 'brisbane.manager@logiqon.com') setWhManagerName('Michael Chang (Brisbane Hub Supervisor)');
+                  else if (selectedEmail === 'perth.manager@logiqon.com') setWhManagerName('David Wilson (Perth Regional Manager)');
+                  else setWhManagerName('Jack Taylor (Warehouse Manager)');
+                }}
+                options={[
+                  { value: 'sydney.manager@logiqon.com', label: '👤 Jack Taylor (sydney.manager@logiqon.com)' },
+                  { value: 'melbourne.manager@logiqon.com', label: '👤 Sarah Jenkins (melbourne.manager@logiqon.com)' },
+                  { value: 'brisbane.manager@logiqon.com', label: '👤 Michael Chang (brisbane.manager@logiqon.com)' },
+                  { value: 'perth.manager@logiqon.com', label: '👤 David Wilson (perth.manager@logiqon.com)' },
+                ]}
+              />
+            </div>
           </div>
 
           {/* Dynamic Storage Bins Builder */}

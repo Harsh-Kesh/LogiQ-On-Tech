@@ -87,9 +87,9 @@ export default function WarehouseDashboardPage() {
         name: 'Logistics Directorate',
         email: session?.user?.email || 'owner@logiqon.com',
       }
-    : WAREHOUSE_MANAGERS[selectedWarehouseCode] || {
-        name: session?.user?.name || 'Warehouse Manager',
-        email: session?.user?.email || 'sydney.manager@logiqon.com',
+    : {
+        name: (activeWarehouse as any).contactPerson || WAREHOUSE_MANAGERS[selectedWarehouseCode]?.name || session?.user?.name || 'Warehouse Manager',
+        email: (activeWarehouse as any).contactEmail || WAREHOUSE_MANAGERS[selectedWarehouseCode]?.email || session?.user?.email || 'sydney.manager@logiqon.com',
       };
 
   const filteredStock = isGlobal
