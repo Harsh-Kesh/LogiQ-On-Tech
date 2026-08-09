@@ -1038,6 +1038,18 @@ export default function MasterDataItemsPage() {
                   <span className="font-bold text-slate-700">${Number(selectedItem.costPrice).toFixed(2)}</span>
                 </div>
                 <div>
+                  <span className="text-slate-400 block font-sans font-medium">Product Ownership:</span>
+                  {selectedItem.vendorId ? (
+                    <span className="font-bold text-indigo-700 inline-flex items-center gap-1">
+                      🏢 {selectedItem.vendorName || 'Vendor Partner'}
+                    </span>
+                  ) : (
+                    <span className="font-bold text-purple-700 inline-flex items-center gap-1">
+                      🛡️ LogiQ-On Internal Stock
+                    </span>
+                  )}
+                </div>
+                <div>
                   <span className="text-slate-400 block font-sans">Minimum Order Qty:</span>
                   <span className="font-bold text-slate-900">{selectedItem.moq || 1} units</span>
                 </div>
