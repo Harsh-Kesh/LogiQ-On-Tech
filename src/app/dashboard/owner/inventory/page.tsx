@@ -72,6 +72,12 @@ export default function OwnerInventoryPage() {
   const [whContact, setWhContact] = useState('');
   const [whManagerEmail, setWhManagerEmail] = useState('sydney.manager@logiqon.com');
   const [whManagerName, setWhManagerName] = useState('Jack Taylor (Sydney Warehouse Manager)');
+  const [registeredManagers, setRegisteredManagers] = useState<Array<{ fullName: string; email: string }>>([
+    { fullName: 'Jack Taylor (Sydney Warehouse Manager)', email: 'sydney.manager@logiqon.com' },
+    { fullName: 'Sarah Jenkins (Melbourne Operations Lead)', email: 'melbourne.manager@logiqon.com' },
+    { fullName: 'Michael Chang (Brisbane Hub Supervisor)', email: 'brisbane.manager@logiqon.com' },
+    { fullName: 'David Wilson (Perth Regional Manager)', email: 'perth.manager@logiqon.com' },
+  ]);
   const [binRows, setBinRows] = useState<Array<{ code: string; zone: string; capacity: string }>>([
     { code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacity: '1000' },
     { code: 'BIN-A1-02', zone: 'Zone A - Reserve', capacity: '2000' },
@@ -83,8 +89,8 @@ export default function OwnerInventoryPage() {
     setBinRows([
       ...binRows,
       {
-        code: `BIN-A1-0${nextIdx}`,
-        zone: binRows[binRows.length - 1]?.zone || 'Zone A',
+        code: `BIN-A${nextIdx}-01`,
+        zone: `Zone ${String.fromCharCode(65 + (nextIdx % 4))}`,
         capacity: '1000',
       },
     ]);
@@ -92,12 +98,12 @@ export default function OwnerInventoryPage() {
 
   const removeBinRow = (index: number) => {
     if (binRows.length <= 1) return;
-    setBinRows(binRows.filter((_, idx) => idx !== index));
+    setBinRows(binRows.filter((_, i) => i !== index));
   };
 
   const updateBinRow = (index: number, field: 'code' | 'zone' | 'capacity', value: string) => {
     const updated = [...binRows];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index][field] = value;
     setBinRows(updated);
   };
 
@@ -125,17 +131,33 @@ export default function OwnerInventoryPage() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [stockRes, ledgerRes, whRes, itemsRes] = await Promise.all([
+      const [stockRes, ledgerRes, whRes, itemsRes, usersRes] = await Promise.all([
         fetch('/api/inventory/stock'),
         fetch('/api/inventory/ledger'),
         fetch('/api/inventory/warehouses'),
         fetch('/api/mdm/items'),
+        fetch('/api/admin/users').catch(() => null),
       ]);
 
       const stockData = await stockRes.json();
       const ledgerData = await ledgerRes.json();
       const whData = await whRes.json();
       const itemsData = await itemsRes.json();
+
+      if (usersRes && usersRes.ok) {
+        const usersData = await usersRes.json();
+        if (usersData.users && Array.isArray(usersData.users)) {
+          const whUsers = usersData.users.filter((u: any) => u.role === 'WAREHOUSE' || u.role === 'PLATFORM_OWNER');
+          if (whUsers.length > 0) {
+            setRegisteredManagers(
+              whUsers.map((u: any) => ({
+                fullName: u.fullName || u.email,
+                email: u.email,
+              }))
+            );
+          }
+        }
+      }
 
       setStockList(stockData.stock || []);
       setReconciliation(stockData.reconciliation || null);
@@ -1087,18 +1109,13 @@ export default function OwnerInventoryPage() {
                 onChange={(e) => {
                   const selectedEmail = e.target.value;
                   setWhManagerEmail(selectedEmail);
-                  if (selectedEmail === 'sydney.manager@logiqon.com') setWhManagerName('Jack Taylor (Sydney Warehouse Manager)');
-                  else if (selectedEmail === 'melbourne.manager@logiqon.com') setWhManagerName('Sarah Jenkins (Melbourne Operations Lead)');
-                  else if (selectedEmail === 'brisbane.manager@logiqon.com') setWhManagerName('Michael Chang (Brisbane Hub Supervisor)');
-                  else if (selectedEmail === 'perth.manager@logiqon.com') setWhManagerName('David Wilson (Perth Regional Manager)');
-                  else setWhManagerName('Jack Taylor (Warehouse Manager)');
+                  const found = registeredManagers.find((m) => m.email === selectedEmail);
+                  setWhManagerName(found ? found.fullName : selectedEmail);
                 }}
-                options={[
-                  { value: 'sydney.manager@logiqon.com', label: '👤 Jack Taylor (sydney.manager@logiqon.com)' },
-                  { value: 'melbourne.manager@logiqon.com', label: '👤 Sarah Jenkins (melbourne.manager@logiqon.com)' },
-                  { value: 'brisbane.manager@logiqon.com', label: '👤 Michael Chang (brisbane.manager@logiqon.com)' },
-                  { value: 'perth.manager@logiqon.com', label: '👤 David Wilson (perth.manager@logiqon.com)' },
-                ]}
+                options={registeredManagers.map((m) => ({
+                  value: m.email,
+                  label: `👤 ${m.fullName} (${m.email})`,
+                }))}
               />
             </div>
           </div>
