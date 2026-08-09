@@ -174,8 +174,10 @@ export async function POST(req: Request) {
     // Resolve vendor ownership (Category 1: Vendor Supplied vs Category 2: Internal Platform Stock)
     const inputVendorId = body.vendorId;
     const isVendorProvided = inputVendorId && inputVendorId !== 'PLATFORM' && inputVendorId !== '';
-    const resolvedVendorId = isVendorProvided ? inputVendorId : null;
-    const resolvedVendorName = body.vendorName || (isVendorProvided ? 'Vendor Partner' : 'LogiQ-On Internal Stock');
+    const resolvedVendorId = user.role === 'VENDOR' ? `vnd_${user.id}` : (isVendorProvided ? inputVendorId : null);
+    const resolvedVendorName = user.role === 'VENDOR'
+      ? (user.name || 'Vendor Partner')
+      : (body.vendorName || (isVendorProvided ? 'Vendor Partner' : 'LogiQ-On Internal Stock'));
 
     const newItem: PersistentProduct = {
       id: itemId,
@@ -191,7 +193,7 @@ export async function POST(req: Request) {
       moq: parsedMoq,
       status: finalStatus as any,
       vendorId: resolvedVendorId,
-      vendorEmail: isVendorProvided ? body.vendorEmail || 'vendor@logiqon.com' : undefined,
+      vendorEmail: user.role === 'VENDOR' ? user.email : (isVendorProvided ? body.vendorEmail : undefined),
       vendorName: resolvedVendorName,
       categoryId: catObj ? catObj.id : undefined,
       categoryName: catName,

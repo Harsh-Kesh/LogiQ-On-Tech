@@ -109,6 +109,10 @@ export default function VendorDashboardPage() {
   const [prodFormError, setProdFormError] = useState('');
   const [prodSubmitting, setProdSubmitting] = useState(false);
 
+  const [isVendorCsvModalOpen, setIsVendorCsvModalOpen] = useState(false);
+  const [csvText, setCsvText] = useState('');
+  const [csvSubmitting, setCsvSubmitting] = useState(false);
+
   // Toast Feedback State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -656,21 +660,35 @@ export default function VendorDashboardPage() {
               <p className="text-xs text-slate-500 font-mono">Manage catalog products, pricing, barcode locks, and taxonomy scoped to your vendor entity.</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!isApproved}
+              onClick={() => setIsVendorCsvModalOpen(true)}
+              className={`font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs border flex items-center gap-2 shrink-0 whitespace-nowrap transition-all ${
+                isApproved
+                  ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 cursor-pointer font-mono'
+                  : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
+              }`}
+            >
+              <Upload className="w-4 h-4 text-indigo-600" /> Bulk CSV Import
+            </button>
 
-          <button
-            type="button"
-            disabled={!isApproved}
-            onClick={openNewProductModal}
-            className={`font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs border flex items-center gap-2 shrink-0 whitespace-nowrap transition-all ${
-              isApproved
-                ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800 cursor-pointer font-mono'
-                : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
-            }`}
-            title={isApproved ? 'Add new product item to catalog' : 'Requires APPROVED Vendor status'}
-          >
-            {isApproved ? <Plus className="w-4 h-4 text-indigo-300" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
-            Add New Product
-          </button>
+            <button
+              type="button"
+              disabled={!isApproved}
+              onClick={openNewProductModal}
+              className={`font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs border flex items-center gap-2 shrink-0 whitespace-nowrap transition-all ${
+                isApproved
+                  ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800 cursor-pointer font-mono'
+                  : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
+              }`}
+              title={isApproved ? 'Add new product item to catalog' : 'Requires APPROVED Vendor status'}
+            >
+              {isApproved ? <Plus className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+              Add New Product
+            </button>
+          </div>
         </div>
 
         {!isApproved && (
@@ -1009,6 +1027,77 @@ export default function VendorDashboardPage() {
             </div>
           </form>
         </div>
+      </Modal>
+
+      {/* Modal - Vendor Bulk CSV Import */}
+      <Modal isOpen={isVendorCsvModalOpen} onClose={() => setIsVendorCsvModalOpen(false)} title="Vendor Bulk Product Catalog CSV Import" maxWidth="2xl">
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!csvText.trim()) return;
+            setCsvSubmitting(true);
+            try {
+              const lines = csvText.trim().split('\n');
+              const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+              const parsedItems = lines.slice(1).map((line) => {
+                const parts = line.split(',').map((p) => p.trim());
+                const item: any = {};
+                headers.forEach((h, i) => {
+                  if (h.includes('name')) item.itemName = parts[i];
+                  else if (h.includes('sku')) item.sku = parts[i];
+                  else if (h.includes('barcode')) item.barcode = parts[i];
+                  else if (h.includes('cost')) item.costPrice = parts[i];
+                  else if (h.includes('sell') || h.includes('price')) item.sellingPrice = parts[i];
+                  else if (h.includes('wholesale')) item.wholesalePrice = parts[i];
+                });
+                if (!item.itemName) item.itemName = parts[0];
+                return item;
+              });
+
+              const res = await fetch('/api/vendor/products/bulk-import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: parsedItems }),
+              });
+
+              const data = await res.json();
+              if (res.ok) {
+                setToast({ message: data.message || 'Vendor products imported successfully!', type: 'success' });
+                setIsVendorCsvModalOpen(false);
+                setCsvText('');
+                fetchVendorProducts();
+              } else {
+                setToast({ message: data.error || 'CSV Import failed.', type: 'error' });
+              }
+            } catch {
+              setToast({ message: 'Error processing CSV import.', type: 'error' });
+            } finally {
+              setCsvSubmitting(false);
+            }
+          }}
+          className="space-y-4"
+        >
+          <p className="text-xs text-slate-600">
+            Paste raw CSV data or product rows (columns: <code className="font-mono text-indigo-700 font-bold">itemName, sku, barcode, costPrice, sellingPrice, wholesalePrice</code>).
+          </p>
+
+          <textarea
+            value={csvText}
+            onChange={(e) => setCsvText(e.target.value)}
+            rows={8}
+            placeholder={`itemName,sku,barcode,costPrice,sellingPrice,wholesalePrice\nIndustrial Scanner 2D,LQ-SCN-881,9312345099182,120.00,250.00,180.00\nThermal Label Printer,LQ-PRN-882,9312345099183,180.00,320.00,240.00`}
+            className="w-full p-3 font-mono text-xs bg-slate-900 text-emerald-400 rounded-xl border border-slate-800 focus:outline-none"
+          />
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <Button type="button" variant="outline" onClick={() => setIsVendorCsvModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={csvSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+              Import Vendor Products CSV
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
