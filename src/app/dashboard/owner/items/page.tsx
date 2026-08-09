@@ -385,11 +385,11 @@ export default function MasterDataItemsPage() {
             <span className="font-extrabold text-slate-900 text-sm">{item.itemName}</span>
             {item.vendorId ? (
               <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg text-xs shrink-0">
-                🏢 {item.vendorName || 'Apex Hardware & Logistics Ltd'}
+                🏢 Vendor Partner
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-lg text-xs shrink-0">
-                🛡️ LogiQ-On Internal Stock
+                🛡️ LogiQ-On Internal
               </span>
             )}
           </div>
