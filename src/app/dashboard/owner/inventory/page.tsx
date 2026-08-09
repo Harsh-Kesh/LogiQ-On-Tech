@@ -466,29 +466,27 @@ export default function OwnerInventoryPage() {
         </div>
       )}
 
-      {/* Header Banner */}
-      <div className="p-6 border border-slate-200 bg-white shadow-sm overflow-hidden rounded-2xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold tracking-wide uppercase">
-              <Boxes className="w-3.5 h-3.5" /> Pillar 03 • Inventory & Stock Ledger Core
-            </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Warehouse Inventory & Immutable Stock Ledger Hub
-            </h1>
-            <p className="text-slate-500 text-sm max-w-3xl">
-              Derive real-time stock on hand from append-only movement ledgers, receive vendor shipments, and execute stock adjustments with mathematical audit verification.
-            </p>
+      {/* Global Enterprise Master Inventory Banner (Styled in Emerald Green) */}
+      <div className="p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 font-sans">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
+            <Boxes className="w-3.5 h-3.5 text-emerald-600" /> PILLAR 03 • GLOBAL ENTERPRISE 3PL INVENTORY CORE
           </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Enterprise Inventory Stock &amp; Immutable Ledger Hub
+          </h1>
+          <p className="text-xs text-slate-500 font-mono max-w-3xl">
+            Nationwide 3PL Stock Ledger Core • Multi-Facility Movement Audit Across Sydney, Melbourne, Brisbane &amp; Perth Facilities.
+          </p>
+        </div>
 
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={fetchAllData} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sync Ledger
-            </Button>
-            <Button onClick={() => setIsWhModalOpen(true)} size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700">
-              <Plus className="w-4 h-4" /> Add Warehouse Location
-            </Button>
-          </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <Button variant="outline" size="sm" onClick={fetchAllData} className="gap-2 border-emerald-200 text-emerald-800 hover:bg-emerald-50">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sync Ledger
+          </Button>
+          <Button onClick={() => setIsWhModalOpen(true)} size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+            <Plus className="w-4 h-4" /> Add Warehouse Location
+          </Button>
         </div>
       </div>
 
