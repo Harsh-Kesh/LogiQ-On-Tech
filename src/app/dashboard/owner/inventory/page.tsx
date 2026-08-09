@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   PackageCheck,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -26,6 +27,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { DataTable } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
+import { Toast } from '@/components/ui/Toast';
 import { StockOnHandItem, StockLedgerEntry, WarehouseLocation, ReconciliationReport } from '@/lib/stock';
 
 export default function OwnerInventoryPage() {
@@ -68,9 +70,34 @@ export default function OwnerInventoryPage() {
   const [whName, setWhName] = useState('');
   const [whAddress, setWhAddress] = useState('');
   const [whContact, setWhContact] = useState('');
-  const [binCode, setBinCode] = useState('');
-  const [binZone, setBinZone] = useState('Zone A');
+  const [binRows, setBinRows] = useState<Array<{ code: string; zone: string; capacity: string }>>([
+    { code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacity: '1000' },
+    { code: 'BIN-A1-02', zone: 'Zone A - Reserve', capacity: '2000' },
+  ]);
   const [whSubmitting, setWhSubmitting] = useState(false);
+
+  const addBinRow = () => {
+    const nextIdx = binRows.length + 1;
+    setBinRows([
+      ...binRows,
+      {
+        code: `BIN-A1-0${nextIdx}`,
+        zone: binRows[binRows.length - 1]?.zone || 'Zone A',
+        capacity: '1000',
+      },
+    ]);
+  };
+
+  const removeBinRow = (index: number) => {
+    if (binRows.length <= 1) return;
+    setBinRows(binRows.filter((_, idx) => idx !== index));
+  };
+
+  const updateBinRow = (index: number, field: 'code' | 'zone' | 'capacity', value: string) => {
+    const updated = [...binRows];
+    updated[index] = { ...updated[index], [field]: value };
+    setBinRows(updated);
+  };
 
   // Form State - Add Storage Bin to Existing Warehouse
   const [isAddBinModalOpen, setIsAddBinModalOpen] = useState(false);
@@ -227,8 +254,11 @@ export default function OwnerInventoryPage() {
           name: whName,
           address: whAddress,
           contactPerson: whContact,
-          binCode: binCode || 'BIN-A1-01',
-          binZone: binZone || 'Zone A',
+          initialBins: binRows.map((r) => ({
+            code: r.code,
+            zone: r.zone,
+            capacity: parseInt(r.capacity, 10) || 1000,
+          })),
         }),
       });
 
@@ -236,11 +266,15 @@ export default function OwnerInventoryPage() {
       if (!res.ok) {
         setToast({ message: data.error || 'Failed to add warehouse.', type: 'error' });
       } else {
-        setToast({ message: data.message, type: 'success' });
+        setToast({ message: `Warehouse location '${whName}' (${whCode.toUpperCase()}) created with ${binRows.length} bins!`, type: 'success' });
         setIsWhModalOpen(false);
         setWhCode('');
         setWhName('');
         setWhAddress('');
+        setBinRows([
+          { code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacity: '1000' },
+          { code: 'BIN-A1-02', zone: 'Zone A - Reserve', capacity: '2000' },
+        ]);
         fetchAllData();
       }
     } catch (e) {
@@ -1053,14 +1087,77 @@ export default function OwnerInventoryPage() {
             <Input value={whAddress} onChange={(e) => setWhAddress(e.target.value)} placeholder="e.g. 50 Airport Drive, Kewdale WA 6105" className="text-xs" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Initial Bin Code(s) (Separate multiple with commas)</label>
-              <Input value={binCode} onChange={(e) => setBinCode(e.target.value)} placeholder="BIN-A1-01, BIN-A1-02, BIN-B2-01" className="text-xs font-mono uppercase" />
+          {/* Dynamic Storage Bins Builder */}
+          <div className="pt-3 border-t border-slate-100 space-y-3 font-sans">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider font-mono">
+                  Configure Storage Bins & Zone Capacity ({binRows.length} {binRows.length === 1 ? 'Bin' : 'Bins'})
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Configure bin code, zone area, and unit storage capacity for this location.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addBinRow}
+                className="text-xs font-bold text-emerald-700 border-emerald-300 hover:bg-emerald-50 flex items-center gap-1.5 py-1 px-2.5 h-8"
+              >
+                <Plus className="w-3.5 h-3.5" /> + Add More Bins
+              </Button>
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Bin Zone / Area (Single or comma-separated)</label>
-              <Input value={binZone} onChange={(e) => setBinZone(e.target.value)} placeholder="Zone A, Zone A, Zone B" className="text-xs" />
+
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              {binRows.map((row, idx) => (
+                <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-12 gap-2.5 items-center">
+                  <div className="col-span-4">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Bin Code *</label>
+                    <Input
+                      value={row.code}
+                      onChange={(e) => updateBinRow(idx, 'code', e.target.value)}
+                      placeholder="e.g. BIN-A1-01"
+                      className="text-xs font-mono uppercase bg-white"
+                      required
+                    />
+                  </div>
+
+                  <div className="col-span-4">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Bin Zone / Area</label>
+                    <Input
+                      value={row.zone}
+                      onChange={(e) => updateBinRow(idx, 'zone', e.target.value)}
+                      placeholder="e.g. Zone A"
+                      className="text-xs bg-white"
+                    />
+                  </div>
+
+                  <div className="col-span-3">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Capacity (Units)</label>
+                    <Input
+                      type="number"
+                      value={row.capacity}
+                      onChange={(e) => updateBinRow(idx, 'capacity', e.target.value)}
+                      placeholder="1000"
+                      className="text-xs font-mono bg-white"
+                    />
+                  </div>
+
+                  <div className="col-span-1 flex justify-end pt-4">
+                    <button
+                      type="button"
+                      disabled={binRows.length <= 1}
+                      onClick={() => removeBinRow(idx)}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        binRows.length <= 1 ? 'text-slate-300 cursor-not-allowed' : 'text-rose-500 hover:bg-rose-50 hover:text-rose-700 cursor-pointer'
+                      }`}
+                      title="Remove Bin Row"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1100,6 +1197,13 @@ export default function OwnerInventoryPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Consistent Global Toast Feedback Renderer */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-[100] max-w-sm w-full font-sans">
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        </div>
+      )}
     </div>
   );
 }
