@@ -47,7 +47,12 @@ export function loadPersistentProducts(): Record<string, PersistentProduct> {
   try {
     if (fs.existsSync(PRODUCTS_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf-8'));
-      return { ...seedProducts, ...parsed };
+      // Auto-migrate legacy item_09 key if it belonged to RFID reader
+      if (parsed['item_09'] && parsed['item_09'].sku === 'LQ-RFD-00109') {
+        parsed['item_09_rfid'] = { ...parsed['item_09'], id: 'item_09_rfid' };
+        delete parsed['item_09'];
+      }
+      return { ...parsed, ...seedProducts };
     }
   } catch (e) {}
   return seedProducts;
@@ -324,8 +329,8 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       createdAt: now,
       updatedAt: now,
     },
-    'item_09': {
-      id: 'item_09',
+    'item_09_plt': {
+      id: 'item_09_plt',
       sku: 'LQ-PLT-00301',
       barcode: '9312345678903',
       itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
@@ -356,8 +361,8 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       createdAt: now,
       updatedAt: now,
     },
-    'item_10': {
-      id: 'item_10',
+    'item_09_rfid': {
+      id: 'item_09_rfid',
       sku: 'LQ-RFD-00109',
       barcode: '9312345001091',
       itemName: 'Fixed 4-Port Overhead Portal RFID Reader (LogiGate-400)',

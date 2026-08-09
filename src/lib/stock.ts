@@ -228,7 +228,7 @@ export function getSeededStockLedger(): StockLedgerEntry[] {
       warehouseId: 'wh_syd_01',
       warehouseCode: 'WH-SYD-01',
       warehouseName: 'Sydney Central Logistics Hub',
-      itemMasterId: 'item_09',
+      itemMasterId: 'item_09_plt',
       sku: 'LQ-PLT-00301',
       barcode: '9312345678903',
       itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
@@ -274,10 +274,10 @@ export function loadPersistentStockLedger(): StockLedgerEntry[] {
             itemName: 'Thermal Transfer Desktop Label Printer 300DPI (LogiPrint-30)',
           };
         }
-        if (entry.itemMasterId === 'prod_seed_03' || entry.sku === 'LQ-PLT-00301') {
+        if (entry.itemMasterId === 'prod_seed_03' || entry.sku === 'LQ-PLT-00301' || entry.itemMasterId === 'item_09') {
           return {
             ...entry,
-            itemMasterId: 'item_09',
+            itemMasterId: 'item_09_plt',
             sku: 'LQ-PLT-00301',
             barcode: '9312345678903',
             itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
