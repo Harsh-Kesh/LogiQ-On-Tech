@@ -9,10 +9,10 @@ import {
 import { useState, useEffect } from 'react';
 
 const WAREHOUSE_MANAGERS: Record<string, { name: string; email: string }> = {
-  'WH-SYD-01': { name: 'Jack Taylor (Sydney Warehouse Manager)', email: 'jack.taylor@logiqon.tech' },
-  'WH-MEL-02': { name: 'Sarah Jenkins (Melbourne Operations Lead)', email: 'sarah.jenkins@logiqon.tech' },
-  'WH-BNE-03': { name: 'Michael Chang (Brisbane Hub Supervisor)', email: 'michael.chang@logiqon.tech' },
-  'WH-PER-04': { name: 'David Wilson (Perth Regional Manager)', email: 'david.wilson@logiqon.tech' },
+  'WH-SYD-01': { name: 'Jack Taylor (Sydney Warehouse Manager)', email: 'sydney.manager@logiqon.com' },
+  'WH-MEL-02': { name: 'Sarah Jenkins (Melbourne Operations Lead)', email: 'melbourne.manager@logiqon.com' },
+  'WH-BNE-03': { name: 'Michael Chang (Brisbane Hub Supervisor)', email: 'brisbane.manager@logiqon.com' },
+  'WH-PER-04': { name: 'David Wilson (Perth Regional Manager)', email: 'perth.manager@logiqon.com' },
 };
 
 export default function WarehouseDashboardPage() {
@@ -26,6 +26,23 @@ export default function WarehouseDashboardPage() {
   useEffect(() => {
     fetchWarehouseData();
   }, []);
+
+  useEffect(() => {
+    // If logged in as WAREHOUSE role manager, lock to their assigned facility
+    if (session?.user) {
+      const userRole = (session.user as any).role;
+      const assignedWh = (session.user as any).assignedWarehouseCode;
+      if (userRole === 'WAREHOUSE' && assignedWh) {
+        setSelectedWarehouseCode(assignedWh);
+      } else if (userRole === 'WAREHOUSE') {
+        const userEmail = session.user.email || '';
+        if (userEmail.includes('melbourne')) setSelectedWarehouseCode('WH-MEL-02');
+        else if (userEmail.includes('brisbane')) setSelectedWarehouseCode('WH-BNE-03');
+        else if (userEmail.includes('perth')) setSelectedWarehouseCode('WH-PER-04');
+        else setSelectedWarehouseCode('WH-SYD-01');
+      }
+    }
+  }, [session]);
 
   const fetchWarehouseData = async () => {
     setLoading(true);
@@ -48,6 +65,7 @@ export default function WarehouseDashboardPage() {
     }
   };
 
+  const isOwner = (session?.user as any)?.role === 'PLATFORM_OWNER';
   const isGlobal = selectedWarehouseCode === 'ALL';
 
   const activeWarehouse = isGlobal
@@ -67,11 +85,11 @@ export default function WarehouseDashboardPage() {
   const activeManager = isGlobal
     ? {
         name: 'Logistics Directorate',
-        email: session?.user?.email || 'global.ops@logiqon.tech',
+        email: session?.user?.email || 'owner@logiqon.com',
       }
     : WAREHOUSE_MANAGERS[selectedWarehouseCode] || {
         name: session?.user?.name || 'Warehouse Manager',
-        email: session?.user?.email || 'warehouse@logiqon.tech',
+        email: session?.user?.email || 'sydney.manager@logiqon.com',
       };
 
   const filteredStock = isGlobal
@@ -86,7 +104,7 @@ export default function WarehouseDashboardPage() {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Emerald Green Header Banner with Default Global View */}
+      {/* Emerald Green Header Banner with Pixel-Perfect Alignment */}
       <div className="p-6 md:p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-4 min-w-0">
           <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
@@ -95,7 +113,9 @@ export default function WarehouseDashboardPage() {
           <div className="space-y-1 min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              {isGlobal ? 'PILLAR 03 • GLOBAL 3PL FLEET DESK' : 'PILLAR 03 • FACILITY OPERATOR DESK'}
+              {isOwner
+                ? (isGlobal ? 'PILLAR 03 • GLOBAL 3PL FLEET DESK (OWNER VIEW)' : `PILLAR 03 • ${selectedWarehouseCode} FACILITY DESK`)
+                : `PILLAR 03 • ASSIGNED WAREHOUSE DESK (${selectedWarehouseCode})`}
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
@@ -113,30 +133,37 @@ export default function WarehouseDashboardPage() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-          {/* Facility Location Selector */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">
-              Select Active Desk View:
-            </label>
-            <select
-              value={selectedWarehouseCode}
-              onChange={(e) => setSelectedWarehouseCode(e.target.value)}
-              className="px-3 py-2 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 focus:outline-none focus:border-emerald-600 font-mono"
-            >
-              <option value="ALL">🌐 All Warehouses (Global View)</option>
-              {warehouses.map((w) => (
-                <option key={w.code} value={w.code}>
-                  🏬 {w.name} ({w.code})
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Perfectly Aligned Controls Baseline */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 shrink-0">
+          {/* Facility Location Selector (Only shown to Platform Owner) */}
+          {isOwner ? (
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">
+                Select Active Desk View:
+              </label>
+              <select
+                value={selectedWarehouseCode}
+                onChange={(e) => setSelectedWarehouseCode(e.target.value)}
+                className="h-[42px] px-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 focus:outline-none focus:border-emerald-600 font-mono shadow-sm"
+              >
+                <option value="ALL">🌐 All Warehouses (Global View)</option>
+                {warehouses.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    🏬 {w.name} ({w.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="px-4 py-2.5 h-[42px] bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 font-mono flex items-center gap-2 shadow-sm">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Assigned Desk: {selectedWarehouseCode}
+            </div>
+          )}
 
-          <div className="flex items-center gap-2 pt-4 sm:pt-0">
+          <div className="flex items-center gap-2">
             <Link
               href="/dashboard/owner/inventory"
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer font-mono"
+              className="h-[42px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer font-mono whitespace-nowrap"
             >
               <PackageCheck className="w-4 h-4" /> Inventory Management
             </Link>

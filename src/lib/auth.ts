@@ -21,6 +21,7 @@ export interface PersistentUser {
   status?: string;
   rejectionReason?: string;
   docs?: any[];
+  assignedWarehouseCode?: string;
 }
 
 const STORAGE_DIR = path.join(process.cwd(), '.data');
@@ -42,8 +43,12 @@ function getSeededDemoAccounts(): Record<string, PersistentUser> {
     'owner@logiqon.com': { id: 'usr_owner_01', email: 'owner@logiqon.com', fullName: 'Platform Owner', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
     'vendor@logiqon.tech': { id: 'usr_vendor_01', email: 'vendor@logiqon.tech', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 910', status: 'APPROVED' },
     'vendor@logiqon.com': { id: 'usr_vendor_02', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 910', status: 'APPROVED' },
-    'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'warehouse@logiqon.com': { id: 'usr_wh_02', email: 'warehouse@logiqon.com', fullName: 'Sydney Hub Operator', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'sydney.manager@logiqon.com': { id: 'usr_wh_syd', email: 'sydney.manager@logiqon.com', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
+    'melbourne.manager@logiqon.com': { id: 'usr_wh_mel', email: 'melbourne.manager@logiqon.com', fullName: 'Sarah Jenkins', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-MEL-02' },
+    'brisbane.manager@logiqon.com': { id: 'usr_wh_bne', email: 'brisbane.manager@logiqon.com', fullName: 'Michael Chang', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-BNE-03' },
+    'perth.manager@logiqon.com': { id: 'usr_wh_per', email: 'perth.manager@logiqon.com', fullName: 'David Wilson', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-PER-04' },
+    'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
+    'warehouse@logiqon.com': { id: 'usr_wh_02', email: 'warehouse@logiqon.com', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
   };
 }
 
@@ -349,6 +354,7 @@ export const authOptions: NextAuthOptions = {
               role: runtimeUser.role,
               mfaEnabled: runtimeUser.mfaEnabled,
               mfaVerified: !runtimeUser.mfaEnabled,
+              assignedWarehouseCode: runtimeUser.assignedWarehouseCode || 'WH-SYD-01',
             };
           }
         }
@@ -364,11 +370,13 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role;
         token.mfaEnabled = (user as any).mfaEnabled;
         token.mfaVerified = (user as any).mfaVerified;
+        token.assignedWarehouseCode = (user as any).assignedWarehouseCode;
       }
       if (trigger === 'update') {
         if (session?.role) token.role = session.role;
         if (session?.mfaEnabled !== undefined) token.mfaEnabled = session.mfaEnabled;
         if (session?.mfaVerified !== undefined) token.mfaVerified = session.mfaVerified;
+        if (session?.assignedWarehouseCode) token.assignedWarehouseCode = session.assignedWarehouseCode;
       }
       return token;
     },
@@ -378,6 +386,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = token.role as UserRole;
         (session.user as any).mfaEnabled = token.mfaEnabled as boolean;
         (session.user as any).mfaVerified = token.mfaVerified as boolean;
+        (session.user as any).assignedWarehouseCode = token.assignedWarehouseCode as string;
       }
       return session;
     },
