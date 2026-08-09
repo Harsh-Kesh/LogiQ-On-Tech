@@ -51,11 +51,11 @@ export default function WarehouseDashboardPage() {
           return;
         }
 
-        // Seeded demo email shortcuts
-        if (userEmail === 'sydney.manager@logiqon.com' || userEmail.includes('sydney')) setSelectedWarehouseCode('WH-SYD-01');
-        else if (userEmail === 'melbourne.manager@logiqon.com' || userEmail.includes('melbourne')) setSelectedWarehouseCode('WH-MEL-02');
-        else if (userEmail === 'brisbane.manager@logiqon.com' || userEmail.includes('brisbane')) setSelectedWarehouseCode('WH-BNE-03');
-        else if (userEmail === 'perth.manager@logiqon.com' || userEmail.includes('perth')) setSelectedWarehouseCode('WH-PER-04');
+        // Seeded demo email shortcuts ONLY for explicit demo accounts
+        if (userEmail === 'sydney.manager@logiqon.com' || userEmail === 'warehouse@logiqon.tech' || userEmail === 'warehouse@logiqon.com') setSelectedWarehouseCode('WH-SYD-01');
+        else if (userEmail === 'melbourne.manager@logiqon.com') setSelectedWarehouseCode('WH-MEL-02');
+        else if (userEmail === 'brisbane.manager@logiqon.com') setSelectedWarehouseCode('WH-BNE-03');
+        else if (userEmail === 'perth.manager@logiqon.com') setSelectedWarehouseCode('WH-PER-04');
         else setSelectedWarehouseCode('UNASSIGNED');
       }
     }

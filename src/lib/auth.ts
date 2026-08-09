@@ -195,6 +195,7 @@ export function registerRuntimeUser(email: string, fullName: string, role: UserR
     abnAcn: '',
     status: 'PENDING',
     docs: [],
+    assignedWarehouseCode: role === 'WAREHOUSE' ? 'UNASSIGNED' : undefined,
   };
 
   savePersistentUsers(users);
@@ -354,7 +355,7 @@ export const authOptions: NextAuthOptions = {
               role: runtimeUser.role,
               mfaEnabled: runtimeUser.mfaEnabled,
               mfaVerified: !runtimeUser.mfaEnabled,
-              assignedWarehouseCode: runtimeUser.assignedWarehouseCode || 'WH-SYD-01',
+              assignedWarehouseCode: runtimeUser.assignedWarehouseCode || (runtimeUser.role === 'WAREHOUSE' ? 'UNASSIGNED' : undefined),
             };
           }
         }

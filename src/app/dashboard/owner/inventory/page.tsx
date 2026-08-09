@@ -61,10 +61,10 @@ export default function OwnerInventoryPage() {
         );
         if (matchedWh) {
           setAssignedWh(matchedWh.code);
-        } else if (userEmail === 'sydney.manager@logiqon.com' || userEmail.includes('sydney')) setAssignedWh('WH-SYD-01');
-        else if (userEmail === 'melbourne.manager@logiqon.com' || userEmail.includes('melbourne')) setAssignedWh('WH-MEL-02');
-        else if (userEmail === 'brisbane.manager@logiqon.com' || userEmail.includes('brisbane')) setAssignedWh('WH-BNE-03');
-        else if (userEmail === 'perth.manager@logiqon.com' || userEmail.includes('perth')) setAssignedWh('WH-PER-04');
+        } else if (userEmail === 'sydney.manager@logiqon.com' || userEmail === 'warehouse@logiqon.tech' || userEmail === 'warehouse@logiqon.com') setAssignedWh('WH-SYD-01');
+        else if (userEmail === 'melbourne.manager@logiqon.com') setAssignedWh('WH-MEL-02');
+        else if (userEmail === 'brisbane.manager@logiqon.com') setAssignedWh('WH-BNE-03');
+        else if (userEmail === 'perth.manager@logiqon.com') setAssignedWh('WH-PER-04');
         else setAssignedWh('UNASSIGNED');
       }
     }
@@ -1099,21 +1099,9 @@ export default function OwnerInventoryPage() {
                     options={
                       isWarehouseManager
                         ? [{ value: assignedWh, label: `🔒 Facility Desk: ${assignedWh}` }]
-                        : warehouses
-                            .filter((w) => {
-                              if (!adjItem) return true;
-                              const selectedItemObj = items.find((i) => i.id === adjItem);
-                              return stockList.some(
-                                (s) =>
-                                  s.warehouseCode === w.code &&
-                                  s.quantityOnHand > 0 &&
-                                  (s.itemMasterId === adjItem ||
-                                    (selectedItemObj && s.sku.toLowerCase() === selectedItemObj.sku.toLowerCase()))
-                              );
-                            })
-                            .map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
+                        : warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
                     }
-                    className="text-xs font-mono font-bold"
+                    className="text-xs"
                   />
                 </div>
 
@@ -1195,17 +1183,59 @@ export default function OwnerInventoryPage() {
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {wh.bins.map((bin) => (
-                      <div key={bin.code} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs flex items-center justify-between">
-                        <div>
-                          <div className="font-mono font-bold text-slate-900">{bin.code}</div>
-                          <div className="text-[10px] text-slate-500">{bin.zone}</div>
+                    {wh.bins.map((bin) => {
+                      const binStockQty = stockList
+                        .filter((s) => s.warehouseCode === wh.code && s.binLocation === bin.code)
+                        .reduce((sum, item) => sum + (item.quantityOnHand || 0), 0);
+                      const binCapacity = bin.capacityUnits || 1000;
+                      const fillPercent = Math.min(100, Math.round((binStockQty / binCapacity) * 100));
+
+                      let statusBadge = (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                          ⚪ EMPTY (0/{binCapacity})
+                        </span>
+                      );
+
+                      if (binStockQty >= binCapacity) {
+                        statusBadge = (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                            🔴 FULL ({binStockQty}/{binCapacity})
+                          </span>
+                        );
+                      } else if (binStockQty > 0) {
+                        statusBadge = (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            🟡 OCCUPIED ({binStockQty}/{binCapacity})
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <div key={bin.code} className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-mono font-extrabold text-slate-900">{bin.code}</div>
+                              <div className="text-[10px] text-slate-500 font-medium">{bin.zone}</div>
+                            </div>
+                            {statusBadge}
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-[10px] text-slate-500 font-mono mb-1">
+                              <span>Occupancy Rate</span>
+                              <span className="font-bold">{fillPercent}%</span>
+                            </div>
+                            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-300 ${
+                                  binStockQty >= binCapacity ? 'bg-rose-500' : binStockQty > 0 ? 'bg-amber-500' : 'bg-slate-300'
+                                }`}
+                                style={{ width: `${binStockQty === 0 ? 0 : Math.max(5, fillPercent)}%` }}
+                              />
+                            </div>
+                          </div>
                         </div>
-                        <Badge variant={bin.isOccupied ? 'success' : 'neutral'} className="text-[10px]">
-                          {bin.isOccupied ? 'Occupied' : 'Empty'}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
