@@ -429,7 +429,7 @@ export default function MasterDataItemsPage() {
           <div className="space-y-0.5 text-xs font-mono">
             <div className="font-bold text-slate-900">${Number(item.sellingPrice).toFixed(2)}</div>
             <div className="text-[10px] text-slate-500">Cost: ${Number(item.costPrice).toFixed(2)}</div>
-            <div className="text-[10px] font-bold text-emerald-700">Margin: {margin}%</div>
+            <div className="text-[10px] font-bold text-indigo-700">Margin: {margin}%</div>
           </div>
         );
       },
@@ -742,7 +742,7 @@ export default function MasterDataItemsPage() {
                   <span className="text-sm font-mono font-extrabold text-indigo-700 bg-indigo-100 px-2.5 py-0.5 rounded border border-indigo-200">
                     {u.code}
                   </span>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <CheckCircle2 className="w-4 h-4 text-indigo-600" />
                 </div>
                 <div className="text-sm font-bold text-slate-900">{u.name}</div>
                 {u.description && <div className="text-xs text-slate-500">{u.description}</div>}
@@ -895,7 +895,7 @@ export default function MasterDataItemsPage() {
                 <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs font-semibold">
                   <span className="text-slate-600 font-bold">Auto Margin & Markup Metrics:</span>
                   <div className="flex items-center gap-3">
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold">
+                    <span className="px-2.5 py-1 rounded-lg bg-violet-100 text-violet-800 font-bold">
                       Margin: {(((parseFloat(sellingPrice) - parseFloat(costPrice)) / parseFloat(sellingPrice)) * 100).toFixed(1)}%
                     </span>
                     <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-bold">
