@@ -20,6 +20,10 @@ export async function middleware(req: NextRequest) {
 
     // Route RBAC Enforcement
     if (pathname.startsWith('/dashboard/owner') && role !== 'PLATFORM_OWNER' && role !== 'MDM') {
+      // Allow WAREHOUSE managers access to facility-scoped inventory management
+      if (pathname === '/dashboard/owner/inventory' && role === 'WAREHOUSE') {
+        return NextResponse.next();
+      }
       const fallbackUrl = new URL(getDefaultDashboardForRole(role), req.url);
       return NextResponse.redirect(fallbackUrl);
     }

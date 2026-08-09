@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   Boxes,
   ArrowDownLeft,
@@ -31,6 +32,14 @@ import { Toast } from '@/components/ui/Toast';
 import { StockOnHandItem, StockLedgerEntry, WarehouseLocation, ReconciliationReport } from '@/lib/stock';
 
 export default function OwnerInventoryPage() {
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role;
+  const isWarehouseManager = userRole === 'WAREHOUSE';
+  const assignedWh = (session?.user as any)?.assignedWarehouseCode ||
+    (session?.user?.email?.includes('melbourne') ? 'WH-MEL-02' :
+     session?.user?.email?.includes('brisbane') ? 'WH-BNE-03' :
+     session?.user?.email?.includes('perth') ? 'WH-PER-04' : 'WH-SYD-01');
+
   const [activeTab, setActiveTab] = useState<'stock' | 'receive' | 'ledger' | 'adjust' | 'locations'>('stock');
 
   // Data States
@@ -166,11 +175,15 @@ export default function OwnerInventoryPage() {
       setItems(itemsData.items || []);
 
       if (whData.warehouses && whData.warehouses.length > 0) {
-        if (!rcvWarehouse) setRcvWarehouse(whData.warehouses[0].code);
-        if (!adjWarehouse) setAdjWarehouse(whData.warehouses[0].code);
-        if (whData.warehouses[0].bins.length > 0) {
-          if (!rcvBin) setRcvBin(whData.warehouses[0].bins[0].code);
-          if (!adjBin) setAdjBin(whData.warehouses[0].bins[0].code);
+        const defaultWh = isWarehouseManager ? assignedWh : whData.warehouses[0].code;
+        if (!rcvWarehouse) setRcvWarehouse(defaultWh);
+        if (!adjWarehouse) setAdjWarehouse(defaultWh);
+        if (isWarehouseManager) setSelectedWarehouse(assignedWh);
+        
+        const matchingWh = whData.warehouses.find((w: any) => w.code === defaultWh) || whData.warehouses[0];
+        if (matchingWh && matchingWh.bins && matchingWh.bins.length > 0) {
+          if (!rcvBin) setRcvBin(matchingWh.bins[0].code);
+          if (!adjBin) setAdjBin(matchingWh.bins[0].code);
         }
       }
       if (itemsData.items && itemsData.items.length > 0) {
@@ -533,9 +546,11 @@ export default function OwnerInventoryPage() {
           <Button variant="outline" size="sm" onClick={fetchAllData} className="gap-2 border-emerald-200 text-emerald-800 hover:bg-emerald-50">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sync Ledger
           </Button>
-          <Button onClick={() => setIsWhModalOpen(true)} size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
-            <Plus className="w-4 h-4" /> Add Warehouse Location
-          </Button>
+          {!isWarehouseManager && (
+            <Button onClick={() => setIsWhModalOpen(true)} size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+              <Plus className="w-4 h-4" /> Add Warehouse Location
+            </Button>
+          )}
         </div>
       </div>
 
