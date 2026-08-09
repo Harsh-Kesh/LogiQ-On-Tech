@@ -361,32 +361,36 @@ export default function OwnerInventoryPage() {
   };
 
   // Filtered Stock & Ledger View
-  const filteredStock = stockList.filter((s) => {
-    const matchWh = selectedWarehouse === 'ALL' || s.warehouseCode === selectedWarehouse;
-    const q = searchQuery.toLowerCase();
-    const matchQ =
-      !q ||
-      s.itemName.toLowerCase().includes(q) ||
-      s.sku.toLowerCase().includes(q) ||
-      s.barcode.toLowerCase().includes(q) ||
-      s.binLocation.toLowerCase().includes(q) ||
-      (s.vendorName && s.vendorName.toLowerCase().includes(q));
-    return matchWh && matchQ;
+  const effectiveWhCode = isWarehouseManager ? assignedWh : selectedWarehouse;
+
+  const displayStockList = isWarehouseManager ? stockList.filter((s) => s.warehouseCode === assignedWh) : stockList;
+  const displayLedgerList = isWarehouseManager ? ledgerList.filter((l) => l.warehouseCode === assignedWh) : ledgerList;
+
+  const filteredStock = stockList.filter((item) => {
+    const matchesWh = effectiveWhCode === 'ALL' || item.warehouseCode === effectiveWhCode;
+    const matchesSearch =
+      searchQuery === '' ||
+      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.barcode.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesWh && matchesSearch;
   });
 
-  const filteredLedger = ledgerList.filter((l) => {
-    const matchWh = selectedWarehouse === 'ALL' || l.warehouseCode === selectedWarehouse;
-    const matchType = movementFilter === 'ALL' || l.movementType === movementFilter;
-    const q = searchQuery.toLowerCase();
-    const matchQ =
-      !q ||
-      l.itemName.toLowerCase().includes(q) ||
-      l.sku.toLowerCase().includes(q) ||
-      l.referenceNumber.toLowerCase().includes(q) ||
-      l.binLocation.toLowerCase().includes(q) ||
-      (l.reasonCode && l.reasonCode.toLowerCase().includes(q));
-    return matchWh && matchType && matchQ;
+  const filteredLedger = displayLedgerList.filter((entry) => {
+    const matchesWh = effectiveWhCode === 'ALL' || entry.warehouseCode === effectiveWhCode;
+    const matchesMovement = movementFilter === 'ALL' || entry.movementType === movementFilter;
+    const matchesSearch =
+      searchQuery === '' ||
+      entry.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.itemName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesWh && matchesMovement && matchesSearch;
   });
+
+  // Facility-scoped Metrics
+  const metricStockOnHand = displayStockList.reduce((sum, i) => sum + (i.quantityOnHand || 0), 0);
+  const metricTotalReceipts = displayLedgerList.filter((l) => l.movementType === 'RECEIPT').reduce((sum, l) => sum + (l.quantityDelta || 0), 0);
+  const metricTotalIssues = Math.abs(displayLedgerList.filter((l) => l.movementType === 'ISSUE').reduce((sum, l) => sum + (l.quantityDelta || 0), 0));
+  const metricLedgerRows = displayLedgerList.length;
 
   // Table Columns
   const stockColumns: Array<{ header: string; accessorKey?: keyof StockOnHandItem; cell?: (item: StockOnHandItem) => React.ReactNode }> = [
@@ -555,65 +559,71 @@ export default function OwnerInventoryPage() {
       </div>
 
       {/* Reconciliation Summary Cards */}
-      {reconciliation && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Stock On Hand</p>
-              <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
-                {reconciliation.summary.netStockOnHand} <span className="text-xs font-normal text-slate-500">units</span>
-              </h3>
-              <p className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Reconciled against ledger
-              </p>
-            </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-              <Boxes className="w-6 h-6" />
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              {isWarehouseManager ? `Stock On Hand (${assignedWh})` : 'Total Stock On Hand'}
+            </p>
+            <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
+              {metricStockOnHand} <span className="text-xs font-normal text-slate-500">units</span>
+            </h3>
+            <p className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Reconciled against ledger
+            </p>
           </div>
-
-          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Inbound Receipts</p>
-              <h3 className="text-2xl font-black text-emerald-600 font-mono mt-1">
-                +{reconciliation.summary.totalReceipts} <span className="text-xs font-normal text-slate-500">units</span>
-              </h3>
-              <p className="text-[11px] text-slate-500 font-medium mt-1">From Goods Receipt Notes (GRN)</p>
-            </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-              <ArrowDownLeft className="w-6 h-6" />
-            </div>
-          </div>
-
-          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Outbound Issues</p>
-              <h3 className="text-2xl font-black text-rose-600 font-mono mt-1">
-                -{reconciliation.summary.totalIssues} <span className="text-xs font-normal text-slate-500">units</span>
-              </h3>
-              <p className="text-[11px] text-slate-500 font-medium mt-1">Dispatched order shipments</p>
-            </div>
-            <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
-              <ArrowUpRight className="w-6 h-6" />
-            </div>
-          </div>
-
-          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Immutable Ledger Audit</p>
-              <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
-                {reconciliation.totalLedgerRecords} <span className="text-xs font-normal text-slate-500">rows</span>
-              </h3>
-              <p className="text-[11px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Append-Only Verified
-              </p>
-            </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-              <History className="w-6 h-6" />
-            </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <Boxes className="w-6 h-6" />
           </div>
         </div>
-      )}
+
+        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              {isWarehouseManager ? `Inbound Receipts (${assignedWh})` : 'Total Inbound Receipts'}
+            </p>
+            <h3 className="text-2xl font-black text-emerald-600 font-mono mt-1">
+              +{metricTotalReceipts} <span className="text-xs font-normal text-slate-500">units</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">From Goods Receipt Notes (GRN)</p>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <ArrowDownLeft className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              {isWarehouseManager ? `Outbound Issues (${assignedWh})` : 'Total Outbound Issues'}
+            </p>
+            <h3 className="text-2xl font-black text-rose-600 font-mono mt-1">
+              -{metricTotalIssues} <span className="text-xs font-normal text-slate-500">units</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">Dispatched order shipments</p>
+          </div>
+          <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+            <ArrowUpRight className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              {isWarehouseManager ? `Ledger Audit (${assignedWh})` : 'Immutable Ledger Audit'}
+            </p>
+            <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
+              {metricLedgerRows} <span className="text-xs font-normal text-slate-500">rows</span>
+            </h3>
+            <p className="text-[11px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3" /> Append-Only Verified
+            </p>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <History className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
 
       {/* Navigation Tabs - 100% Emerald Green Styling */}
       <div className="flex border-b border-slate-200 bg-white rounded-xl p-1.5 shadow-sm space-x-2 font-sans">
@@ -678,13 +688,18 @@ export default function OwnerInventoryPage() {
 
           <div className="flex items-center gap-3 w-full md:w-auto">
             <Select
-              value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
-              options={[
-                { value: 'ALL', label: '🏬 All Warehouse Locations' },
-                ...warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` })),
-              ]}
-              className="text-xs"
+              value={isWarehouseManager ? assignedWh : selectedWarehouse}
+              onChange={(e) => !isWarehouseManager && setSelectedWarehouse(e.target.value)}
+              disabled={isWarehouseManager}
+              options={
+                isWarehouseManager
+                  ? [{ value: assignedWh, label: `🔒 Facility Desk: ${assignedWh}` }]
+                  : [
+                      { value: 'ALL', label: '🏬 All Warehouse Locations' },
+                      ...warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` })),
+                    ]
+              }
+              className="text-xs font-mono font-bold"
             />
 
             {activeTab === 'ledger' && (
@@ -811,13 +826,19 @@ export default function OwnerInventoryPage() {
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Target Warehouse *</label>
                   <Select
-                    value={rcvWarehouse}
+                    value={isWarehouseManager ? assignedWh : rcvWarehouse}
+                    disabled={isWarehouseManager}
                     onChange={(e) => {
+                      if (isWarehouseManager) return;
                       setRcvWarehouse(e.target.value);
                       const target = warehouses.find((w) => w.code === e.target.value);
                       if (target && target.bins.length > 0) setRcvBin(target.bins[0].code);
                     }}
-                    options={warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))}
+                    options={
+                      isWarehouseManager
+                        ? [{ value: assignedWh, label: `🔒 Facility Desk: ${assignedWh}` }]
+                        : warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
+                    }
                     className="text-xs"
                   />
                 </div>
@@ -990,13 +1011,19 @@ export default function OwnerInventoryPage() {
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Warehouse *</label>
                   <Select
-                    value={adjWarehouse}
+                    value={isWarehouseManager ? assignedWh : adjWarehouse}
+                    disabled={isWarehouseManager}
                     onChange={(e) => {
+                      if (isWarehouseManager) return;
                       setAdjWarehouse(e.target.value);
                       const target = warehouses.find((w) => w.code === e.target.value);
                       if (target && target.bins.length > 0) setAdjBin(target.bins[0].code);
                     }}
-                    options={warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))}
+                    options={
+                      isWarehouseManager
+                        ? [{ value: assignedWh, label: `🔒 Facility Desk: ${assignedWh}` }]
+                        : warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
+                    }
                     className="text-xs"
                   />
                 </div>
@@ -1054,7 +1081,7 @@ export default function OwnerInventoryPage() {
       {/* TAB 5: Warehouse & Storage Location Manager */}
       {activeTab === 'locations' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {warehouses.map((wh) => (
+          {(isWarehouseManager ? warehouses.filter((wh) => wh.code === assignedWh) : warehouses).map((wh) => (
             <div key={wh.code} className="border border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden flex flex-col justify-between">
               <div>
                 <div className="p-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50">
