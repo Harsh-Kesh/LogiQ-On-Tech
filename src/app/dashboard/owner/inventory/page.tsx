@@ -147,7 +147,7 @@ export default function OwnerInventoryPage() {
       if (usersRes && usersRes.ok) {
         const usersData = await usersRes.json();
         if (usersData.users && Array.isArray(usersData.users)) {
-          const whUsers = usersData.users.filter((u: any) => u.role === 'WAREHOUSE' || u.role === 'PLATFORM_OWNER');
+          const whUsers = usersData.users.filter((u: any) => u.role === 'WAREHOUSE' && !u.isSuspended);
           if (whUsers.length > 0) {
             setRegisteredManagers(
               whUsers.map((u: any) => ({
@@ -1135,9 +1135,10 @@ export default function OwnerInventoryPage() {
                 type="button"
                 variant="outline"
                 onClick={addBinRow}
-                className="text-xs font-bold text-emerald-700 border-emerald-300 hover:bg-emerald-50 flex items-center gap-1.5 py-1 px-2.5 h-8"
+                leftIcon={<Plus className="w-3.5 h-3.5 text-emerald-600" />}
+                className="text-xs font-bold text-emerald-700 border-emerald-300 hover:bg-emerald-50 h-8"
               >
-                <Plus className="w-3.5 h-3.5" /> + Add More Bins
+                Add More Bins
               </Button>
             </div>
 
