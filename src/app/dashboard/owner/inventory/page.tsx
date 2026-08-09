@@ -955,6 +955,14 @@ export default function OwnerInventoryPage() {
                     <div className="absolute z-30 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100 font-sans">
                       {items
                         .filter((i) => {
+                          const targetWhCode = isWarehouseManager ? assignedWh : adjWarehouse;
+                          if (targetWhCode && targetWhCode !== 'ALL') {
+                            const existsInWh = stockList.some(
+                              (s) => (s.itemMasterId === i.id || s.sku.toLowerCase() === i.sku.toLowerCase()) && s.warehouseCode === targetWhCode
+                            );
+                            if (!existsInWh) return false;
+                          }
+
                           if (!adjItemSearch) return true;
                           const q = adjItemSearch.toLowerCase();
                           return (
@@ -971,6 +979,20 @@ export default function OwnerInventoryPage() {
                               setAdjItem(i.id);
                               setAdjItemSearch(`${i.itemName} (${i.sku})`);
                               setIsAdjItemDropdownOpen(false);
+
+                              // Auto-select warehouse holding stock for this item if not locked
+                              if (!isWarehouseManager) {
+                                const whHoldingStock = stockList.find(
+                                  (s) => s.itemMasterId === i.id || s.sku.toLowerCase() === i.sku.toLowerCase()
+                                );
+                                if (whHoldingStock) {
+                                  setAdjWarehouse(whHoldingStock.warehouseCode);
+                                  const targetWhObj = warehouses.find((w) => w.code === whHoldingStock.warehouseCode);
+                                  if (targetWhObj && targetWhObj.bins.length > 0) {
+                                    setAdjBin(whHoldingStock.binLocation || targetWhObj.bins[0].code);
+                                  }
+                                }
+                              }
                             }}
                             className={`p-3 text-xs hover:bg-emerald-50 cursor-pointer flex items-center justify-between transition-colors ${
                               adjItem === i.id ? 'bg-emerald-50/80 font-bold' : ''
@@ -1015,16 +1037,27 @@ export default function OwnerInventoryPage() {
                     disabled={isWarehouseManager}
                     onChange={(e) => {
                       if (isWarehouseManager) return;
-                      setAdjWarehouse(e.target.value);
-                      const target = warehouses.find((w) => w.code === e.target.value);
+                      const newWh = e.target.value;
+                      setAdjWarehouse(newWh);
+                      const target = warehouses.find((w) => w.code === newWh);
                       if (target && target.bins.length > 0) setAdjBin(target.bins[0].code);
                     }}
                     options={
                       isWarehouseManager
                         ? [{ value: assignedWh, label: `🔒 Facility Desk: ${assignedWh}` }]
-                        : warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
+                        : warehouses
+                            .filter((w) => {
+                              if (!adjItem) return true;
+                              const selectedItemObj = items.find((i) => i.id === adjItem);
+                              return stockList.some(
+                                (s) =>
+                                  (s.itemMasterId === adjItem || (selectedItemObj && s.sku.toLowerCase() === selectedItemObj.sku.toLowerCase())) &&
+                                  s.warehouseCode === w.code
+                              );
+                            })
+                            .map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
                     }
-                    className="text-xs"
+                    className="text-xs font-mono font-bold"
                   />
                 </div>
 
