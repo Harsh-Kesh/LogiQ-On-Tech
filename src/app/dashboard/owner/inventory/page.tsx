@@ -35,7 +35,6 @@ export default function OwnerInventoryPage() {
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role;
   const isWarehouseManager = userRole === 'WAREHOUSE';
-  const [assignedWh, setAssignedWh] = useState<string>('UNASSIGNED');
 
   const [activeTab, setActiveTab] = useState<'stock' | 'receive' | 'ledger' | 'adjust' | 'locations'>('stock');
 
@@ -47,27 +46,24 @@ export default function OwnerInventoryPage() {
   const [reconciliation, setReconciliation] = useState<ReconciliationReport | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (session?.user && isWarehouseManager) {
-      const userEmail = (session.user.email || '').toLowerCase();
-      const assignedCode = (session.user as any).assignedWarehouseCode;
-      if (assignedCode && assignedCode !== 'ALL' && assignedCode !== 'UNASSIGNED') {
-        setAssignedWh(assignedCode);
-      } else {
-        const matchedWh = warehouses.find(
-          (w) =>
-            ((w as any).managerEmail && (w as any).managerEmail.toLowerCase() === userEmail) ||
-            (w.contactEmail && w.contactEmail.toLowerCase() === userEmail)
-        );
-        if (matchedWh) {
-          setAssignedWh(matchedWh.code);
-        } else if (userEmail === 'sydney.manager@logiqon.com' || userEmail === 'warehouse@logiqon.tech' || userEmail === 'warehouse@logiqon.com') setAssignedWh('WH-SYD-01');
-        else if (userEmail === 'melbourne.manager@logiqon.com') setAssignedWh('WH-MEL-02');
-        else if (userEmail === 'brisbane.manager@logiqon.com') setAssignedWh('WH-BNE-03');
-        else if (userEmail === 'perth.manager@logiqon.com') setAssignedWh('WH-PER-04');
-        else setAssignedWh('UNASSIGNED');
-      }
+  const assignedWh = React.useMemo(() => {
+    if (!session?.user || !isWarehouseManager) return 'UNASSIGNED';
+    const userEmail = (session.user.email || '').toLowerCase();
+    const assignedCode = (session.user as any).assignedWarehouseCode;
+    if (assignedCode && assignedCode !== 'ALL' && assignedCode !== 'UNASSIGNED') {
+      return assignedCode;
     }
+    const matchedWh = warehouses.find(
+      (w) =>
+        ((w as any).managerEmail && (w as any).managerEmail.toLowerCase() === userEmail) ||
+        (w.contactEmail && w.contactEmail.toLowerCase() === userEmail)
+    );
+    if (matchedWh) return matchedWh.code;
+    if (userEmail === 'sydney.manager@logiqon.com' || userEmail === 'warehouse@logiqon.tech' || userEmail === 'warehouse@logiqon.com') return 'WH-SYD-01';
+    if (userEmail === 'melbourne.manager@logiqon.com') return 'WH-MEL-02';
+    if (userEmail === 'brisbane.manager@logiqon.com') return 'WH-BNE-03';
+    if (userEmail === 'perth.manager@logiqon.com') return 'WH-PER-04';
+    return 'UNASSIGNED';
   }, [session, isWarehouseManager, warehouses]);
 
   // Filter States
