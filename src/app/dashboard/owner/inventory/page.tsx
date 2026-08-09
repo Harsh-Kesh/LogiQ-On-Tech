@@ -958,7 +958,13 @@ export default function OwnerInventoryPage() {
                           const targetWhCode = isWarehouseManager ? assignedWh : adjWarehouse;
                           if (targetWhCode && targetWhCode !== 'ALL') {
                             const existsInWh = stockList.some(
-                              (s) => (s.itemMasterId === i.id || s.sku.toLowerCase() === i.sku.toLowerCase()) && s.warehouseCode === targetWhCode
+                              (s) =>
+                                s.warehouseCode === targetWhCode &&
+                                s.quantityOnHand > 0 &&
+                                (s.itemMasterId === i.id ||
+                                  s.sku.toLowerCase() === i.sku.toLowerCase() ||
+                                  s.itemName.toLowerCase().includes(i.itemName.toLowerCase()) ||
+                                  i.itemName.toLowerCase().includes(s.itemName.toLowerCase()))
                             );
                             if (!existsInWh) return false;
                           }
@@ -1051,8 +1057,11 @@ export default function OwnerInventoryPage() {
                               const selectedItemObj = items.find((i) => i.id === adjItem);
                               return stockList.some(
                                 (s) =>
-                                  (s.itemMasterId === adjItem || (selectedItemObj && s.sku.toLowerCase() === selectedItemObj.sku.toLowerCase())) &&
-                                  s.warehouseCode === w.code
+                                  s.warehouseCode === w.code &&
+                                  s.quantityOnHand > 0 &&
+                                  (s.itemMasterId === adjItem ||
+                                    (selectedItemObj && s.sku.toLowerCase() === selectedItemObj.sku.toLowerCase()) ||
+                                    (selectedItemObj && s.itemName.toLowerCase().includes(selectedItemObj.itemName.toLowerCase())))
                               );
                             })
                             .map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
