@@ -228,7 +228,7 @@ export function getSeededStockLedger(): StockLedgerEntry[] {
       warehouseId: 'wh_syd_01',
       warehouseCode: 'WH-SYD-01',
       warehouseName: 'Sydney Central Logistics Hub',
-      itemMasterId: 'prod_seed_03',
+      itemMasterId: 'item_09',
       sku: 'LQ-PLT-00301',
       barcode: '9312345678903',
       itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
