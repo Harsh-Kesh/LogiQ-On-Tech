@@ -513,10 +513,10 @@ export default function MasterDataItemsPage() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button variant="outline" onClick={() => setIsCsvModalOpen(true)} leftIcon={<Upload className="w-4 h-4 shrink-0 text-indigo-600" />}>
+          <Button variant="outline" onClick={() => setIsCsvModalOpen(true)} className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-bold" leftIcon={<Upload className="w-4 h-4 shrink-0 text-indigo-600" />}>
             Bulk CSV Import
           </Button>
-          <Button variant="primary" onClick={openNewItemModal} leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
+          <Button onClick={openNewItemModal} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30" leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
             Create Item Master
           </Button>
         </div>
@@ -713,7 +713,7 @@ export default function MasterDataItemsPage() {
               <h2 className="text-lg font-bold text-slate-900">Parent-Child Category Taxonomy Tree</h2>
               <p className="text-xs text-slate-500 font-mono">Hierarchical Category Management for MDM Catalog</p>
             </div>
-            <Button onClick={() => setIsCatModalOpen(true)} leftIcon={<Plus className="w-4 h-4 shrink-0" />}>
+            <Button onClick={() => setIsCatModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30" leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
               Add New Category
             </Button>
           </div>
@@ -730,7 +730,7 @@ export default function MasterDataItemsPage() {
               <h2 className="text-lg font-bold text-slate-900">System Units of Measure (UOM) Setup</h2>
               <p className="text-xs text-slate-500 font-mono">Standard 3PL Logistics Inventory Units</p>
             </div>
-            <Button onClick={() => setIsUomModalOpen(true)} leftIcon={<Plus className="w-4 h-4 shrink-0" />}>
+            <Button onClick={() => setIsUomModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30" leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
               Register New UOM
             </Button>
           </div>
@@ -977,7 +977,7 @@ export default function MasterDataItemsPage() {
               <Button type="button" variant="secondary" onClick={() => setIsItemModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" isLoading={submitting}>
+              <Button type="submit" isLoading={submitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">
                 {formId ? 'Update Item Master' : 'Save & Register Item'}
               </Button>
             </div>
@@ -1152,7 +1152,7 @@ export default function MasterDataItemsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsCatModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Create Category</Button>
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Create Category</Button>
           </div>
         </form>
       </Modal>
@@ -1184,7 +1184,7 @@ export default function MasterDataItemsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsUomModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Register UOM</Button>
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Register UOM</Button>
           </div>
         </form>
       </Modal>
