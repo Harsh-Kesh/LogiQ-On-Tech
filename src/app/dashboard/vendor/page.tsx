@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import {
   Building, FileText, CheckCircle2, Upload, ShieldCheck, AlertCircle, AlertTriangle, XCircle,
   Trash2, FileCheck, Lock, Info, Package, Plus, Search, Edit2, TrendingUp, Clock, Star, Layers,
-  DollarSign, FolderTree, Tag, Ruler, Eye, RefreshCw
+  DollarSign, FolderTree, Tag, Ruler, Eye, RefreshCw, FileSpreadsheet
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -29,9 +29,11 @@ interface ComplianceDoc {
 
 interface VendorProfile {
   id: string;
-  companyName: string;
-  abnAcn: string;
-  status: 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'SUSPENDED' | 'REJECTED';
+  email: string;
+  fullName: string;
+  companyName?: string;
+  abnAcn?: string;
+  status: 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
   rejectionReason?: string;
   fulfillmentRate?: number;
   onTimeDeliveryRate?: number;
@@ -88,6 +90,13 @@ export default function VendorDashboardPage() {
   // Products & Catalog State
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
+
+  // Vendor CSV Import Modal State
+  const [isVendorCsvModalOpen, setIsVendorCsvModalOpen] = useState(false);
+  const [vendorCsvFile, setVendorCsvFile] = useState<File | null>(null);
+  const [vendorCsvFileError, setVendorCsvFileError] = useState<string>('');
+  const [csvText, setCsvText] = useState('');
+  const [csvSubmitting, setCsvSubmitting] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -109,10 +118,6 @@ export default function VendorDashboardPage() {
   ]);
   const [prodFormError, setProdFormError] = useState('');
   const [prodSubmitting, setProdSubmitting] = useState(false);
-
-  const [isVendorCsvModalOpen, setIsVendorCsvModalOpen] = useState(false);
-  const [csvText, setCsvText] = useState('');
-  const [csvSubmitting, setCsvSubmitting] = useState(false);
 
   // Toast Feedback State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -1033,38 +1038,95 @@ export default function VendorDashboardPage() {
       {/* Modal - Vendor Bulk CSV Import */}
       <Modal isOpen={isVendorCsvModalOpen} onClose={() => setIsVendorCsvModalOpen(false)} title="Vendor Bulk Product Catalog CSV Import" maxWidth="2xl">
         <div className="space-y-6 text-xs font-sans">
-          <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-2">
-            <h4 className="font-extrabold text-indigo-900 text-sm">Option 1: Upload .CSV File</h4>
+          <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-3 font-sans">
+            <h4 className="font-extrabold text-emerald-900 text-sm">Option 1: Upload .CSV File</h4>
             <p className="text-xs text-slate-600">
-              Drag &amp; drop or browse to select your vendor product catalog <code className="font-mono text-indigo-700 font-bold">.csv</code> file.
+              Select your vendor product catalog <code className="font-mono text-emerald-700 font-bold">.csv</code> spreadsheet, preview file details, and click <strong>Import CSV File</strong>.
             </p>
+
             <FileUpload
-              accept=".csv"
-              onFileSelect={async (file) => {
+              accept=".csv,text/csv,application/csv"
+              onFileSelect={(file) => {
+                setVendorCsvFileError('');
                 if (!file) return;
-                setCsvSubmitting(true);
-                try {
-                  const formData = new FormData();
-                  formData.append('file', file);
-                  const res = await fetch('/api/vendor/products/bulk-import', {
-                    method: 'POST',
-                    body: formData,
-                  });
-                  const data = await res.json();
-                  if (res.ok) {
-                    setToast({ message: data.message || 'Vendor catalog imported successfully!', type: 'success' });
-                    setIsVendorCsvModalOpen(false);
-                    fetchVendorProducts();
-                  } else {
-                    setToast({ message: data.error || 'CSV Import failed.', type: 'error' });
-                  }
-                } catch {
-                  setToast({ message: 'Error uploading CSV file.', type: 'error' });
-                } finally {
-                  setCsvSubmitting(false);
+
+                const isCsv = file.name.toLowerCase().endsWith('.csv') || file.type.includes('csv');
+                if (!isCsv) {
+                  setVendorCsvFileError(`Invalid file format (${file.name}). Only valid .csv spreadsheet files are supported.`);
+                  setVendorCsvFile(null);
+                  return;
                 }
+
+                if (file.size > 5 * 1024 * 1024) {
+                  setVendorCsvFileError('File size exceeds maximum 5MB limit.');
+                  setVendorCsvFile(null);
+                  return;
+                }
+
+                setVendorCsvFile(file);
               }}
             />
+
+            {vendorCsvFileError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{vendorCsvFileError}</span>
+              </div>
+            )}
+
+            {vendorCsvFile && (
+              <div className="p-3.5 bg-white border border-emerald-200 rounded-xl flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div>
+                    <div className="font-mono font-bold text-slate-900 text-xs">{vendorCsvFile.name}</div>
+                    <div className="text-[10px] text-slate-500 font-mono">{(vendorCsvFile.size / 1024).toFixed(1)} KB • CSV Spreadsheet</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVendorCsvFile(null)}
+                  className="text-xs font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                >
+                  Remove File
+                </button>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <Button
+                type="button"
+                disabled={!vendorCsvFile || csvSubmitting}
+                onClick={async () => {
+                  if (!vendorCsvFile) return;
+                  setCsvSubmitting(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append('file', vendorCsvFile);
+                    const res = await fetch('/api/vendor/products/bulk-import', {
+                      method: 'POST',
+                      body: formData,
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setToast({ message: data.message || 'Vendor catalog imported successfully!', type: 'success' });
+                      setIsVendorCsvModalOpen(false);
+                      setVendorCsvFile(null);
+                      fetchVendorProducts();
+                    } else {
+                      setToast({ message: data.error || 'CSV Import failed.', type: 'error' });
+                    }
+                  } catch {
+                    setToast({ message: 'Error uploading CSV file.', type: 'error' });
+                  } finally {
+                    setCsvSubmitting(false);
+                  }
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                Import CSV File
+              </Button>
+            </div>
           </div>
 
           <div className="border-t border-slate-200 pt-4 space-y-3">

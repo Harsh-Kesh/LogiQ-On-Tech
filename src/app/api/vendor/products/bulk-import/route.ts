@@ -25,6 +25,12 @@ export async function POST(req: Request) {
       if (!file) {
         return NextResponse.json({ error: 'No CSV file provided in upload.' }, { status: 400 });
       }
+
+      const fileName = file.name || '';
+      if (!fileName.toLowerCase().endsWith('.csv')) {
+        return NextResponse.json({ error: `Invalid file format (${fileName}). Only .csv spreadsheet files are supported.` }, { status: 400 });
+      }
+
       const text = await file.text();
       const lines = text.trim().split('\n');
       if (lines.length <= 1) {
@@ -62,7 +68,24 @@ export async function POST(req: Request) {
     const uoms = loadUOMs();
     const persistentProducts = loadPersistentProducts();
 
+    // Load existing catalog SKUs and Barcodes to prevent duplicate imports
+    const existingProductsList = Object.values(persistentProducts);
+    const existingSkus = new Set(existingProductsList.map((p) => (p.sku || '').trim().toUpperCase()));
+    const existingBarcodes = new Set(existingProductsList.map((p) => (p.barcode || '').trim()));
+
+    try {
+      const dbItems = await prisma.itemMaster.findMany({
+        select: { sku: true, barcode: true },
+      });
+      dbItems.forEach((d) => {
+        if (d.sku) existingSkus.add(d.sku.trim().toUpperCase());
+        if (d.barcode) existingBarcodes.add(d.barcode.trim());
+      });
+    } catch (e) {}
+
     let createdCount = 0;
+    let skippedCount = 0;
+    const skippedDetails: string[] = [];
     const vendorId = `vnd_${user.id}`;
     const vendorName = user.name || user.email || 'Vendor Partner';
 
@@ -78,6 +101,18 @@ export async function POST(req: Request) {
       const seq = Math.floor(100 + Math.random() * 900);
       const sku = row.sku && row.sku.trim() ? row.sku.trim().toUpperCase() : `LQ-${catCode}-${seq}${idx}`;
       const barcode = row.barcode && row.barcode.trim() ? row.barcode.trim() : `93123450${Math.floor(10000 + Math.random() * 89999)}`;
+
+      // Check for SKU or Barcode duplicate
+      if (existingSkus.has(sku) || existingBarcodes.has(barcode)) {
+        skippedCount++;
+        skippedDetails.push(`${name} (SKU: ${sku})`);
+        continue;
+      }
+
+      // Mark as existing for intra-file duplicate protection
+      existingSkus.add(sku);
+      existingBarcodes.add(barcode);
+
       const costPrice = parseFloat(row.costPrice || '0');
       const sellingPrice = parseFloat(row.sellingPrice || '0');
       const wholesalePrice = parseFloat(row.wholesalePrice || '0');
@@ -128,20 +163,32 @@ export async function POST(req: Request) {
       } catch (e: any) {}
     }
 
-    savePersistentProducts(persistentProducts);
+    if (createdCount > 0) {
+      savePersistentProducts(persistentProducts);
+      await logAuditEvent({
+        userId: user.id,
+        role: user.role,
+        action: 'VENDOR_BULK_CSV_IMPORTED',
+        module: 'VENDOR_MANAGEMENT',
+        payloadJson: { count: createdCount, skippedCount, vendorName },
+      }).catch(() => {});
+    }
 
-    await logAuditEvent({
-      userId: user.id,
-      role: user.role,
-      action: 'VENDOR_BULK_CSV_IMPORTED',
-      module: 'VENDOR_MANAGEMENT',
-      payloadJson: { count: createdCount, vendorName },
-    }).catch(() => {});
+    let resultMsg = '';
+    if (createdCount > 0 && skippedCount > 0) {
+      resultMsg = `Imported ${createdCount} new vendor products. ${skippedCount} duplicate items skipped.`;
+    } else if (createdCount > 0 && skippedCount === 0) {
+      resultMsg = `Successfully imported all ${createdCount} vendor products into your catalog!`;
+    } else {
+      resultMsg = `0 new products imported. All ${skippedCount} items in the CSV file already exist in the catalog.`;
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Successfully imported ${createdCount} vendor products into your catalog!`,
+      message: resultMsg,
       importedCount: createdCount,
+      skippedCount,
+      skippedDetails,
     });
   } catch (error: any) {
     return NextResponse.json({ error: 'Failed to process vendor CSV bulk import.' }, { status: 500 });
