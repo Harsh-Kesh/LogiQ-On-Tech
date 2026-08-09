@@ -32,17 +32,34 @@ export default function WarehouseDashboardPage() {
     if (session?.user) {
       const userRole = (session.user as any).role;
       const assignedWh = (session.user as any).assignedWarehouseCode;
-      if (userRole === 'WAREHOUSE' && assignedWh) {
-        setSelectedWarehouseCode(assignedWh);
-      } else if (userRole === 'WAREHOUSE') {
-        const userEmail = session.user.email || '';
-        if (userEmail.includes('melbourne')) setSelectedWarehouseCode('WH-MEL-02');
-        else if (userEmail.includes('brisbane')) setSelectedWarehouseCode('WH-BNE-03');
-        else if (userEmail.includes('perth')) setSelectedWarehouseCode('WH-PER-04');
-        else setSelectedWarehouseCode('WH-SYD-01');
+      const userEmail = (session.user.email || '').toLowerCase();
+
+      if (userRole === 'WAREHOUSE') {
+        if (assignedWh && assignedWh !== 'ALL' && assignedWh !== 'UNASSIGNED') {
+          setSelectedWarehouseCode(assignedWh);
+          return;
+        }
+
+        // Check dynamic match in loaded warehouses list
+        const matchedWh = warehouses.find(
+          (w) =>
+            (w.managerEmail && w.managerEmail.toLowerCase() === userEmail) ||
+            (w.contactEmail && w.contactEmail.toLowerCase() === userEmail)
+        );
+        if (matchedWh) {
+          setSelectedWarehouseCode(matchedWh.code);
+          return;
+        }
+
+        // Seeded demo email shortcuts
+        if (userEmail === 'sydney.manager@logiqon.com' || userEmail.includes('sydney')) setSelectedWarehouseCode('WH-SYD-01');
+        else if (userEmail === 'melbourne.manager@logiqon.com' || userEmail.includes('melbourne')) setSelectedWarehouseCode('WH-MEL-02');
+        else if (userEmail === 'brisbane.manager@logiqon.com' || userEmail.includes('brisbane')) setSelectedWarehouseCode('WH-BNE-03');
+        else if (userEmail === 'perth.manager@logiqon.com' || userEmail.includes('perth')) setSelectedWarehouseCode('WH-PER-04');
+        else setSelectedWarehouseCode('UNASSIGNED');
       }
     }
-  }, [session]);
+  }, [session, warehouses]);
 
   const fetchWarehouseData = async () => {
     setLoading(true);
@@ -101,6 +118,33 @@ export default function WarehouseDashboardPage() {
     : ledger.filter((l) => l.warehouseCode === selectedWarehouseCode);
 
   const totalStockCount = filteredStock.reduce((sum, item) => sum + (item.quantityOnHand || 0), 0);
+
+  if (selectedWarehouseCode === 'UNASSIGNED') {
+    return (
+      <div className="p-8 md:p-12 rounded-3xl bg-white border border-amber-200 shadow-sm space-y-6 max-w-3xl mx-auto text-center my-8 font-sans">
+        <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl border border-amber-200 flex items-center justify-center mx-auto">
+          <MapPin className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold font-mono">
+            🔒 STATUS: UNASSIGNED WAREHOUSE MANAGER
+          </span>
+          <h2 className="text-2xl font-black text-slate-900">Facility Site Assignment Pending Setup</h2>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Your Warehouse Manager account (<span className="font-bold text-slate-800">{session?.user?.email}</span>) is active and authenticated, but you have not yet been assigned to manage a specific 3PL facility site by the Platform Owner.
+          </p>
+        </div>
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs text-slate-700 space-y-2 max-w-xl mx-auto">
+          <div className="font-bold text-slate-900 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Administrative Action Required:
+          </div>
+          <p className="text-slate-600 leading-relaxed">
+            Please contact the Platform Owner (<span className="font-mono text-slate-900 font-bold">owner@logiqon.com</span>) to assign your account to an existing location (Sydney, Melbourne, Brisbane, Perth) or configure a new warehouse location.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 font-sans">

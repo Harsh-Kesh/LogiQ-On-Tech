@@ -35,10 +35,7 @@ export default function OwnerInventoryPage() {
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role;
   const isWarehouseManager = userRole === 'WAREHOUSE';
-  const assignedWh = (session?.user as any)?.assignedWarehouseCode ||
-    (session?.user?.email?.includes('melbourne') ? 'WH-MEL-02' :
-     session?.user?.email?.includes('brisbane') ? 'WH-BNE-03' :
-     session?.user?.email?.includes('perth') ? 'WH-PER-04' : 'WH-SYD-01');
+  const [assignedWh, setAssignedWh] = useState<string>('UNASSIGNED');
 
   const [activeTab, setActiveTab] = useState<'stock' | 'receive' | 'ledger' | 'adjust' | 'locations'>('stock');
 
@@ -49,6 +46,29 @@ export default function OwnerInventoryPage() {
   const [items, setItems] = useState<any[]>([]);
   const [reconciliation, setReconciliation] = useState<ReconciliationReport | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (session?.user && isWarehouseManager) {
+      const userEmail = (session.user.email || '').toLowerCase();
+      const assignedCode = (session.user as any).assignedWarehouseCode;
+      if (assignedCode && assignedCode !== 'ALL' && assignedCode !== 'UNASSIGNED') {
+        setAssignedWh(assignedCode);
+      } else {
+        const matchedWh = warehouses.find(
+          (w) =>
+            ((w as any).managerEmail && (w as any).managerEmail.toLowerCase() === userEmail) ||
+            (w.contactEmail && w.contactEmail.toLowerCase() === userEmail)
+        );
+        if (matchedWh) {
+          setAssignedWh(matchedWh.code);
+        } else if (userEmail === 'sydney.manager@logiqon.com' || userEmail.includes('sydney')) setAssignedWh('WH-SYD-01');
+        else if (userEmail === 'melbourne.manager@logiqon.com' || userEmail.includes('melbourne')) setAssignedWh('WH-MEL-02');
+        else if (userEmail === 'brisbane.manager@logiqon.com' || userEmail.includes('brisbane')) setAssignedWh('WH-BNE-03');
+        else if (userEmail === 'perth.manager@logiqon.com' || userEmail.includes('perth')) setAssignedWh('WH-PER-04');
+        else setAssignedWh('UNASSIGNED');
+      }
+    }
+  }, [session, isWarehouseManager, warehouses]);
 
   // Filter States
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
@@ -527,6 +547,37 @@ export default function OwnerInventoryPage() {
       ),
     },
   ];
+
+  if (isWarehouseManager && assignedWh === 'UNASSIGNED') {
+    return (
+      <div className="p-6 md:p-10 space-y-8 font-sans max-w-[1600px] mx-auto">
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+        
+        <div className="p-8 md:p-12 rounded-3xl bg-white border border-amber-200 shadow-sm space-y-6 max-w-3xl mx-auto text-center my-8 font-sans">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl border border-amber-200 flex items-center justify-center mx-auto">
+            <Building className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold font-mono">
+              🔒 STATUS: UNASSIGNED WAREHOUSE MANAGER
+            </span>
+            <h2 className="text-2xl font-black text-slate-900">Facility Site Assignment Pending Setup</h2>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              Your Warehouse Manager account (<span className="font-bold text-slate-800">{session?.user?.email}</span>) is active and authenticated, but you have not yet been assigned to manage a specific 3PL facility site by the Platform Owner.
+            </p>
+          </div>
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs text-slate-700 space-y-2 max-w-xl mx-auto">
+            <div className="font-bold text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Administrative Action Required:
+            </div>
+            <p className="text-slate-600 leading-relaxed">
+              Please contact the Platform Owner (<span className="font-mono text-slate-900 font-bold">owner@logiqon.com</span>) to assign your account to an existing location (Sydney, Melbourne, Brisbane, Perth) or configure a new warehouse location.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 md:p-10 space-y-8 font-sans max-w-[1600px] mx-auto">

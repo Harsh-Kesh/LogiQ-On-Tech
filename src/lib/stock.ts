@@ -18,6 +18,7 @@ export interface WarehouseLocation {
   address: string;
   contactPerson: string;
   contactEmail: string;
+  managerEmail?: string;
   bins: StorageBin[];
   createdAt: string;
 }
