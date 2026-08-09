@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
   Warehouse, ArrowRight, ShieldCheck, Box, CheckCircle2,
-  TrendingUp, History, PackageCheck, MapPin, UserCheck
+  TrendingUp, History, PackageCheck, MapPin, UserCheck, Globe
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -18,7 +18,7 @@ const WAREHOUSE_MANAGERS: Record<string, { name: string; email: string }> = {
 export default function WarehouseDashboardPage() {
   const { data: session } = useSession();
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [selectedWarehouseCode, setSelectedWarehouseCode] = useState<string>('WH-SYD-01');
+  const [selectedWarehouseCode, setSelectedWarehouseCode] = useState<string>('ALL');
   const [stock, setStock] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,32 +42,43 @@ export default function WarehouseDashboardPage() {
       setStock(stockData.stock || []);
       setLedger(ledgerData.ledger || []);
       setWarehouses(whData.warehouses || []);
-      if (whData.warehouses && whData.warehouses.length > 0 && !selectedWarehouseCode) {
-        setSelectedWarehouseCode(whData.warehouses[0].code);
-      }
     } catch (e) {
     } finally {
       setLoading(false);
     }
   };
 
-  const activeWarehouse = warehouses.find((w) => w.code === selectedWarehouseCode) || {
-    code: 'WH-SYD-01',
-    name: 'Sydney Central Logistics Hub',
-    address: '100 Logistics Way, Eastern Creek NSW 2766',
-    bins: [{ code: 'BIN-A1-01' }, { code: 'BIN-A1-02' }],
-  };
+  const isGlobal = selectedWarehouseCode === 'ALL';
 
-  const activeManager = WAREHOUSE_MANAGERS[selectedWarehouseCode] || {
-    name: session?.user?.name || 'Warehouse Facility Manager',
-    email: session?.user?.email || 'warehouse@logiqon.tech',
-  };
+  const activeWarehouse = isGlobal
+    ? {
+        code: 'GLOBAL-3PL-ALL',
+        name: 'LogiQ-On Global Logistics & Multi-Warehouse Fleet Desk',
+        address: 'Enterprise Operations Directorate • Nationwide 3PL Logistics Network',
+        bins: warehouses.flatMap((w) => w.bins || []),
+      }
+    : warehouses.find((w) => w.code === selectedWarehouseCode) || {
+        code: 'WH-SYD-01',
+        name: 'Sydney Central Logistics Hub',
+        address: '100 Logistics Way, Eastern Creek NSW 2766',
+        bins: [{ code: 'BIN-A1-01' }, { code: 'BIN-A1-02' }],
+      };
 
-  const filteredStock = selectedWarehouseCode === 'ALL'
+  const activeManager = isGlobal
+    ? {
+        name: 'Enterprise Logistics Directorate',
+        email: session?.user?.email || 'global.ops@logiqon.tech',
+      }
+    : WAREHOUSE_MANAGERS[selectedWarehouseCode] || {
+        name: session?.user?.name || 'Warehouse Facility Manager',
+        email: session?.user?.email || 'warehouse@logiqon.tech',
+      };
+
+  const filteredStock = isGlobal
     ? stock
     : stock.filter((s) => s.warehouseCode === selectedWarehouseCode);
 
-  const filteredLedger = selectedWarehouseCode === 'ALL'
+  const filteredLedger = isGlobal
     ? ledger
     : ledger.filter((l) => l.warehouseCode === selectedWarehouseCode);
 
@@ -75,16 +86,16 @@ export default function WarehouseDashboardPage() {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Emerald Green Header Banner with Facility & Manager Selector */}
+      {/* Emerald Green Header Banner with Default Global View */}
       <div className="p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
-            <Warehouse className="w-8 h-8" />
+            {isGlobal ? <Globe className="w-8 h-8" /> : <Warehouse className="w-8 h-8" />}
           </div>
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              PILLAR 03 • WAREHOUSE FACILITY OPERATOR DESK
+              {isGlobal ? 'PILLAR 03 • GLOBAL 3PL FLEET MONITORING DESK' : 'PILLAR 03 • FACILITY OPERATOR DESK'}
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -106,17 +117,17 @@ export default function WarehouseDashboardPage() {
           {/* Facility Location Selector */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">
-              Facility Location:
+              Select Active Desk View:
             </label>
             <select
               value={selectedWarehouseCode}
               onChange={(e) => setSelectedWarehouseCode(e.target.value)}
               className="px-3 py-2 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 focus:outline-none focus:border-emerald-600 font-mono"
             >
-              <option value="ALL">All Warehouses (Global View)</option>
+              <option value="ALL">🌐 All Warehouses (Global View)</option>
               {warehouses.map((w) => (
                 <option key={w.code} value={w.code}>
-                  {w.name} ({w.code})
+                  🏬 {w.name} ({w.code})
                 </option>
               ))}
             </select>
@@ -140,15 +151,17 @@ export default function WarehouseDashboardPage() {
             <span className="text-xs font-mono font-bold text-slate-500 uppercase">Bin Locations</span>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{activeWarehouse.bins?.length || 2} Storage Bins</div>
+          <div className="text-2xl font-extrabold text-slate-900">
+            {isGlobal ? `${warehouses.reduce((sum, w) => sum + (w.bins?.length || 0), 0)} Bins` : `${activeWarehouse.bins?.length || 0} Storage Bins`}
+          </div>
           <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" /> Assigned to {activeManager.name.split(' ')[0]}
+            <TrendingUp className="w-3.5 h-3.5" /> {isGlobal ? 'Across All Facilities' : `Assigned at ${activeWarehouse.code}`}
           </p>
         </div>
 
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Facility Stock On Hand</span>
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase">{isGlobal ? 'Total Network Stock' : 'Facility Stock On Hand'}</span>
             <Box className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-extrabold text-slate-900">{totalStockCount} Units</div>
@@ -159,7 +172,7 @@ export default function WarehouseDashboardPage() {
 
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Facility Movements</span>
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Stock Movements</span>
             <History className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-extrabold text-slate-900">{filteredLedger.length} Movements</div>
@@ -176,11 +189,12 @@ export default function WarehouseDashboardPage() {
         </div>
       </div>
 
-      {/* Facility Stock Movements Table */}
+      {/* Stock Movements Table */}
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <History className="w-5 h-5 text-emerald-600" /> Recent Facility Stock Movements ({activeWarehouse.code})
+            <History className="w-5 h-5 text-emerald-600" />
+            {isGlobal ? 'Recent Global Warehouse Stock Movements (All Facilities)' : `Recent Facility Stock Movements (${activeWarehouse.code})`}
           </h2>
           <Link href="/dashboard/owner/inventory" className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1">
             View Master Ledger <ArrowRight className="w-3.5 h-3.5" />
@@ -197,9 +211,14 @@ export default function WarehouseDashboardPage() {
                       {row.movementType}
                     </span>
                     <span>{row.itemName} ({row.sku})</span>
+                    {isGlobal && (
+                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                        {row.warehouseCode}
+                      </span>
+                    )}
                   </div>
                   <div className="text-slate-400 font-mono text-[11px]">
-                    Ref: {row.referenceNumber} • Bin: {row.binLocation} • {new Date(row.createdAt).toLocaleTimeString()}
+                    Ref: {row.referenceNumber} • Facility: {row.warehouseCode} • Bin: {row.binLocation} • {new Date(row.createdAt).toLocaleTimeString()}
                   </div>
                 </div>
 
