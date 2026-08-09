@@ -491,17 +491,10 @@ export default function OwnerInventoryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 space-y-6">
-      {/* Toast Banner */}
+      {/* Standardized Global Toast Feedback (Matching Item Master & Vendor Portal) */}
       {toast && (
-        <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-xl text-white font-medium flex items-center gap-3 transition-all ${
-            toast.type === 'success' ? 'bg-emerald-600' : toast.type === 'error' ? 'bg-rose-600' : 'bg-blue-600'
-          }`}
-        >
-          <span>{toast.message}</span>
-          <button onClick={() => setToast(null)} className="text-white/80 hover:text-white font-bold ml-2">
-            ✕
-          </button>
+        <div className="fixed top-5 right-5 z-[100] max-w-md w-full font-sans shadow-xl animate-in fade-in slide-in-from-top-4 duration-200">
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         </div>
       )}
 
@@ -1226,12 +1219,6 @@ export default function OwnerInventoryPage() {
         </form>
       </Modal>
 
-      {/* Consistent Global Toast Feedback Renderer */}
-      {toast && (
-        <div className="fixed bottom-5 right-5 z-[100] max-w-sm w-full font-sans">
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-        </div>
-      )}
     </div>
   );
 }
