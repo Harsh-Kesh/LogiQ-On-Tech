@@ -961,10 +961,7 @@ export default function OwnerInventoryPage() {
                               (s) =>
                                 s.warehouseCode === targetWhCode &&
                                 s.quantityOnHand > 0 &&
-                                (s.itemMasterId === i.id ||
-                                  s.sku.toLowerCase() === i.sku.toLowerCase() ||
-                                  s.itemName.toLowerCase().includes(i.itemName.toLowerCase()) ||
-                                  i.itemName.toLowerCase().includes(s.itemName.toLowerCase()))
+                                (s.itemMasterId === i.id || s.sku.toLowerCase() === i.sku.toLowerCase())
                             );
                             if (!existsInWh) return false;
                           }
@@ -1060,8 +1057,7 @@ export default function OwnerInventoryPage() {
                                   s.warehouseCode === w.code &&
                                   s.quantityOnHand > 0 &&
                                   (s.itemMasterId === adjItem ||
-                                    (selectedItemObj && s.sku.toLowerCase() === selectedItemObj.sku.toLowerCase()) ||
-                                    (selectedItemObj && s.itemName.toLowerCase().includes(selectedItemObj.itemName.toLowerCase())))
+                                    (selectedItemObj && s.sku.toLowerCase() === selectedItemObj.sku.toLowerCase()))
                               );
                             })
                             .map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
