@@ -23,7 +23,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Item Master, Warehouse, Bin, Valid Movement Type, and Quantity are required.' }, { status: 400 });
   }
 
-  if (!['ISSUE', 'ADJUSTMENT', 'RETURN', 'TRANSFER'].includes(type)) {
+  const rawType = (movementType || '').toString().trim().toUpperCase();
+
+  if (!['ISSUE', 'ADJUSTMENT', 'ADJUSTMENT_ADD', 'ADJUSTMENT_SUB', 'RETURN', 'RECEIPT', 'TRANSFER'].includes(rawType)) {
     return NextResponse.json({ error: 'Invalid Movement Type provided.' }, { status: 400 });
   }
 
@@ -41,9 +43,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Warehouse Location '${warehouseCode}' not found.` }, { status: 404 });
   }
 
-  // Determine quantity delta: Negative for ISSUE or negative ADJUSTMENT, positive for RETURN
-  const delta = type === 'ISSUE' ? -Math.abs(qty) : type === 'RETURN' ? Math.abs(qty) : qty;
-  const ref = referenceNumber ? referenceNumber.trim().toUpperCase() : `ADJ-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+  // Determine final MovementType for ledger and exact signed delta
+  let finalType: MovementType = 'ADJUSTMENT';
+  let delta = 0;
+
+  if (rawType === 'ISSUE') {
+    finalType = 'ISSUE';
+    delta = -Math.abs(qty);
+  } else if (rawType === 'ADJUSTMENT_SUB') {
+    finalType = 'ADJUSTMENT';
+    delta = -Math.abs(qty);
+  } else if (rawType === 'ADJUSTMENT_ADD') {
+    finalType = 'ADJUSTMENT';
+    delta = Math.abs(qty);
+  } else if (rawType === 'RETURN') {
+    finalType = 'RETURN';
+    delta = Math.abs(qty);
+  } else if (rawType === 'RECEIPT') {
+    finalType = 'RECEIPT';
+    delta = Math.abs(qty);
+  } else {
+    finalType = 'ADJUSTMENT';
+    delta = qty;
+  }
+
+  const ref = referenceNumber && referenceNumber.trim() !== ''
+    ? referenceNumber.trim().toUpperCase()
+    : `ADJ-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   // Append IMMUTABLE Stock Ledger row
   const ledgerRow = addStockLedgerEntry({
@@ -57,10 +83,10 @@ export async function POST(req: Request) {
     vendorId: item.vendorId || null,
     vendorName: item.vendorName || (item.vendorId ? 'Vendor Partner' : 'LogiQ-On Internal Stock'),
     binLocation: binLocation.trim().toUpperCase(),
-    movementType: type,
+    movementType: finalType,
     quantityDelta: delta,
     referenceNumber: ref,
-    reasonCode: reasonCode || `Manual Stock Adjustment (${type})`,
+    reasonCode: reasonCode || `Manual Stock Adjustment (${finalType})`,
     createdById: user.id,
     createdByEmail: user.email,
   });

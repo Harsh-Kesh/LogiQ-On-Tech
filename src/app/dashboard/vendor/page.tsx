@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import {
   Building, FileText, CheckCircle2, Upload, ShieldCheck, AlertCircle, AlertTriangle, XCircle,
   Trash2, FileCheck, Lock, Info, Package, Plus, Search, Edit2, TrendingUp, Clock, Star, Layers,
-  DollarSign, FolderTree, Tag, Ruler, Eye, RefreshCw, FileSpreadsheet
+  DollarSign, FolderTree, Tag, Ruler, Eye, RefreshCw, FileSpreadsheet, Truck, ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -119,6 +119,17 @@ export default function VendorDashboardPage() {
   const [prodFormError, setProdFormError] = useState('');
   const [prodSubmitting, setProdSubmitting] = useState(false);
 
+  // Vendor Outbound Shipping Orders State
+  const [vendorOrders, setVendorOrders] = useState<any[]>([]);
+  const [isVOrdModalOpen, setIsVOrdModalOpen] = useState(false);
+  const [vOrdCustomer, setVOrdCustomer] = useState('');
+  const [vOrdAddress, setVOrdAddress] = useState('');
+  const [vOrdWh, setVOrdWh] = useState('WH-SYD-01');
+  const [vOrdItem, setVOrdItem] = useState('');
+  const [vOrdQty, setVOrdQty] = useState('1');
+  const [vOrdNotes, setVOrdNotes] = useState('');
+  const [vOrdSubmitting, setVOrdSubmitting] = useState(false);
+
   // Toast Feedback State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -126,7 +137,69 @@ export default function VendorDashboardPage() {
     fetchVendorProfile();
     fetchVendorProducts();
     fetchTaxonomies();
+    fetchVendorOrders();
   }, []);
+
+  async function fetchVendorOrders() {
+    try {
+      const res = await fetch('/api/fulfillment/orders');
+      if (res.ok) {
+        const data = await res.json();
+        setVendorOrders(data.orders || []);
+      }
+    } catch {}
+  }
+
+  async function handleCreateVendorOrder(e: React.FormEvent) {
+    e.preventDefault();
+    if (!vOrdCustomer || !vOrdAddress || !vOrdItem) {
+      setToast({ message: 'Customer, delivery address, and product item are required.', type: 'error' });
+      return;
+    }
+
+    const selectedItem = products.find((p) => p.id === vOrdItem);
+    if (!selectedItem) return;
+
+    setVOrdSubmitting(true);
+    try {
+      const res = await fetch('/api/fulfillment/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: vOrdCustomer,
+          deliveryAddress: vOrdAddress,
+          warehouseCode: vOrdWh,
+          warehouseName: vOrdWh === 'WH-SYD-01' ? 'Sydney Central Logistics Hub' : 'Melbourne Fulfilment Facility',
+          items: [
+            {
+              itemMasterId: selectedItem.id,
+              sku: selectedItem.sku,
+              itemName: selectedItem.itemName,
+              barcode: selectedItem.barcode,
+              quantityRequested: parseInt(vOrdQty) || 1,
+            },
+          ],
+          notes: vOrdNotes,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Failed to submit dispatch request.', type: 'error' });
+      } else {
+        setToast({ message: data.message, type: 'success' });
+        setIsVOrdModalOpen(false);
+        setVOrdCustomer('');
+        setVOrdAddress('');
+        setVOrdNotes('');
+        fetchVendorOrders();
+      }
+    } catch {
+      setToast({ message: 'Error submitting dispatch request.', type: 'error' });
+    } finally {
+      setVOrdSubmitting(false);
+    }
+  }
 
   async function fetchTaxonomies() {
     try {
@@ -801,6 +874,189 @@ export default function VendorDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Vendor Outbound Dispatch Requests & Fulfillment Tracker */}
+      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2">
+            <Truck className="w-5 h-5 text-indigo-600" />
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Outbound Dispatch Requests &amp; Fulfillment Tracker</h3>
+              <p className="text-xs text-slate-500 font-mono">Submit shipping requests to dispatch stored catalog products from 3PL warehouses to client sites.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={!isApproved}
+            onClick={() => setIsVOrdModalOpen(true)}
+            className={`font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs border flex items-center gap-2 shrink-0 whitespace-nowrap transition-all ${
+              isApproved
+                ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800 cursor-pointer font-mono'
+                : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
+            }`}
+          >
+            {isApproved ? <Plus className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+            Submit Dispatch Order
+          </button>
+        </div>
+
+        {vendorOrders.length === 0 ? (
+          <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+            <Truck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-xs text-slate-500 font-mono">No outbound shipping orders submitted yet.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-sans">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-4">Order Number</th>
+                  <th className="py-3 px-4">Customer Destination</th>
+                  <th className="py-3 px-4">3PL Facility</th>
+                  <th className="py-3 px-4">Requested Line Items</th>
+                  <th className="py-3 px-4">Fulfillment Status</th>
+                  <th className="py-3 px-4 text-right">Tracking</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {vendorOrders.map((ord) => (
+                  <tr key={ord.id} className="hover:bg-indigo-50/30 transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{ord.orderNumber}</td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900">{ord.customerName}</div>
+                      <div className="text-[10px] text-slate-500 font-mono">{ord.deliveryAddress}</div>
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-700 font-bold">{ord.warehouseCode}</td>
+                    <td className="py-3.5 px-4 font-mono">
+                      {ord.items.map((i: any) => `${i.itemName} (${i.quantityRequested}x)`).join(', ')}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {ord.status === 'SUBMITTED' && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          🟡 SUBMITTED
+                        </span>
+                      )}
+                      {ord.status === 'IN_PICKING' && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                          📋 IN PICKING
+                        </span>
+                      )}
+                      {ord.status === 'PACKED' && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          📦 PACKED &amp; DISPATCHED
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono text-slate-600">
+                      {ord.packageDetails?.trackingNumber || 'Pending Pick'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modal - Vendor Outbound Shipping Order Creation */}
+      <Modal
+        isOpen={isVOrdModalOpen}
+        onClose={() => setIsVOrdModalOpen(false)}
+        title="Submit Outbound Dispatch Request"
+        maxWidth="lg"
+      >
+        <form onSubmit={handleCreateVendorOrder} className="space-y-4 font-sans text-xs">
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Customer / Client Destination Name *</label>
+            <Input
+              value={vOrdCustomer}
+              onChange={(e) => setVOrdCustomer(e.target.value)}
+              placeholder="e.g. Retail Partner Site #402"
+              className="text-xs"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Delivery Destination Address *</label>
+            <Input
+              value={vOrdAddress}
+              onChange={(e) => setVOrdAddress(e.target.value)}
+              placeholder="e.g. 100 Spencer St, Melbourne VIC 3000"
+              className="text-xs"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Fulfilling 3PL Warehouse *</label>
+              <Select
+                value={vOrdWh}
+                onChange={(e) => setVOrdWh(e.target.value)}
+                options={[
+                  { value: 'WH-SYD-01', label: 'Sydney Central Logistics Hub (WH-SYD-01)' },
+                  { value: 'WH-MEL-02', label: 'Melbourne Fulfilment Facility (WH-MEL-02)' },
+                  { value: 'WH-BNE-03', label: 'Brisbane Regional Depot (WH-BNE-03)' },
+                  { value: 'WH-PER-04', label: 'Perth Regional Logistics Hub (WH-PER-04)' },
+                ]}
+                className="text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Select Catalog Product *</label>
+              <Select
+                value={vOrdItem}
+                onChange={(e) => setVOrdItem(e.target.value)}
+                options={[
+                  { value: '', label: '-- Select Your Product --' },
+                  ...products.map((p) => ({
+                    value: p.id,
+                    label: `${p.itemName} (${p.sku})`,
+                  })),
+                ]}
+                className="text-xs"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Quantity Requested (Units) *</label>
+              <Input
+                type="number"
+                min="1"
+                value={vOrdQty}
+                onChange={(e) => setVOrdQty(e.target.value)}
+                placeholder="1"
+                className="text-xs font-mono font-bold"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Special Dispatch Notes</label>
+              <Input
+                value={vOrdNotes}
+                onChange={(e) => setVOrdNotes(e.target.value)}
+                placeholder="e.g. Priority client delivery"
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="pt-3 flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setIsVOrdModalOpen(false)} className="text-xs">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={vOrdSubmitting} className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-2">
+              <Truck className="w-4 h-4" /> Submit Dispatch Request
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* CREATE / EDIT PRODUCT MODAL (IDENTICAL 5-CARD STRUCTURE AS OWNER ITEM MASTER) */}
       <Modal

@@ -417,3 +417,61 @@ export function reconcileStockLedger(): ReconciliationReport {
     discrepancies: [],
   };
 }
+
+/**
+ * INTELLIGENT STORAGE LOCATION ASSIGNMENT SOLVER
+ * Evaluates storage bin grid capacity and category taxonomy to suggest optimal bin assignment.
+ */
+export function suggestOptimalStorageBin(
+  warehouseCode: string,
+  categoryName?: string,
+  requiredQty: number = 1
+): { suggestedBin: StorageBin; reason: string } | null {
+  const warehouses = loadPersistentWarehouses();
+  const wh = warehouses[warehouseCode] || Object.values(warehouses).find((w) => w.code === warehouseCode);
+  if (!wh || !wh.bins || wh.bins.length === 0) return null;
+
+  const stockOnHand = calculateStockOnHand();
+
+  // Calculate current stock in each bin
+  const binStockMap = new Map<string, number>();
+  for (const item of stockOnHand) {
+    if (item.warehouseCode === warehouseCode) {
+      const cur = binStockMap.get(item.binLocation) || 0;
+      binStockMap.set(item.binLocation, cur + item.quantityOnHand);
+    }
+  }
+
+  // Filter available bins with sufficient capacity
+  const eligibleBins = wh.bins.filter((b) => {
+    const curQty = binStockMap.get(b.code) || 0;
+    const capacity = b.capacityUnits || 1000;
+    return capacity - curQty >= requiredQty;
+  });
+
+  if (eligibleBins.length === 0) {
+    return {
+      suggestedBin: wh.bins[0],
+      reason: `Default Assignment: All bins near capacity (${wh.bins[0].code})`,
+    };
+  }
+
+  const catLower = (categoryName || '').toLowerCase();
+  const isBulk = catLower.includes('pallet') || catLower.includes('heavy') || catLower.includes('bulk') || catLower.includes('rack');
+
+  // Match optimal zone
+  let targetBin: StorageBin | undefined;
+  if (isBulk) {
+    targetBin = eligibleBins.find((b) => b.zone.toLowerCase().includes('bulk') || b.code.startsWith('BIN-B')) || eligibleBins[0];
+  } else {
+    targetBin = eligibleBins.find((b) => b.zone.toLowerCase().includes('fast') || b.zone.toLowerCase().includes('pick') || b.code.startsWith('BIN-A')) || eligibleBins[0];
+  }
+
+  const curQty = binStockMap.get(targetBin.code) || 0;
+  const capacity = targetBin.capacityUnits || 1000;
+
+  return {
+    suggestedBin: targetBin,
+    reason: `Optimal Assignment: ${targetBin.zone} (${curQty + requiredQty}/${capacity} units capacity available)`,
+  };
+}
