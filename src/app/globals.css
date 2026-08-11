@@ -254,3 +254,76 @@ p { margin: 0; }
   .main-nav { display: none; }
   .nav-toggle { display: flex; }
 }
+
+/* ==========================================================================
+   Print Optimization — Enterprise Warehouse Reports
+   Bulletproof print isolation: hides 100% of non-report UI elements
+   ========================================================================== */
+@media print {
+  /* Set white paper background */
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide ALL elements in the DOM by default during print */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Reveal ONLY the active report container and its descendant elements */
+  .print-only-target,
+  .print-only-target * {
+    visibility: visible !important;
+  }
+
+  /* Position the targeted report card at top left (0,0) of the printed page */
+  .print-only-target {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+  }
+
+  /* Hide buttons and interactive controls inside the target */
+  button,
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Expand table container and force full width */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  th, td {
+    padding: 8px 10px !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+}
+

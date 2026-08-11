@@ -356,3 +356,48 @@ export function confirmOrderPacking(
     message: `Successfully packed ${order.orderNumber}. Physical stock decremented and immutable ISSUE movement rows logged.`,
   };
 }
+
+export function dispatchOutboundOrder(
+  orderId: string,
+  manifestInfo: {
+    manifestId?: string;
+    driverName?: string;
+    vehicleReg?: string;
+    notes?: string;
+  },
+  operatorEmail: string
+): { success: boolean; order?: OutboundOrder; message: string } {
+  const orders = loadPersistentOrders();
+  const order = orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+
+  if (!order) {
+    return { success: false, message: 'Order not found' };
+  }
+
+  if (order.status !== 'PACKED') {
+    return { success: false, message: `Order must be in PACKED status prior to dispatch release (Current: ${order.status}).` };
+  }
+
+  order.status = 'DISPATCHED';
+  order.updatedAt = new Date().toISOString();
+
+  if (!order.packageDetails) {
+    order.packageDetails = {
+      packageType: 'Shipper Carton A1',
+      grossWeightKg: 3.5,
+      courierName: 'StarTrack Express',
+      trackingNumber: `TRK-${order.orderNumber}-7712`,
+    };
+  }
+
+  const manifestRef = manifestInfo.manifestId || `MANIFEST-${order.warehouseCode}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+  order.notes = `Dispatched via Carrier Manifest #${manifestRef}. Driver: ${manifestInfo.driverName || 'StarTrack Express Freight'} (${manifestInfo.vehicleReg || 'NSW-TRK-901'}). ${manifestInfo.notes || ''}`.trim();
+
+  savePersistentOrders(orders);
+
+  return {
+    success: true,
+    order,
+    message: `Order ${order.orderNumber} successfully DISPATCHED to carrier under Manifest #${manifestRef}!`,
+  };
+}

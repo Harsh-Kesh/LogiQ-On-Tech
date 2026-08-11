@@ -22,6 +22,8 @@ export interface PersistentProduct {
   uomId?: string;
   uomCode?: string;
   uomName?: string;
+  lowStockThreshold?: number;
+  reorderQuantity?: number;
   attributes?: Record<string, string>;
   statusHistory?: Array<{
     from: string;
@@ -777,4 +779,18 @@ export function getSeedDemoProducts(): Record<string, PersistentProduct> {
       updatedAt: now,
     },
   };
+}
+
+export function updateItemThreshold(productId: string, threshold: number, reorderQty: number = 50): PersistentProduct | null {
+  const products = loadPersistentProducts();
+  const product = products[productId] || Object.values(products).find((p) => p.id === productId || p.sku === productId);
+  if (!product) return null;
+
+  product.lowStockThreshold = threshold;
+  product.reorderQuantity = reorderQty;
+  product.updatedAt = new Date().toISOString();
+  products[product.id] = product;
+
+  savePersistentProducts(products);
+  return product;
 }

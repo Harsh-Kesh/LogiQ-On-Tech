@@ -28,6 +28,10 @@ import {
   Sparkles,
   Check,
   Printer,
+  BarChart3,
+  Download,
+  CornerUpLeft,
+  Sliders,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -38,6 +42,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Toast } from '@/components/ui/Toast';
 import { StockOnHandItem, StockLedgerEntry, WarehouseLocation, ReconciliationReport } from '@/lib/stock';
 import { OutboundOrder } from '@/lib/orders';
+import { RmaReturnRequest } from '@/lib/returns';
 import { BarcodeRenderer } from '@/components/ui/BarcodeRenderer';
 
 export default function OwnerInventoryPage() {
@@ -45,7 +50,9 @@ export default function OwnerInventoryPage() {
   const userRole = (session?.user as any)?.role;
   const isWarehouseManager = userRole === 'WAREHOUSE';
 
-  const [activeTab, setActiveTab] = useState<'stock' | 'receive' | 'ledger' | 'adjust' | 'locations' | 'fulfillment'>('stock');
+  const [activeTab, setActiveTab] = useState<
+    'stock' | 'receive' | 'ledger' | 'adjust' | 'locations' | 'fulfillment' | 'reports' | 'returns'
+  >('stock');
 
   // Data States
   const [stockList, setStockList] = useState<StockOnHandItem[]>([]);
@@ -175,6 +182,38 @@ export default function OwnerInventoryPage() {
   const [packCourier, setPackCourier] = useState('StarTrack Express Delivery');
   const [packSubmitting, setPackSubmitting] = useState(false);
 
+  // Day 10: Reports, RMA Returns, Carrier Dispatch & Safety Threshold States
+  const [returnsList, setReturnsList] = useState<RmaReturnRequest[]>([]);
+  const [reportSubTab, setReportSubTab] = useState<'valuation' | 'lowstock' | 'movement'>('valuation');
+  const [reportWhFilter, setReportWhFilter] = useState('ALL');
+  const [reportCatFilter, setReportCatFilter] = useState('ALL');
+
+  // Carrier Dispatch Release State
+  const [selectedDispatchOrder, setSelectedDispatchOrder] = useState<OutboundOrder | null>(null);
+  const [dispatchManifestId, setDispatchManifestId] = useState('');
+  const [dispatchDriver, setDispatchDriver] = useState('');
+  const [dispatchVehicle, setDispatchVehicle] = useState('');
+  const [dispatchNotes, setDispatchNotes] = useState('');
+  const [dispatchSubmitting, setDispatchSubmitting] = useState(false);
+
+  // RMA Returns Intake Form State
+  const [isRmaModalOpen, setIsRmaModalOpen] = useState(false);
+  const [rmaCustomer, setRmaCustomer] = useState('');
+  const [rmaItem, setRmaItem] = useState('');
+  const [rmaWarehouse, setRmaWarehouse] = useState('');
+  const [rmaBin, setRmaBin] = useState('');
+  const [rmaQty, setRmaQty] = useState('1');
+  const [rmaCondition, setRmaCondition] = useState<'RESTOCKABLE' | 'DAMAGED_WRITE_OFF'>('RESTOCKABLE');
+  const [rmaReason, setRmaReason] = useState('Customer Change of Mind');
+  const [rmaNotes, setRmaNotes] = useState('');
+  const [rmaSubmitting, setRmaSubmitting] = useState(false);
+
+  // Safety Stock Threshold Editor Modal State
+  const [thresholdModalItem, setThresholdModalItem] = useState<any | null>(null);
+  const [thresholdVal, setThresholdVal] = useState('10');
+  const [reorderQtyVal, setReorderQtyVal] = useState('50');
+  const [thresholdSubmitting, setThresholdSubmitting] = useState(false);
+
   // Toast State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -185,22 +224,29 @@ export default function OwnerInventoryPage() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [stockRes, ledgerRes, whRes, itemsRes, usersRes, ordersRes] = await Promise.all([
+      const [stockRes, ledgerRes, whRes, itemsRes, usersRes, ordersRes, returnsRes] = await Promise.all([
         fetch('/api/inventory/stock'),
         fetch('/api/inventory/ledger'),
         fetch('/api/inventory/warehouses'),
         fetch('/api/mdm/items'),
         fetch('/api/admin/users').catch(() => null),
         fetch('/api/fulfillment/orders').catch(() => null),
+        fetch('/api/inventory/returns').catch(() => null),
       ]);
 
       const stockData = await stockRes.json();
       const ledgerData = await ledgerRes.json();
       const whData = await whRes.json();
       const itemsData = await itemsRes.json();
+
       if (ordersRes && ordersRes.ok) {
         const ordersData = await ordersRes.json();
         setOrders(ordersData.orders || []);
+      }
+
+      if (returnsRes && returnsRes.ok) {
+        const returnsData = await returnsRes.json();
+        setReturnsList(returnsData.returns || []);
       }
 
       if (usersRes && usersRes.ok) {
@@ -557,6 +603,210 @@ export default function OwnerInventoryPage() {
     }
   };
 
+  // Day 10: Carrier Dispatch Release Handler
+  const handleCarrierDispatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDispatchOrder) return;
+    setDispatchSubmitting(true);
+    try {
+      const res = await fetch('/api/fulfillment/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: selectedDispatchOrder.id,
+          manifestId: dispatchManifestId,
+          driverName: dispatchDriver,
+          vehicleReg: dispatchVehicle,
+          notes: dispatchNotes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Carrier dispatch release failed.', type: 'error' });
+      } else {
+        setToast({ message: data.message, type: 'success' });
+        setSelectedDispatchOrder(null);
+        setDispatchManifestId('');
+        setDispatchDriver('');
+        setDispatchVehicle('');
+        setDispatchNotes('');
+        fetchAllData();
+      }
+    } catch {
+      setToast({ message: 'Error releasing carrier dispatch.', type: 'error' });
+    } finally {
+      setDispatchSubmitting(false);
+    }
+  };
+
+  // Day 10: Process RMA Customer Return Handler
+  const handleProcessRmaReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rmaCustomer || !rmaItem || !rmaWarehouse || !rmaBin || !rmaQty || !rmaCondition || !rmaReason) {
+      setToast({ message: 'Please complete all required fields for RMA Return.', type: 'error' });
+      return;
+    }
+
+    setRmaSubmitting(true);
+    try {
+      const res = await fetch('/api/inventory/returns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: rmaCustomer,
+          itemMasterId: rmaItem,
+          warehouseCode: rmaWarehouse,
+          binLocation: rmaBin,
+          quantityReturned: rmaQty,
+          condition: rmaCondition,
+          reasonCode: rmaReason,
+          notes: rmaNotes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Failed to process RMA return.', type: 'error' });
+      } else {
+        setToast({ message: data.message, type: 'success' });
+        setIsRmaModalOpen(false);
+        setRmaCustomer('');
+        setRmaNotes('');
+        fetchAllData();
+        setActiveTab('returns');
+      }
+    } catch {
+      setToast({ message: 'Error processing RMA customer return.', type: 'error' });
+    } finally {
+      setRmaSubmitting(false);
+    }
+  };
+
+  // Day 10: Update Configurable Safety Stock Threshold Handler
+  const handleUpdateThreshold = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!thresholdModalItem) return;
+
+    setThresholdSubmitting(true);
+    try {
+      const res = await fetch(`/api/mdm/items/${thresholdModalItem.id}/threshold`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lowStockThreshold: thresholdVal,
+          reorderQuantity: reorderQtyVal,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Failed to update safety threshold.', type: 'error' });
+      } else {
+        setToast({ message: data.message, type: 'success' });
+        setThresholdModalItem(null);
+        fetchAllData();
+      }
+    } catch {
+      setToast({ message: 'Error updating item safety threshold.', type: 'error' });
+    } finally {
+      setThresholdSubmitting(false);
+    }
+  };
+
+  // Day 10: CSV Exporter Helper Functions
+  const exportStockReportCSV = () => {
+    const headers = ['SKU', 'Item Name', 'EAN Barcode', 'Warehouse', 'Bin Location', 'Vendor', 'Stock On Hand (Units)', 'Available (Units)', 'Reserved (Units)', 'Unit Price ($)', 'Est. Stock Value ($)'];
+    const rows = stockList.map((s) => {
+      const itemMaster = items.find((i) => i.id === s.itemMasterId || i.sku === s.sku);
+      const unitPrice = itemMaster?.sellingPrice || 100;
+      const stockVal = s.quantityOnHand * unitPrice;
+      return [
+        s.sku,
+        `"${s.itemName.replace(/"/g, '""')}"`,
+        s.barcode,
+        s.warehouseCode,
+        s.binLocation,
+        `"${(s.vendorName || 'LogiQ-On Internal').replace(/"/g, '""')}"`,
+        s.quantityOnHand,
+        s.quantityAvailable,
+        s.quantityReserved,
+        unitPrice.toFixed(2),
+        stockVal.toFixed(2),
+      ];
+    });
+
+    const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `LogiQ-On_Stock_Valuation_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportLowStockReportCSV = () => {
+    const headers = ['SKU', 'Item Name', 'EAN Barcode', 'Total Stock On Hand', 'Safety Threshold', 'Deficit Quantity Needed', 'Suggested Reorder Qty', 'Vendor Contact', 'Alert Severity'];
+    const lowStockItems = items.map((item) => {
+      const totalStock = stockList
+        .filter((s) => s.itemMasterId === item.id || s.sku === item.sku)
+        .reduce((sum, s) => sum + s.quantityOnHand, 0);
+      const threshold = item.lowStockThreshold || 10;
+      const isLow = totalStock <= threshold;
+      const deficit = Math.max(0, threshold - totalStock);
+      const reorderQty = item.reorderQuantity || 50;
+      return { item, totalStock, threshold, isLow, deficit, reorderQty };
+    }).filter((x) => x.isLow);
+
+    const rows = lowStockItems.map((x) => [
+      x.item.sku,
+      `"${x.item.itemName.replace(/"/g, '""')}"`,
+      x.item.barcode,
+      x.totalStock,
+      x.threshold,
+      x.deficit,
+      x.reorderQty,
+      `"${(x.item.vendorName || 'LogiQ-On Internal').replace(/"/g, '""')}"`,
+      x.totalStock === 0 ? 'CRITICAL ZERO' : 'WARNING LOW',
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `LogiQ-On_Low_Stock_Exception_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportLedgerReportCSV = () => {
+    const headers = ['Ledger Row ID', 'Timestamp', 'Movement Type', 'Reference Number', 'SKU', 'Item Name', 'Warehouse', 'Bin Location', 'Quantity Delta', 'Reason Code', 'Operator Email'];
+    const rows = ledgerList.map((l) => [
+      l.id,
+      `"${new Date(l.createdAt).toLocaleString()}"`,
+      l.movementType,
+      l.referenceNumber,
+      l.sku,
+      `"${l.itemName.replace(/"/g, '""')}"`,
+      l.warehouseCode,
+      l.binLocation,
+      l.quantityDelta,
+      `"${(l.reasonCode || '').replace(/"/g, '""')}"`,
+      l.createdByEmail,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `LogiQ-On_Movement_Ledger_Audit_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Filtered Stock & Ledger View
   const effectiveWhCode = isWarehouseManager ? assignedWh : selectedWarehouse;
 
@@ -906,7 +1156,25 @@ export default function OwnerInventoryPage() {
             activeTab === 'fulfillment' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'
           }`}
         >
-          <Truck className="w-4 h-4" /> Pick-Pack &amp; Outbound Orders ({orders.length})
+          <Truck className="w-4 h-4" /> Pick-Pack ({orders.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('reports')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'reports' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" /> Enterprise Reports
+        </button>
+
+        <button
+          onClick={() => setActiveTab('returns')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'returns' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'
+          }`}
+        >
+          <CornerUpLeft className="w-4 h-4" /> RMA Returns ({returnsList.length})
         </button>
       </div>
 
@@ -1553,8 +1821,13 @@ export default function OwnerInventoryPage() {
                               </span>
                             )}
                             {ord.status === 'PACKED' && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                📦 PACKED (Ready for Pickup)
+                              </span>
+                            )}
+                            {ord.status === 'DISPATCHED' && (
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                📦 PACKED &amp; DISPATCHED
+                                🚚 DISPATCHED TO CARRIER
                               </span>
                             )}
                           </td>
@@ -1587,14 +1860,33 @@ export default function OwnerInventoryPage() {
                                 </Button>
                               </>
                             )}
-                            {(ord.status === 'PACKED' || ord.status === 'DISPATCHED') && (
+                            {ord.status === 'PACKED' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => setSelectedDispatchOrder(ord)}
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] gap-1 py-1"
+                                >
+                                  <Truck className="w-3.5 h-3.5" /> 🚚 Release Dispatch
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setShippingLabelOrder(ord)}
+                                  className="border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-[11px] gap-1 py-1"
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-slate-500" /> Shipping Label
+                                </Button>
+                              </>
+                            )}
+                            {ord.status === 'DISPATCHED' && (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setShippingLabelOrder(ord)}
                                 className="border-emerald-200 text-emerald-800 hover:bg-emerald-50 font-bold text-[11px] gap-1 py-1"
                               >
-                                <Printer className="w-3.5 h-3.5 text-emerald-600" /> Shipping Label
+                                <Printer className="w-3.5 h-3.5 text-emerald-600" /> Manifest &amp; Waybill
                               </Button>
                             )}
                           </td>
@@ -1609,7 +1901,754 @@ export default function OwnerInventoryPage() {
         </div>
       )}
 
-      {/* Modal - Pick List Route Terminal */}
+      {/* TAB 7: ENTERPRISE WAREHOUSE REPORTS */}
+      {activeTab === 'reports' && (
+        <div className="space-y-6 font-sans">
+          {/* Sub-tab switcher and Export/Print Actions */}
+          <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 no-print">
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <button
+                onClick={() => setReportSubTab('valuation')}
+                className={`py-2 px-3.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  reportSubTab === 'valuation' ? 'bg-emerald-700 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Boxes className="w-3.5 h-3.5" /> Report 1: Stock Valuation &amp; Bin Occupancy
+              </button>
+              <button
+                onClick={() => setReportSubTab('lowstock')}
+                className={`py-2 px-3.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  reportSubTab === 'lowstock' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" /> Report 2: Low-Stock Alerts ({items.filter((i) => i && stockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sum, s) => sum + (s.quantityOnHand || 0), 0) <= (i.lowStockThreshold || 10)).length})
+              </button>
+              <button
+                onClick={() => setReportSubTab('movement')}
+                className={`py-2 px-3.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  reportSubTab === 'movement' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <History className="w-3.5 h-3.5" /> Report 3: Transactional Movement Audit
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+              {reportSubTab === 'valuation' && (
+                <Button onClick={exportStockReportCSV} variant="outline" className="text-xs font-bold gap-1.5 border-slate-300">
+                  <Download className="w-3.5 h-3.5 text-emerald-600" /> 📥 Export Valuation CSV
+                </Button>
+              )}
+              {reportSubTab === 'lowstock' && (
+                <Button onClick={exportLowStockReportCSV} variant="outline" className="text-xs font-bold gap-1.5 border-slate-300">
+                  <Download className="w-3.5 h-3.5 text-amber-600" /> 📥 Export Low-Stock CSV
+                </Button>
+              )}
+              {reportSubTab === 'movement' && (
+                <Button onClick={exportLedgerReportCSV} variant="outline" className="text-xs font-bold gap-1.5 border-slate-300">
+                  <Download className="w-3.5 h-3.5 text-indigo-600" /> 📥 Export Movement CSV
+                </Button>
+              )}
+              <Button onClick={() => window.print()} className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5">
+                <Printer className="w-3.5 h-3.5" /> 🖨️ Print / Save PDF
+              </Button>
+            </div>
+          </div>
+
+          {/* REPORT 1 VIEW: MASTER STOCK VALUATION */}
+          {reportSubTab === 'valuation' && (
+            <div className="space-y-6 print-only-target">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Physical Inventory</div>
+                  <div className="text-2xl font-black text-slate-900 font-mono mt-1">
+                    {stockList.reduce((sum, s) => sum + (s?.quantityOnHand || 0), 0).toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Total Stock Value</div>
+                  <div className="text-2xl font-black text-emerald-700 font-mono mt-1">
+                    ${stockList.reduce((sum, s) => {
+                      if (!s) return sum;
+                      const itemMaster = items.find((i) => i && (i.id === s.itemMasterId || (i.sku && s.sku && i.sku === s.sku)));
+                      const unitPrice = itemMaster?.sellingPrice || 100;
+                      return sum + (s.quantityOnHand || 0) * unitPrice;
+                    }, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Warehouses Reported</div>
+                  <div className="text-2xl font-black text-slate-900 font-mono mt-1">
+                    {warehouses.length} <span className="text-xs font-normal text-slate-500">facilities nationwide</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border border-slate-200 bg-white shadow-sm rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-lg">Master Stock-On-Hand Valuation Report</h3>
+                    <p className="text-xs text-slate-500">Derives exact inventory valuations from derived stock balances and item master catalog pricing.</p>
+                  </div>
+                  <Badge variant="emerald" className="font-mono text-xs">AASB 102 Compliant</Badge>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="p-3">SKU</th>
+                        <th className="p-3">Item Master Description</th>
+                        <th className="p-3">Warehouse</th>
+                        <th className="p-3">Bin Location</th>
+                        <th className="p-3 font-mono">Stock On Hand</th>
+                        <th className="p-3 font-mono">Unit Price</th>
+                        <th className="p-3 font-mono text-right">Est. Total Value</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {stockList.map((s) => {
+                        if (!s) return null;
+                        const itemMaster = items.find((i) => i && (i.id === s.itemMasterId || (i.sku && s.sku && i.sku === s.sku)));
+                        const unitPrice = itemMaster?.sellingPrice || 100;
+                        const totalVal = (s.quantityOnHand || 0) * unitPrice;
+                        return (
+                          <tr key={`${s.warehouseCode || 'WH'}_${s.sku || 'SKU'}_${s.binLocation || 'BIN'}`} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3 font-mono font-bold text-emerald-800">{s.sku || 'N/A'}</td>
+                            <td className="p-3 font-semibold text-slate-900">{s.itemName || 'Item'}</td>
+                            <td className="p-3 font-mono text-slate-600">{s.warehouseCode || 'N/A'}</td>
+                            <td className="p-3 font-mono text-slate-800 font-bold">{s.binLocation || 'N/A'}</td>
+                            <td className="p-3 font-mono font-black text-slate-900">{s.quantityOnHand || 0} units</td>
+                            <td className="p-3 font-mono text-slate-700">${unitPrice.toFixed(2)}</td>
+                            <td className="p-3 font-mono font-bold text-emerald-700 text-right">${totalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* REPORT 2 VIEW: LOW-STOCK ALERTS & CONFIGURABLE THRESHOLDS */}
+          {reportSubTab === 'lowstock' && (
+            <div className="space-y-6 print-only-target">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 border border-rose-200 bg-rose-50/50 shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-rose-700 uppercase tracking-wider">Critical Zero Stock Items</div>
+                  <div className="text-2xl font-black text-rose-700 font-mono mt-1">
+                    {items.filter((i) => i && stockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sum, s) => sum + (s.quantityOnHand || 0), 0) === 0).length} <span className="text-xs font-normal text-rose-600">SKUs out of stock</span>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-amber-200 bg-amber-50/50 shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-amber-700 uppercase tracking-wider">Low Stock Safety Warnings</div>
+                  <div className="text-2xl font-black text-amber-800 font-mono mt-1">
+                    {items.filter((i) => {
+                      if (!i) return false;
+                      const totalStock = stockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sum, s) => sum + (s.quantityOnHand || 0), 0);
+                      const threshold = i.lowStockThreshold || 10;
+                      return totalStock > 0 && totalStock <= threshold;
+                    }).length} <span className="text-xs font-normal text-amber-700">SKUs below threshold</span>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Reorder Units Needed</div>
+                  <div className="text-2xl font-black text-slate-900 font-mono mt-1">
+                    {items.reduce((sum, i) => {
+                      if (!i) return sum;
+                      const totalStock = stockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sAcc, s) => sAcc + (s.quantityOnHand || 0), 0);
+                      const threshold = i.lowStockThreshold || 10;
+                      const reorderQty = i.reorderQuantity || 50;
+                      return totalStock <= threshold ? sum + (reorderQty - totalStock) : sum;
+                    }, 0)} <span className="text-xs font-normal text-slate-500">units to order</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border border-slate-200 bg-white shadow-sm rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-lg">Low-Stock Exception &amp; Safety Reorder Alert Report</h3>
+                    <p className="text-xs text-slate-500">Monitors current physical stock against item safety stock thresholds to prevent warehouse stockouts.</p>
+                  </div>
+                  <Badge variant="warning" className="font-mono text-xs">Configurable Thresholds Active</Badge>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="p-3">SKU &amp; Item Name</th>
+                        <th className="p-3 font-mono">Current Stock</th>
+                        <th className="p-3 font-mono">Configured Threshold</th>
+                        <th className="p-3 font-mono">Deficit Quantity</th>
+                        <th className="p-3">Supplier Vendor</th>
+                        <th className="p-3">Alert Severity</th>
+                        <th className="p-3 text-right">Configure Threshold</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {items.map((item) => {
+                        const totalStock = stockList
+                          .filter((s) => s.itemMasterId === item.id || s.sku === item.sku)
+                          .reduce((sum, s) => sum + s.quantityOnHand, 0);
+                        const threshold = item.lowStockThreshold || 10;
+                        const isLow = totalStock <= threshold;
+                        const deficit = Math.max(0, threshold - totalStock);
+                        const isZero = totalStock === 0;
+
+                        return (
+                          <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${isLow ? (isZero ? 'bg-rose-50/40' : 'bg-amber-50/40') : ''}`}>
+                            <td className="p-3">
+                              <div className="font-bold text-slate-900">{item.itemName}</div>
+                              <div className="font-mono text-emerald-800 text-[11px]">SKU: {item.sku}</div>
+                            </td>
+                            <td className="p-3 font-mono font-black text-slate-900">
+                              {totalStock} units
+                            </td>
+                            <td className="p-3 font-mono font-bold text-slate-700">
+                              {threshold} units
+                            </td>
+                            <td className="p-3 font-mono font-bold text-rose-600">
+                              {deficit > 0 ? `-${deficit} units` : '0 units'}
+                            </td>
+                            <td className="p-3 text-slate-600 font-medium">
+                              {item.vendorName || 'LogiQ-On Internal'}
+                            </td>
+                            <td className="p-3">
+                              {isZero ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
+                                  🔴 CRITICAL ZERO
+                                </span>
+                              ) : isLow ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                                  🟡 WARNING LOW
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                  🟢 HEALTHY
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setThresholdModalItem(item);
+                                  setThresholdVal(String(item.lowStockThreshold || 10));
+                                  setReorderQtyVal(String(item.reorderQuantity || 50));
+                                }}
+                                className="text-[11px] font-bold border-slate-300 text-slate-700 hover:bg-slate-100 py-1"
+                              >
+                                <Sliders className="w-3.5 h-3.5 text-slate-500" /> ⚙️ Configure Threshold
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* REPORT 3 VIEW: TRANSACTIONAL MOVEMENT AUDIT LOG */}
+          {reportSubTab === 'movement' && (
+            <div className="space-y-6 print-only-target">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Ledger Transactions</div>
+                  <div className="text-2xl font-black text-slate-900 font-mono mt-1">
+                    {ledgerList.length} <span className="text-xs font-normal text-slate-500">rows</span>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-emerald-200 bg-emerald-50/50 shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Inbound Stock Receipts (+)</div>
+                  <div className="text-2xl font-black text-emerald-700 font-mono mt-1">
+                    +{ledgerList.filter((l) => l.quantityDelta > 0).reduce((sum, l) => sum + l.quantityDelta, 0)} <span className="text-xs font-normal text-emerald-600">units</span>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-rose-200 bg-rose-50/50 shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-rose-800 uppercase tracking-wider">Outbound Issues (-)</div>
+                  <div className="text-2xl font-black text-rose-700 font-mono mt-1">
+                    {ledgerList.filter((l) => l.quantityDelta < 0).reduce((sum, l) => sum + l.quantityDelta, 0)} <span className="text-xs font-normal text-rose-600">units</span>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">RMA Returns Intakes</div>
+                  <div className="text-2xl font-black text-indigo-700 font-mono mt-1">
+                    {returnsList.length} <span className="text-xs font-normal text-slate-500">returns processed</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border border-slate-200 bg-white shadow-sm rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-lg">Transactional Movement Audit &amp; Inventory Flow Log</h3>
+                    <p className="text-xs text-slate-500">Complete immutable record of every inventory receipt, pick issue, cycle count adjustment, and customer return.</p>
+                  </div>
+                  <Badge variant="indigo" className="font-mono text-xs">Append-Only Verified</Badge>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="p-3">Timestamp</th>
+                        <th className="p-3">Movement Type</th>
+                        <th className="p-3 font-mono">Reference #</th>
+                        <th className="p-3">SKU &amp; Product Name</th>
+                        <th className="p-3 font-mono">Facility ➔ Bin</th>
+                        <th className="p-3 font-mono">Quantity Delta</th>
+                        <th className="p-3">Reason / Operator</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono">
+                      {ledgerList.map((entry) => {
+                        const isPos = entry.quantityDelta > 0;
+                        return (
+                          <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3 text-slate-600 text-[11px] font-normal">{new Date(entry.createdAt).toLocaleString()}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                entry.movementType === 'RECEIPT' ? 'bg-emerald-100 text-emerald-800' :
+                                entry.movementType === 'ISSUE' ? 'bg-rose-100 text-rose-800' :
+                                entry.movementType === 'RETURN' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {entry.movementType}
+                              </span>
+                            </td>
+                            <td className="p-3 font-bold text-slate-900">{entry.referenceNumber}</td>
+                            <td className="p-3 font-sans">
+                              <div className="font-bold text-slate-900 text-xs">{entry.itemName}</div>
+                              <div className="font-mono text-slate-500 text-[11px]">SKU: {entry.sku}</div>
+                            </td>
+                            <td className="p-3 text-slate-700 font-bold">{entry.warehouseCode} ➔ {entry.binLocation}</td>
+                            <td className={`p-3 font-black text-sm ${isPos ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {isPos ? `+${entry.quantityDelta}` : entry.quantityDelta} units
+                            </td>
+                            <td className="p-3 font-sans text-slate-600 text-[11px]">
+                              <div>{entry.reasonCode || 'System Entry'}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">Operator: {entry.createdByEmail}</div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 8: RMA CUSTOMER RETURNS INTAKE STATION */}
+      {activeTab === 'returns' && (
+        <div className="space-y-6 font-sans">
+          <div className="p-6 border border-slate-200 bg-white shadow-sm rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-extrabold text-slate-900">RMA Customer Returns &amp; Stock Intake Terminal</h2>
+              <p className="text-xs text-slate-500">Process B2B/Customer RMA returns, inspect physical condition, and restore restockable stock to inventory ledger.</p>
+            </div>
+            <Button
+              onClick={() => {
+                setIsRmaModalOpen(true);
+                if (items.length > 0) setRmaItem(items[0].id);
+                if (warehouses.length > 0) {
+                  setRmaWarehouse(warehouses[0].code);
+                  setRmaBin(warehouses[0].bins[0]?.code || 'BIN-A1-01');
+                }
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2"
+            >
+              <Plus className="w-4 h-4" /> + Process Customer RMA Return
+            </Button>
+          </div>
+
+          {/* RMA Summary Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total RMA Return Requests</div>
+              <div className="text-2xl font-black text-slate-900 font-mono mt-1">
+                {returnsList.length} <span className="text-xs font-normal text-slate-500">requests</span>
+              </div>
+            </div>
+
+            <div className="p-4 border border-emerald-200 bg-emerald-50/50 shadow-sm rounded-2xl">
+              <div className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Restocked Units Returned (+)</div>
+              <div className="text-2xl font-black text-emerald-700 font-mono mt-1">
+                +{returnsList.filter((r) => r.condition === 'RESTOCKABLE').reduce((sum, r) => sum + r.quantityReturned, 0)} <span className="text-xs font-normal text-emerald-600">units in stock</span>
+              </div>
+            </div>
+
+            <div className="p-4 border border-rose-200 bg-rose-50/50 shadow-sm rounded-2xl">
+              <div className="text-xs font-bold text-rose-800 uppercase tracking-wider">Damaged Goods Write-offs (-)</div>
+              <div className="text-2xl font-black text-rose-700 font-mono mt-1">
+                -{returnsList.filter((r) => r.condition === 'DAMAGED_WRITE_OFF').reduce((sum, r) => sum + r.quantityReturned, 0)} <span className="text-xs font-normal text-rose-600">units isolated</span>
+              </div>
+            </div>
+          </div>
+
+          {/* RMA Returns Log Table */}
+          <div className="p-6 border border-slate-200 bg-white shadow-sm rounded-2xl space-y-4">
+            <h3 className="font-extrabold text-slate-900 text-lg">Processed Customer RMA Return Logs</h3>
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                    <th className="p-3 font-mono">RMA Reference</th>
+                    <th className="p-3">Customer Name</th>
+                    <th className="p-3">Returned Product Item</th>
+                    <th className="p-3 font-mono">Qty</th>
+                    <th className="p-3">Physical Condition</th>
+                    <th className="p-3 font-mono">Restocked Facility ➔ Bin</th>
+                    <th className="p-3">Reason Code</th>
+                    <th className="p-3">Operator</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {returnsList.map((rma) => (
+                    <tr key={rma.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3 font-mono font-bold text-indigo-700">{rma.rmaNumber}</td>
+                      <td className="p-3 font-semibold text-slate-900">{rma.customerName}</td>
+                      <td className="p-3">
+                        <div className="font-bold text-slate-900">{rma.itemName}</div>
+                        <div className="font-mono text-slate-500 text-[11px]">SKU: {rma.sku}</div>
+                      </td>
+                      <td className="p-3 font-mono font-bold text-slate-900">{rma.quantityReturned} units</td>
+                      <td className="p-3">
+                        {rma.condition === 'RESTOCKABLE' ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            🟢 RESTOCKABLE (+Stock)
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                            🔴 DAMAGED (Write-off)
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 font-mono font-bold text-slate-700">{rma.warehouseCode} ➔ {rma.binLocation}</td>
+                      <td className="p-3 text-slate-700">{rma.reasonCode}</td>
+                      <td className="p-3 font-mono text-[10px] text-slate-500">{rma.createdByEmail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: CARRIER DISPATCH RELEASE */}
+      <Modal
+        isOpen={!!selectedDispatchOrder}
+        onClose={() => setSelectedDispatchOrder(null)}
+        title={`Release Carrier Dispatch — ${selectedDispatchOrder?.orderNumber || ''}`}
+        maxWidth="lg"
+      >
+        {selectedDispatchOrder && (
+          <form onSubmit={handleCarrierDispatch} className="space-y-4 font-sans">
+            <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs space-y-1">
+              <div className="font-bold text-indigo-900">Carrier Manifest Release &amp; Hand-off</div>
+              <p className="text-indigo-700 text-[11px]">
+                Releasing dispatch transitions order {selectedDispatchOrder.orderNumber} to <strong>DISPATCHED</strong> and logs carrier Pickup Manifest details.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Carrier Pickup Manifest ID *</label>
+              <Input
+                value={dispatchManifestId}
+                onChange={(e) => setDispatchManifestId(e.target.value)}
+                placeholder="e.g. MAN-STARTRACK-SYD-901"
+                className="text-xs font-mono font-bold"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Freight Driver Name *</label>
+                <Input
+                  value={dispatchDriver}
+                  onChange={(e) => setDispatchDriver(e.target.value)}
+                  placeholder="e.g. Michael Harris (StarTrack)"
+                  className="text-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Vehicle Registration / Trailer # *</label>
+                <Input
+                  value={dispatchVehicle}
+                  onChange={(e) => setDispatchVehicle(e.target.value)}
+                  placeholder="e.g. NSW-TRK-901"
+                  className="text-xs font-mono"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Operator Dispatch Notes (Optional)</label>
+              <Input
+                value={dispatchNotes}
+                onChange={(e) => setDispatchNotes(e.target.value)}
+                placeholder="e.g. Consolidated on Pallet #4, loaded via Bay 2."
+                className="text-xs"
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setSelectedDispatchOrder(null)} className="text-xs">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={dispatchSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-2">
+                <Truck className="w-4 h-4" /> 🚚 Confirm Carrier Pickup &amp; Release
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* MODAL 2: PROCESS CUSTOMER RMA RETURN */}
+      <Modal
+        isOpen={isRmaModalOpen}
+        onClose={() => setIsRmaModalOpen(false)}
+        title="Process Customer RMA Return (Stock Restoration)"
+        maxWidth="xl"
+      >
+        <form onSubmit={handleProcessRmaReturn} className="space-y-4 font-sans">
+          {/* Optional Order Autofill Selector */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+            <label className="text-xs font-bold text-slate-700 block">
+              🔗 Link Outbound Order <span className="text-[10px] text-slate-400 font-normal">(Optional Autofill)</span>
+            </label>
+            <Select
+              value=""
+              onChange={(e) => {
+                const targetOrd = orders.find((o) => o.id === e.target.value || o.orderNumber === e.target.value);
+                if (targetOrd) {
+                  setRmaCustomer(targetOrd.customerName);
+                  if (targetOrd.items.length > 0) setRmaItem(targetOrd.items[0].itemMasterId);
+                  setRmaWarehouse(targetOrd.warehouseCode);
+                  const whObj = warehouses.find((w) => w.code === targetOrd.warehouseCode);
+                  if (whObj && whObj.bins.length > 0) setRmaBin(whObj.bins[0].code);
+                  setToast({ message: `Autofilled RMA fields from order ${targetOrd.orderNumber}!`, type: 'info' });
+                }
+              }}
+              options={[
+                { value: '', label: '-- Select an Outbound Order to Autofill Details --' },
+                ...orders.map((o) => ({
+                  value: o.id,
+                  label: `${o.orderNumber} — ${o.customerName} (${o.warehouseCode})`,
+                })),
+              ]}
+              className="text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Customer / Client Name *</label>
+            <Input
+              value={rmaCustomer}
+              onChange={(e) => setRmaCustomer(e.target.value)}
+              placeholder="e.g. TechRetail Logistics Centre"
+              className="text-xs mb-1.5"
+              required
+            />
+            <div className="flex flex-wrap gap-1">
+              {[
+                'TechRetail Logistics Centre Sydney',
+                'Victorian Express Fulfillment Depot',
+                'Apex Commerce Group',
+                'Global Logistics Partners',
+              ].map((cust) => (
+                <button
+                  key={cust}
+                  type="button"
+                  onClick={() => setRmaCustomer(cust)}
+                  className="text-[10px] font-semibold text-slate-600 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 px-1.5 py-0.5 rounded transition-all cursor-pointer"
+                >
+                  + {cust}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Select Returned Product Item *</label>
+            <Select
+              value={rmaItem}
+              onChange={(e) => setRmaItem(e.target.value)}
+              options={items.map((i) => ({ value: i.id, label: `${i.itemName} (${i.sku})` }))}
+              className="text-xs"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Target Warehouse *</label>
+              <Select
+                value={rmaWarehouse}
+                onChange={(e) => {
+                  const whCode = e.target.value;
+                  setRmaWarehouse(whCode);
+                  const target = warehouses.find((w) => w.code === whCode);
+                  if (target && target.bins.length > 0) setRmaBin(target.bins[0].code);
+                }}
+                options={warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))}
+                className="text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Storage Bin Location *</label>
+              <Select
+                value={rmaBin}
+                onChange={(e) => setRmaBin(e.target.value)}
+                options={
+                  warehouses.find((w) => w.code === rmaWarehouse)?.bins.map((b) => ({
+                    value: b.code,
+                    label: `${b.code} (${b.zone})`,
+                  })) || [{ value: 'BIN-A1-01', label: 'BIN-A1-01 (Zone A)' }]
+                }
+                className="text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Quantity Returned *</label>
+              <Input
+                type="number"
+                min="1"
+                value={rmaQty}
+                onChange={(e) => setRmaQty(e.target.value)}
+                placeholder="1"
+                className="text-xs font-mono font-bold"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Physical Condition Inspection *</label>
+              <Select
+                value={rmaCondition}
+                onChange={(e) => setRmaCondition(e.target.value as any)}
+                options={[
+                  { value: 'RESTOCKABLE', label: '🟢 RESTOCKABLE — Goods Intact (Increments Stock +)' },
+                  { value: 'DAMAGED_WRITE_OFF', label: '🔴 DAMAGED — Write-Off (Isolates & Decrements Stock -)' },
+                ]}
+                className="text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">RMA Reason Code *</label>
+              <Select
+                value={rmaReason}
+                onChange={(e) => setRmaReason(e.target.value)}
+                options={[
+                  { value: 'Customer Change of Mind', label: 'Customer Change of Mind' },
+                  { value: 'Defective / RMA Warranty Return', label: 'Defective / RMA Warranty Return' },
+                  { value: 'Delivery Failed - Return to Sender', label: 'Delivery Failed - Return to Sender' },
+                  { value: 'Incorrect Item Shipped', label: 'Incorrect Item Shipped' },
+                ]}
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Operator Inspection Notes</label>
+            <Input
+              value={rmaNotes}
+              onChange={(e) => setRmaNotes(e.target.value)}
+              placeholder="e.g. Package inspected at Sydney intake desk, original packaging intact."
+              className="text-xs"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setIsRmaModalOpen(false)} className="text-xs">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={rmaSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2">
+              <CornerUpLeft className="w-4 h-4" /> Process Return &amp; Write Ledger
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL 3: SAFETY STOCK THRESHOLD EDITOR */}
+      <Modal
+        isOpen={!!thresholdModalItem}
+        onClose={() => setThresholdModalItem(null)}
+        title={`Configure Item Safety Stock Threshold — ${thresholdModalItem?.sku || ''}`}
+        maxWidth="md"
+      >
+        {thresholdModalItem && (
+          <form onSubmit={handleUpdateThreshold} className="space-y-4 font-sans">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+              <div className="font-bold text-slate-900">{thresholdModalItem.itemName}</div>
+              <div className="font-mono text-slate-500 text-[11px]">SKU: {thresholdModalItem.sku} | Barcode: {thresholdModalItem.barcode}</div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Safety Stock Low Level Threshold (Units) *</label>
+              <Input
+                type="number"
+                min="0"
+                value={thresholdVal}
+                onChange={(e) => setThresholdVal(e.target.value)}
+                placeholder="10"
+                className="text-xs font-mono font-bold"
+                required
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                When total physical stock across all warehouses drops to or below this quantity, a low-stock exception warning is triggered.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Suggested Reorder Replenishment Quantity *</label>
+              <Input
+                type="number"
+                min="1"
+                value={reorderQtyVal}
+                onChange={(e) => setReorderQtyVal(e.target.value)}
+                placeholder="50"
+                className="text-xs font-mono font-bold"
+                required
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setThresholdModalItem(null)} className="text-xs">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={thresholdSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2">
+                <Sliders className="w-4 h-4" /> Save Safety Threshold
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
       <Modal
         isOpen={!!selectedPickOrder}
         onClose={() => setSelectedPickOrder(null)}
