@@ -1,5 +1,5 @@
 import fs from 'fs';
-import path from 'path';
+
 import { loadPersistentOrders } from './orders';
 
 export type MovementType = 'RECEIPT' | 'ISSUE' | 'ADJUSTMENT' | 'RETURN' | 'TRANSFER';
@@ -88,15 +88,9 @@ export interface ReconciliationReport {
   }>;
 }
 
-const STORAGE_DIR = path.join(process.cwd(), '.data');
-const LEDGER_FILE = path.join(STORAGE_DIR, 'persistent_stock_ledger.json');
-const WAREHOUSE_FILE = path.join(STORAGE_DIR, 'persistent_warehouses.json');
-
-function ensureStorageDirExists() {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  }
-}
+import { ensureDataDir, dataFilePath } from './storage';
+const LEDGER_FILE = dataFilePath('persistent_stock_ledger.json');
+const WAREHOUSE_FILE = dataFilePath('persistent_warehouses.json');
 
 export function getSeededWarehouses(): Record<string, WarehouseLocation> {
   return {
@@ -144,7 +138,7 @@ export function getSeededWarehouses(): Record<string, WarehouseLocation> {
 }
 
 export function loadPersistentWarehouses(): Record<string, WarehouseLocation> {
-  ensureStorageDirExists();
+  ensureDataDir();
   const seeds = getSeededWarehouses();
   try {
     if (fs.existsSync(WAREHOUSE_FILE)) {
@@ -157,7 +151,7 @@ export function loadPersistentWarehouses(): Record<string, WarehouseLocation> {
 }
 
 export function savePersistentWarehouses(warehouses: Record<string, WarehouseLocation>) {
-  ensureStorageDirExists();
+  ensureDataDir();
   try {
     fs.writeFileSync(WAREHOUSE_FILE, JSON.stringify(warehouses, null, 2), 'utf-8');
   } catch (e) {}
@@ -249,7 +243,7 @@ export function getSeededStockLedger(): StockLedgerEntry[] {
 }
 
 export function loadPersistentStockLedger(): StockLedgerEntry[] {
-  ensureStorageDirExists();
+  ensureDataDir();
   const seeds = getSeededStockLedger();
   try {
     if (fs.existsSync(LEDGER_FILE)) {
@@ -298,7 +292,7 @@ export function loadPersistentStockLedger(): StockLedgerEntry[] {
 }
 
 export function savePersistentStockLedger(ledger: StockLedgerEntry[]) {
-  ensureStorageDirExists();
+  ensureDataDir();
   try {
     fs.writeFileSync(LEDGER_FILE, JSON.stringify(ledger, null, 2), 'utf-8');
   } catch (e) {}

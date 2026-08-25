@@ -1,5 +1,4 @@
 import fs from 'fs';
-import path from 'path';
 
 export interface CategoryItem {
   id: string;
@@ -9,15 +8,11 @@ export interface CategoryItem {
   description?: string;
 }
 
-const CATEGORIES_FILE = path.join(process.cwd(), '.data', 'categories.json');
-
-function ensureDirExists() {
-  const dir = path.join(process.cwd(), '.data');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
+import { ensureDataDir, dataFilePath } from './storage';
+const CATEGORIES_FILE = dataFilePath('categories.json');
 
 export function loadCategories(): CategoryItem[] {
-  ensureDirExists();
+  ensureDataDir();
   try {
     if (fs.existsSync(CATEGORIES_FILE)) {
       return JSON.parse(fs.readFileSync(CATEGORIES_FILE, 'utf-8'));
@@ -27,7 +22,7 @@ export function loadCategories(): CategoryItem[] {
 }
 
 export function saveCategories(categories: CategoryItem[]) {
-  ensureDirExists();
+  ensureDataDir();
   try {
     fs.writeFileSync(CATEGORIES_FILE, JSON.stringify(categories, null, 2), 'utf-8');
   } catch (e) {}

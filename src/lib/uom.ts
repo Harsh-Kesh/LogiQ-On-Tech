@@ -1,5 +1,4 @@
 import fs from 'fs';
-import path from 'path';
 
 export interface UnitOfMeasureItem {
   id: string;
@@ -8,15 +7,11 @@ export interface UnitOfMeasureItem {
   description?: string;
 }
 
-const UOM_FILE = path.join(process.cwd(), '.data', 'uom.json');
-
-function ensureDirExists() {
-  const dir = path.join(process.cwd(), '.data');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
+import { ensureDataDir, dataFilePath } from './storage';
+const UOM_FILE = dataFilePath('uom.json');
 
 export function loadUOMs(): UnitOfMeasureItem[] {
-  ensureDirExists();
+  ensureDataDir();
   try {
     if (fs.existsSync(UOM_FILE)) {
       return JSON.parse(fs.readFileSync(UOM_FILE, 'utf-8'));
@@ -26,7 +21,7 @@ export function loadUOMs(): UnitOfMeasureItem[] {
 }
 
 export function saveUOMs(uoms: UnitOfMeasureItem[]) {
-  ensureDirExists();
+  ensureDataDir();
   try {
     fs.writeFileSync(UOM_FILE, JSON.stringify(uoms, null, 2), 'utf-8');
   } catch (e) {}

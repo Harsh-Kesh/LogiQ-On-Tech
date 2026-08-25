@@ -1,5 +1,5 @@
 import fs from 'fs';
-import path from 'path';
+
 
 export interface PersistentProduct {
   id: string;
@@ -37,15 +37,11 @@ export interface PersistentProduct {
   updatedAt: string;
 }
 
-const PRODUCTS_FILE = path.join(process.cwd(), '.data', 'vendor_products.json');
-
-function ensureDirExists() {
-  const dir = path.join(process.cwd(), '.data');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
+import { ensureDataDir, dataFilePath } from './storage';
+const PRODUCTS_FILE = dataFilePath('vendor_products.json');
 
 export function loadPersistentProducts(): Record<string, PersistentProduct> {
-  ensureDirExists();
+  ensureDataDir();
   const seedProducts = getSeedDemoProducts();
   try {
     if (fs.existsSync(PRODUCTS_FILE)) {
@@ -62,7 +58,7 @@ export function loadPersistentProducts(): Record<string, PersistentProduct> {
 }
 
 export function savePersistentProducts(products: Record<string, PersistentProduct>) {
-  ensureDirExists();
+  ensureDataDir();
   try {
     fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf-8');
   } catch (e) {}

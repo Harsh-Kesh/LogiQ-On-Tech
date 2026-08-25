@@ -5,7 +5,6 @@ import bcrypt from 'bcryptjs';
 import { UserRole } from '@prisma/client';
 import { logAuditEvent } from './audit';
 import fs from 'fs';
-import path from 'path';
 
 export interface PersistentUser {
   id: string;
@@ -26,17 +25,10 @@ export interface PersistentUser {
   assignedWarehouseCode?: string;
 }
 
-const STORAGE_DIR = path.join(process.cwd(), '.data');
-const STORAGE_FILE = path.join(STORAGE_DIR, 'registered_users.json');
-const OTP_FILE = path.join(STORAGE_DIR, 'reset_otps.json');
+import { ensureDataDir, dataFilePath } from './storage';
+const STORAGE_FILE = dataFilePath('registered_users.json');
+const OTP_FILE = dataFilePath('reset_otps.json');
 
-function ensureStorageDirExists() {
-  try {
-    if (!fs.existsSync(STORAGE_DIR)) {
-      fs.mkdirSync(STORAGE_DIR, { recursive: true });
-    }
-  } catch (e) {}
-}
 
 function getSeededDemoAccounts(): Record<string, PersistentUser> {
   const defaultPasswordHash = bcrypt.hashSync('Password123!', 10);
@@ -55,7 +47,7 @@ function getSeededDemoAccounts(): Record<string, PersistentUser> {
 }
 
 export function loadPersistentUsers(): Record<string, PersistentUser> {
-  ensureStorageDirExists();
+  ensureDataDir();
   const seeds = getSeededDemoAccounts();
   try {
     if (fs.existsSync(STORAGE_FILE)) {
@@ -89,7 +81,7 @@ export function loadPersistentUsers(): Record<string, PersistentUser> {
 }
 
 export function savePersistentUsers(users: Record<string, PersistentUser>) {
-  ensureStorageDirExists();
+  ensureDataDir();
   try {
     fs.writeFileSync(STORAGE_FILE, JSON.stringify(users, null, 2), 'utf-8');
   } catch (e) {}
@@ -225,7 +217,7 @@ export function generatePasswordResetOtp(email: string): string {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = Date.now() + 15 * 60 * 1000;
 
-  ensureStorageDirExists();
+  ensureDataDir();
   try {
     let otps: Record<string, { code: string; expiresAt: number }> = {};
     if (fs.existsSync(OTP_FILE)) {
@@ -240,7 +232,7 @@ export function generatePasswordResetOtp(email: string): string {
 
 export function verifyPasswordResetOtp(email: string, inputCode: string): boolean {
   const emailClean = email.toLowerCase().trim();
-  ensureStorageDirExists();
+  ensureDataDir();
   try {
     if (fs.existsSync(OTP_FILE)) {
       const otps: Record<string, { code: string; expiresAt: number }> = JSON.parse(fs.readFileSync(OTP_FILE, 'utf-8'));

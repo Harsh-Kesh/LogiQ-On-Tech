@@ -1,5 +1,5 @@
 import fs from 'fs';
-import path from 'path';
+
 import { addStockLedgerEntry, loadPersistentWarehouses } from './stock';
 import { loadPersistentProducts } from './products';
 
@@ -27,17 +27,12 @@ export interface RmaReturnRequest {
   createdAt: string;
 }
 
-const STORAGE_DIR = path.join(process.cwd(), '.data');
-const RETURNS_FILE = path.join(STORAGE_DIR, 'persistent_returns.json');
+import { ensureDataDir, dataFilePath } from './storage';
+const RETURNS_FILE = dataFilePath('persistent_returns.json');
 
-function ensureStorageDirExists() {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  }
-}
 
 export function loadPersistentReturns(): RmaReturnRequest[] {
-  ensureStorageDirExists();
+  ensureDataDir();
   try {
     if (fs.existsSync(RETURNS_FILE)) {
       const data = fs.readFileSync(RETURNS_FILE, 'utf-8');
@@ -51,7 +46,7 @@ export function loadPersistentReturns(): RmaReturnRequest[] {
 }
 
 export function savePersistentReturns(returnsList: RmaReturnRequest[]) {
-  ensureStorageDirExists();
+  ensureDataDir();
   try {
     fs.writeFileSync(RETURNS_FILE, JSON.stringify(returnsList, null, 2), 'utf-8');
   } catch (e) {

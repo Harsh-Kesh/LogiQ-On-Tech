@@ -1,5 +1,5 @@
 import fs from 'fs';
-import path from 'path';
+
 import { calculateStockOnHand, addStockLedgerEntry } from './stock';
 
 export type OrderStatus = 'SUBMITTED' | 'IN_PICKING' | 'PICKED' | 'PACKED' | 'DISPATCHED' | 'CANCELLED';
@@ -55,14 +55,8 @@ export interface OutboundOrder {
   updatedAt: string;
 }
 
-const STORAGE_DIR = path.join(process.cwd(), '.data');
-const ORDERS_FILE = path.join(STORAGE_DIR, 'persistent_orders.json');
-
-function ensureStorageDirExists() {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  }
-}
+import { ensureDataDir, dataFilePath } from './storage';
+const ORDERS_FILE = dataFilePath('persistent_orders.json');
 
 export function getSeededOrders(): OutboundOrder[] {
   return [
@@ -132,7 +126,7 @@ export function getSeededOrders(): OutboundOrder[] {
 }
 
 export function loadPersistentOrders(): OutboundOrder[] {
-  ensureStorageDirExists();
+  ensureDataDir();
   const seeds = getSeededOrders();
   try {
     if (fs.existsSync(ORDERS_FILE)) {
@@ -147,7 +141,7 @@ export function loadPersistentOrders(): OutboundOrder[] {
 }
 
 export function savePersistentOrders(orders: OutboundOrder[]) {
-  ensureStorageDirExists();
+  ensureDataDir();
   try {
     fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), 'utf-8');
   } catch (e) {}
