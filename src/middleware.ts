@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { getDefaultDashboardForRole } from '@/lib/rbac';
-import { UserRole } from '@prisma/client';
+
+type UserRole = 'PLATFORM_OWNER' | 'VENDOR' | 'WAREHOUSE' | 'MDM' | 'CUSTOMER';
+
+function getDefaultDashboardForRole(role: UserRole): string {
+  switch (role) {
+    case 'PLATFORM_OWNER': return '/dashboard/owner';
+    case 'VENDOR': return '/dashboard/vendor';
+    case 'WAREHOUSE': return '/dashboard/warehouse';
+    case 'MDM': return '/dashboard/owner/items';
+    default: return '/dashboard/vendor';
+  }
+}
 
 export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET || 'super-secret-ci-key-logiq-2026' });
