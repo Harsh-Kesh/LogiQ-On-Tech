@@ -14,6 +14,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized: Admin access required.' }, { status: 403 });
   }
 
+  const combinedMap = new Map<string, any>();
+
+  const persistentMap = loadPersistentUsers();
+  Object.values(persistentMap).forEach((u) => {
+    combinedMap.set(u.email.toLowerCase(), {
+      id: u.id,
+      email: u.email,
+      fullName: u.fullName,
+      role: u.role,
+      isSuspended: u.isSuspended || false,
+      mfaEnabled: u.mfaEnabled,
+      createdAt: u.createdAt,
+    });
+  });
+
   try {
     const dbUsers = await prisma.user.findMany({
       select: {
@@ -28,21 +43,22 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ users: dbUsers });
+    dbUsers.forEach((u) => {
+      combinedMap.set(u.email.toLowerCase(), {
+        id: u.id,
+        email: u.email,
+        fullName: u.fullName,
+        role: u.role,
+        isSuspended: u.isSuspended,
+        mfaEnabled: u.mfaEnabled,
+        createdAt: u.createdAt,
+      });
+    });
   } catch (e: any) {
-    // Fallback to persistent storage
-    const persistentMap = loadPersistentUsers();
-    const usersList = Object.values(persistentMap).map((u) => ({
-      id: u.id,
-      email: u.email,
-      fullName: u.fullName,
-      role: u.role,
-      isSuspended: false,
-      mfaEnabled: u.mfaEnabled,
-      createdAt: u.createdAt,
-    }));
-    return NextResponse.json({ users: usersList });
+    console.warn('Prisma DB query warning in admin users API:', e.message);
   }
+
+  return NextResponse.json({ users: Array.from(combinedMap.values()) });
 }
 
 export async function POST(req: Request) {
