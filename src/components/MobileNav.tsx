@@ -13,13 +13,16 @@ export default function MobileNav({ onNavigate }: { onNavigate: () => void }) {
       ))}
       <div className="mobile-actions">
         <Link href="/auth/login" className="btn btn-primary btn-block" onClick={onNavigate}>
-          Platform Sign In
+          Customer Login
+        </Link>
+        <Link href="/vendor-login" className="btn btn-ghost btn-block" onClick={onNavigate}>
+          Vendor Login
         </Link>
         <Link href="/request-quote" className="btn btn-ghost btn-block" onClick={onNavigate}>
-          Request Quote
+          Request a Quote
         </Link>
         <Link href="/request-demo" className="btn btn-ghost btn-block" onClick={onNavigate}>
-          Request Demo
+          Request a Demo
         </Link>
       </div>
     </div>
