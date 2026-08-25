@@ -69,14 +69,15 @@ export default function WarehouseDashboardPage() {
         fetch('/api/inventory/ledger'),
         fetch('/api/inventory/warehouses'),
       ]);
-      const stockData = await stockRes.json();
-      const ledgerData = await ledgerRes.json();
-      const whData = await whRes.json();
+      const stockData = stockRes.ok ? await stockRes.json() : { stock: [] };
+      const ledgerData = ledgerRes.ok ? await ledgerRes.json() : { ledger: [] };
+      const whData = whRes.ok ? await whRes.json() : { warehouses: [] };
 
       setStock(stockData.stock || []);
       setLedger(ledgerData.ledger || []);
       setWarehouses(whData.warehouses || []);
     } catch (e) {
+      console.error('Failed to load warehouse data:', e);
     } finally {
       setLoading(false);
     }
@@ -158,8 +159,8 @@ export default function WarehouseDashboardPage() {
             <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               {isOwner
-                ? (isGlobal ? 'PILLAR 03 • GLOBAL 3PL FLEET DESK (OWNER VIEW)' : `PILLAR 03 • ${selectedWarehouseCode} FACILITY DESK`)
-                : `PILLAR 03 • ASSIGNED WAREHOUSE DESK (${selectedWarehouseCode})`}
+                ? (isGlobal ? 'GLOBAL 3PL FLEET DESK' : `${selectedWarehouseCode} FACILITY DESK`)
+                : `ASSIGNED WAREHOUSE DESK (${selectedWarehouseCode})`}
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight whitespace-nowrap">

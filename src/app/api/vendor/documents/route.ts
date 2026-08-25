@@ -1,11 +1,63 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, loadPersistentUsers, addRuntimeVendorDoc } from '@/lib/auth';
+import { authOptions, loadPersistentUsers, savePersistentUsers, addRuntimeVendorDoc } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit
+
+export async function DELETE(req: Request) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as any;
+
+  if (!user || user.role !== 'VENDOR') {
+    return NextResponse.json({ error: 'Unauthorized: Vendor access required.' }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const docId = searchParams.get('id');
+
+  if (!docId) {
+    return NextResponse.json({ error: 'Document ID is required.' }, { status: 400 });
+  }
+
+  const userEmail = (user.email || '').toLowerCase().trim();
+  const persistentUsers = loadPersistentUsers();
+  const recordKey = Object.keys(persistentUsers).find(
+    (k) => persistentUsers[k].email.toLowerCase() === userEmail || persistentUsers[k].id === user.id
+  );
+
+  let deleted = false;
+
+  if (recordKey && persistentUsers[recordKey].docs) {
+    const idx = persistentUsers[recordKey].docs!.findIndex((d: any) => d.id === docId);
+    if (idx !== -1) {
+      persistentUsers[recordKey].docs!.splice(idx, 1);
+      savePersistentUsers(persistentUsers);
+      deleted = true;
+    }
+  }
+
+  try {
+    await prisma.complianceDoc.delete({ where: { id: docId } });
+    deleted = true;
+  } catch (e: any) {}
+
+  if (!deleted) {
+    return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
+  }
+
+  await logAuditEvent({
+    userId: user.id,
+    role: 'VENDOR',
+    action: 'COMPLIANCE_DOC_DELETED',
+    module: 'VENDOR_MANAGEMENT',
+    targetId: docId,
+  }).catch(() => {});
+
+  return NextResponse.json({ success: true, message: 'Document deleted successfully.' });
+}
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -31,7 +83,7 @@ export async function GET(req: Request) {
       include: { docs: { orderBy: { uploadedAt: 'desc' } } },
     });
 
-    if (vendor && vendor.docs) {
+    if (vendor && vendor.docs && vendor.docs.length > 0) {
       const formattedDocs = vendor.docs.map((d) => ({
         id: d.id,
         docType: d.docType,
@@ -43,7 +95,9 @@ export async function GET(req: Request) {
       }));
       return NextResponse.json({ docs: formattedDocs });
     }
-  } catch (e: any) {}
+  } catch (e: any) {
+    console.warn('Prisma vendor docs fetch warning (using fallback):', e.message);
+  }
 
   return NextResponse.json({
     docs: [
@@ -78,7 +132,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { docType, fileName, fileSize, fileDataUrl } = await req.json();
+    const body = await req.json();
+    const { docType, fileName, fileSize, fileDataUrl, fileUrl: rawFileUrl } = body;
 
     if (!docType || !fileName || !fileSize) {
       return NextResponse.json({ error: 'Document type, file name, and file size are required.' }, { status: 400 });
@@ -100,17 +155,19 @@ export async function POST(req: Request) {
       const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
       return NextResponse.json(
         {
-          error: `File size (${sizeMB} MB) exceeds the maximum allowed limit of 5.00 MB. Please compress your document and retry.`,
+          error: `File size exceeds 5MB limit (${sizeMB} MB). Please compress your document before uploading.`,
         },
         { status: 400 }
       );
     }
 
+    const actualFileUrl = fileDataUrl || rawFileUrl || `/uploads/${fileName}`;
+
     const docPayload = {
       id: `doc_${Date.now()}`,
       docType,
       fileName,
-      fileUrl: fileDataUrl || `/uploads/${fileName}`,
+      fileUrl: actualFileUrl,
       fileSize: Number(fileSize),
       status: 'PENDING',
       uploadedAt: new Date().toISOString(),
@@ -119,125 +176,96 @@ export async function POST(req: Request) {
     const userEmail = user.email || '';
     addRuntimeVendorDoc(userEmail, docPayload);
 
-    // Get or Create Vendor in DB
-    let vendor = await prisma.vendor.findUnique({ where: { userId: user.id } });
-    if (!vendor) {
-      vendor = await prisma.vendor.create({
-        data: {
-          companyName: '',
-          abnAcn: '',
-          userId: user.id,
-          status: 'UNDER_REVIEW',
-        },
-      });
-    }
-
-    // Check if a document of the same classification type already exists for this vendor
-    const existingDoc = await prisma.complianceDoc.findFirst({
-      where: { vendorId: vendor.id, docType },
-    });
-
-    let dbDoc;
+    let dbDoc: any = null;
     let replaced = false;
 
-    if (existingDoc) {
-      dbDoc = await prisma.complianceDoc.update({
-        where: { id: existingDoc.id },
-        data: {
-          fileName,
-          fileUrl: fileDataUrl || `/uploads/${fileName}`,
-          fileSize: Number(fileSize),
-          status: 'PENDING',
-          uploadedAt: new Date(),
-        },
-      });
-      replaced = true;
-    } else {
-      dbDoc = await prisma.complianceDoc.create({
-        data: {
-          vendorId: vendor.id,
-          docType,
-          fileName,
-          fileUrl: fileDataUrl || `/uploads/${fileName}`,
-          fileSize: Number(fileSize),
-          status: 'PENDING',
-        },
-      });
+    // Dual-write to Prisma DB with resilient fallback
+    try {
+      let vendor = await prisma.vendor.findUnique({ where: { userId: user.id } });
+      if (!vendor) {
+        vendor = await prisma.vendor.create({
+          data: {
+            companyName: '',
+            abnAcn: `PENDING-${Date.now().toString().slice(-6)}`,
+            userId: user.id,
+            status: 'UNDER_REVIEW',
+          },
+        });
+      }
+
+      if (vendor) {
+        const existingDoc = await prisma.complianceDoc.findFirst({
+          where: { vendorId: vendor.id, docType },
+        });
+
+        if (existingDoc) {
+          dbDoc = await prisma.complianceDoc.update({
+            where: { id: existingDoc.id },
+            data: {
+              fileName,
+              fileUrl: actualFileUrl,
+              fileSize: Number(fileSize),
+              status: 'PENDING',
+              uploadedAt: new Date(),
+            },
+          });
+          replaced = true;
+        } else {
+          dbDoc = await prisma.complianceDoc.create({
+            data: {
+              vendorId: vendor.id,
+              docType,
+              fileName,
+              fileUrl: actualFileUrl,
+              fileSize: Number(fileSize),
+              status: 'PENDING',
+            },
+          });
+        }
+
+        if (vendor.status === 'PENDING') {
+          await prisma.vendor.update({
+            where: { id: vendor.id },
+            data: { status: 'UNDER_REVIEW' },
+          });
+        }
+      }
+    } catch (dbErr: any) {
+      console.warn('Prisma DB compliance doc dual-write warning (file-store succeeded):', dbErr.message);
     }
 
-    // Update Vendor status to UNDER_REVIEW
-    if (vendor.status === 'PENDING') {
-      await prisma.vendor.update({
-        where: { id: vendor.id },
-        data: { status: 'UNDER_REVIEW' },
-      });
-    }
-
+    // Security Audit Log
     await logAuditEvent({
       userId: user.id,
-      role: user.role,
+      role: 'VENDOR',
       action: replaced ? 'COMPLIANCE_DOC_REPLACED' : 'COMPLIANCE_DOC_UPLOADED',
       module: 'VENDOR_MANAGEMENT',
-      targetId: dbDoc.id,
-      payloadJson: { docType, fileName, fileSize: Number(fileSize), status: 'PENDING', replaced },
+      targetId: dbDoc?.id || docPayload.id,
+      payloadJson: {
+        docType,
+        fileName,
+        fileSize,
+        actionType: replaced ? 'REPLACED_EXISTING' : 'NEW_UPLOAD',
+      },
     }).catch(() => {});
 
-    const returnedDoc = {
-      id: dbDoc?.id || docPayload.id,
-      docType: dbDoc?.docType || docPayload.docType,
-      fileName: dbDoc?.fileName || docPayload.fileName,
-      fileUrl: dbDoc?.fileUrl || docPayload.fileUrl,
-      fileSize: Number(dbDoc?.fileSize || docPayload.fileSize),
-      status: dbDoc?.status || 'PENDING',
-      uploadedAt: dbDoc?.uploadedAt ? new Date(dbDoc.uploadedAt).toISOString() : docPayload.uploadedAt,
-    };
-
     return NextResponse.json({
       success: true,
-      replaced,
       message: replaced
-        ? `Uploaded new version of ${docType}. Replaced previous file and queued for review.`
-        : `Successfully uploaded ${fileName}!`,
-      doc: returnedDoc,
+        ? `Existing ${docType} has been replaced with the new file and reset to PENDING review.`
+        : `${docType} uploaded successfully.`,
+      doc: {
+        id: dbDoc?.id || docPayload.id,
+        docType,
+        fileName,
+        fileUrl: dbDoc?.fileUrl || docPayload.fileUrl,
+        fileSize: Number(fileSize),
+        status: 'PENDING',
+        uploadedAt: new Date().toISOString(),
+      },
     });
-  } catch (e: any) {
-    const fallbackPayload = {
-      id: `doc_${Date.now()}`,
-      docType: 'Compliance Document',
-      fileName: 'Uploaded_File.pdf',
-      fileUrl: '/uploads/file.pdf',
-      fileSize: 1024000,
-      status: 'PENDING',
-      uploadedAt: new Date().toISOString(),
-    };
-    return NextResponse.json({
-      success: true,
-      replaced: false,
-      message: 'Uploaded file successfully.',
-      doc: fallbackPayload,
-    });
-  }
-}
-
-export async function DELETE(req: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as any;
-
-  if (!user || user.role !== 'VENDOR') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
-
-  if (!id) {
-    return NextResponse.json({ error: 'Document ID required' }, { status: 400 });
-  }
-
-  try {
-    await prisma.complianceDoc.delete({ where: { id } });
-    return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Vendor document upload error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to upload compliance document' }, { status: 500 });
   }
 }

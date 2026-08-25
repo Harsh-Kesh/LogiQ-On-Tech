@@ -12,17 +12,29 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const warehouseCode = searchParams.get('warehouseCode');
-    const vendorId = searchParams.get('vendorId');
+    const paramVendorId = searchParams.get('vendorId');
     const status = searchParams.get('status');
 
     let orders = loadPersistentOrders();
 
-    if (warehouseCode && warehouseCode !== 'ALL' && warehouseCode !== 'UNASSIGNED') {
-      orders = orders.filter((o) => o.warehouseCode === warehouseCode);
+    const userRole = (session.user as any)?.role;
+    const userId = (session.user as any)?.id;
+    const userEmail = session.user.email?.toLowerCase().trim() || '';
+
+    // Multi-tenant Scoping: If user is a VENDOR, restrict strictly to orders belonging to this vendor
+    if (userRole === 'VENDOR') {
+      const vendorId = `vnd_${userId}`;
+      orders = orders.filter((o) => {
+        const matchesId = o.vendorId && (o.vendorId === vendorId || o.vendorId === userId);
+        const matchesEmail = o.vendorEmail && o.vendorEmail.toLowerCase().trim() === userEmail;
+        return Boolean(matchesId || matchesEmail);
+      });
+    } else if (paramVendorId) {
+      orders = orders.filter((o) => o.vendorId === paramVendorId);
     }
 
-    if (vendorId) {
-      orders = orders.filter((o) => o.vendorId === vendorId);
+    if (warehouseCode && warehouseCode !== 'ALL' && warehouseCode !== 'UNASSIGNED') {
+      orders = orders.filter((o) => o.warehouseCode === warehouseCode);
     }
 
     if (status && status !== 'ALL') {
@@ -57,13 +69,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required order parameters' }, { status: 400 });
     }
 
+    const userRole = (session.user as any)?.role;
+    const userId = (session.user as any)?.id;
+    const resolvedVendorId = userRole === 'VENDOR' ? `vnd_${userId}` : (vendorId || userId);
+    const resolvedVendorName = vendorName || (session.user as any).companyName || session.user.name || 'Vendor Partner';
+
     const order = createOutboundOrder({
       customerName,
       deliveryAddress,
       warehouseCode,
       warehouseName: warehouseName || warehouseCode,
-      vendorId: vendorId || (session.user as any).id,
-      vendorName: vendorName || (session.user as any).companyName || session.user.name || 'Vendor Partner',
+      vendorId: resolvedVendorId,
+      vendorName: resolvedVendorName,
       items,
       notes,
     });

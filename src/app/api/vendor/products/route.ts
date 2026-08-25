@@ -272,7 +272,11 @@ export async function PUT(req: Request) {
   const persistentProducts = loadPersistentProducts();
   const existing = persistentProducts[id];
 
-  if (existing && existing.vendorId !== vendorId && existing.vendorEmail !== vendorEmail) {
+  if (!existing) {
+    return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
+  }
+
+  if (existing.vendorId !== vendorId && existing.vendorEmail !== vendorEmail) {
     return NextResponse.json({ error: 'Access Denied: Product belongs to another vendor.' }, { status: 403 });
   }
 

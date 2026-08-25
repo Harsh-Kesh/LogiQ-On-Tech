@@ -12,6 +12,7 @@ enum UserRole {
   VENDOR
   WAREHOUSE
   MDM
+  CUSTOMER
 }
 
 enum VendorStatus {
@@ -66,9 +67,9 @@ model Vendor {
   approvedAt          DateTime?
   
   // Vendor Performance Monitoring Fields
-  fulfillmentRate    Float        @default(98.4)
-  onTimeDeliveryRate Float        @default(96.8)
-  qualityRating      Float        @default(4.9)
+  fulfillmentRate    Float        @default(0)
+  onTimeDeliveryRate Float        @default(0)
+  qualityRating      Float        @default(0)
   ordersFulfilled    Int          @default(0)
 
   createdAt           DateTime     @default(now())

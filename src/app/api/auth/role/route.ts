@@ -18,35 +18,47 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'targetUserId and newRole are required' }, { status: 400 });
   }
 
-  const existingUser = await prisma.user.findUnique({ where: { id: targetUserId } });
-  if (!existingUser) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  const VALID_ROLES: string[] = ['PLATFORM_OWNER', 'VENDOR', 'WAREHOUSE', 'MDM'];
+  if (!VALID_ROLES.includes(newRole)) {
+    return NextResponse.json({ error: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` }, { status: 400 });
   }
 
-  const oldRole = existingUser.role;
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!existingUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
 
-  const updatedUser = await prisma.user.update({
-    where: { id: targetUserId },
-    data: { role: newRole as UserRole },
-  });
+    if (existingUser.id === (session.user as any).id) {
+      return NextResponse.json({ error: 'Cannot change your own role.' }, { status: 400 });
+    }
 
-  // Audit Entry for Role Change Event
-  await logAuditEvent({
-    userId: (session.user as any).id,
-    role: (session.user as any).role,
-    action: 'ROLE_CHANGED',
-    module: 'GOVERNANCE',
-    targetId: targetUserId,
-    payloadJson: {
-      targetEmail: existingUser.email,
-      oldRole,
-      newRole,
-      changedBy: session.user.email,
-    },
-  });
+    const oldRole = existingUser.role;
 
-  return NextResponse.json({
-    success: true,
-    user: updatedUser,
-  });
+    const updatedUser = await prisma.user.update({
+      where: { id: targetUserId },
+      data: { role: newRole as UserRole },
+    });
+
+    await logAuditEvent({
+      userId: (session.user as any).id,
+      role: (session.user as any).role,
+      action: 'ROLE_CHANGED',
+      module: 'GOVERNANCE',
+      targetId: targetUserId,
+      payloadJson: {
+        targetEmail: existingUser.email,
+        oldRole,
+        newRole,
+        changedBy: session.user.email,
+      },
+    }).catch(() => {});
+
+    return NextResponse.json({
+      success: true,
+      user: updatedUser,
+    });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Failed to change role' }, { status: 500 });
+  }
 }

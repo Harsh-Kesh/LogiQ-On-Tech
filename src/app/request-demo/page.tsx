@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function RequestDemoRedirect() {
-  redirect("/request?type=demo");
+  // Placeholder redirect
+  redirect("/auth/login");
 }

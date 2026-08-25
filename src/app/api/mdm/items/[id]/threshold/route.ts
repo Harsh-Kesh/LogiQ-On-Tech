@@ -8,8 +8,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'WAREHOUSE')) {
-    return NextResponse.json({ error: 'Unauthorized: Admin or Warehouse operator access required.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'WAREHOUSE' && user.role !== 'MDM')) {
+    return NextResponse.json({ error: 'Unauthorized: Admin, Warehouse, or MDM role required.' }, { status: 403 });
   }
 
   const productId = params.id;

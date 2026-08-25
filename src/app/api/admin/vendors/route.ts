@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions, loadPersistentUsers } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { calculateVendorMetrics, checkAbnAcnCompliance } from '@/lib/vendor-metrics';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
     {
       id: 'vnd_usr_vendor_01',
       companyName: 'Apex Hardware & Logistics Ltd',
-      abnAcn: '51 824 753 910',
+      abnAcn: '51 824 753 556',
       status: 'APPROVED',
       userId: 'usr_vendor_01',
       user: { id: 'usr_vendor_01', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', isSuspended: false },
@@ -37,7 +38,7 @@ export async function GET(req: Request) {
     {
       id: 'vnd_usr_vendor_02',
       companyName: 'Nexus Global Supply Chain Solutions',
-      abnAcn: '12 908 172 364',
+      abnAcn: '49 004 028 077',
       status: 'UNDER_REVIEW',
       userId: 'usr_vendor_02',
       user: { id: 'usr_vendor_02', email: 'vendor.nexus@logiqon.com', fullName: 'Nexus Supplier Ltd', isSuspended: false },
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
     {
       id: 'vnd_usr_vendor_03',
       companyName: 'Pacific Freight & Logistics Group',
-      abnAcn: '88 123 456 789',
+      abnAcn: '33 102 417 032',
       status: 'PENDING',
       userId: 'usr_vendor_03',
       user: { id: 'usr_vendor_03', email: 'pacific@logiqon.com', fullName: 'Pacific Freight Manager', isSuspended: false },
@@ -61,7 +62,16 @@ export async function GET(req: Request) {
   mockVendors.forEach((v) => {
     const pUser = persistentUsers[v.user.email.toLowerCase()];
     const realStatus = pUser?.status || v.status;
-    combinedMap.set(v.user.email.toLowerCase(), { ...v, status: realStatus });
+    const extraIds = pUser?.id ? [pUser.id] : [];
+    const metrics = calculateVendorMetrics(v.id, v.user.email, extraIds);
+    const compliance = checkAbnAcnCompliance(pUser?.abnAcn || v.abnAcn);
+    combinedMap.set(v.user.email.toLowerCase(), {
+      ...v,
+      status: realStatus,
+      ...metrics,
+      abnAcnVerified: compliance.verified,
+      abnAcnMessage: compliance.message,
+    });
   });
 
   // 2. Fetch PostgreSQL DB Users with role VENDOR
@@ -84,13 +94,20 @@ export async function GET(req: Request) {
       const v = u.vendor;
       const pUser = persistentUsers[emailLower];
       const realStatus = pUser?.status || v?.status || existing?.status || 'PENDING';
+      const vendorIdResolved = v?.id || existing?.id || `vnd_${u.id}`;
+      const abnAcnResolved = v?.abnAcn || pUser?.abnAcn || existing?.abnAcn || '';
+      const metrics = calculateVendorMetrics(vendorIdResolved, u.email, [u.id]);
+      const compliance = checkAbnAcnCompliance(abnAcnResolved);
 
       combinedMap.set(emailLower, {
-        id: v?.id || `vnd_${u.id}`,
+        id: vendorIdResolved,
         companyName: v?.companyName || pUser?.companyName || existing?.companyName || '',
-        abnAcn: v?.abnAcn || pUser?.abnAcn || existing?.abnAcn || '',
+        abnAcn: abnAcnResolved,
+        abnAcnVerified: compliance.verified,
+        abnAcnMessage: compliance.message,
         status: realStatus,
         rejectionReason: v?.rejectionReason || pUser?.rejectionReason || existing?.rejectionReason,
+        ...metrics,
         userId: u.id,
         user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: u.isSuspended },
         createdAt: v?.createdAt?.toISOString() || u.createdAt.toISOString(),
@@ -108,12 +125,21 @@ export async function GET(req: Request) {
       const emailLower = u.email.toLowerCase();
       const existing = combinedMap.get(emailLower);
 
+      const realStatus = u.status || existing?.status || 'PENDING';
+      const vendorIdResolved = existing?.id || `vnd_${u.id}`;
+      const abnAcnResolved = u.abnAcn || existing?.abnAcn || '';
+      const metrics = calculateVendorMetrics(vendorIdResolved, u.email, [u.id]);
+      const compliance = checkAbnAcnCompliance(abnAcnResolved);
+
       combinedMap.set(emailLower, {
-        id: existing?.id || `vnd_${u.id}`,
+        id: vendorIdResolved,
         companyName: u.companyName || existing?.companyName || '',
-        abnAcn: u.abnAcn || existing?.abnAcn || '',
-        status: u.status || existing?.status || 'PENDING',
+        abnAcn: abnAcnResolved,
+        abnAcnVerified: compliance.verified,
+        abnAcnMessage: compliance.message,
+        status: realStatus,
         rejectionReason: u.rejectionReason || existing?.rejectionReason,
+        ...metrics,
         userId: u.id,
         user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: false },
         createdAt: u.createdAt,

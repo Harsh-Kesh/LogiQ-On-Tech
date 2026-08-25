@@ -51,7 +51,7 @@ export function FileUpload({
   return (
     <div className="w-full space-y-1.5">
       {label && (
-        <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+        <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
           {label}
         </label>
       )}
@@ -68,7 +68,7 @@ export function FileUpload({
           className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
             isDragging
               ? 'border-purple-500 bg-purple-500/10'
-              : 'border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/50'
+              : 'border-slate-200 bg-slate-50 hover:border-slate-700 hover:bg-slate-900/50'
           }`}
         >
           <input
@@ -83,21 +83,21 @@ export function FileUpload({
               <UploadCloud className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-white">Click to upload or drag & drop</p>
-              <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
+              <p className="text-xs font-bold text-slate-900">Click to upload or drag & drop</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
                 {accept.toUpperCase().replace(/\./g, '')} (Max {maxSizeMB}MB)
               </p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30 shrink-0">
               <File className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">{selectedFile.name}</p>
+              <p className="text-xs font-bold text-slate-900 truncate">{selectedFile.name}</p>
               <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
                 <CheckCircle2 className="w-3 h-3" /> {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready
               </p>
@@ -105,7 +105,7 @@ export function FileUpload({
           </div>
           <button
             onClick={() => handleFileChange(null)}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -117,7 +117,7 @@ export function FileUpload({
           <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
         </p>
       )}
-      {helperText && !error && <p className="text-[11px] text-slate-400">{helperText}</p>}
+      {helperText && !error && <p className="text-[11px] text-slate-500">{helperText}</p>}
     </div>
   );
 }

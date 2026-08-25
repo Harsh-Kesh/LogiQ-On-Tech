@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { loadPersistentStockLedger, savePersistentStockLedger, loadPersistentWarehouses, calculateStockOnHand, addStockLedgerEntry } from './stock';
+import { calculateStockOnHand, addStockLedgerEntry } from './stock';
 
 export type OrderStatus = 'SUBMITTED' | 'IN_PICKING' | 'PICKED' | 'PACKED' | 'DISPATCHED' | 'CANCELLED';
 
@@ -45,6 +45,7 @@ export interface OutboundOrder {
   warehouseName: string;
   vendorId?: string | null;
   vendorName?: string;
+  vendorEmail?: string;
   status: OrderStatus;
   items: OrderItem[];
   pickSteps?: PickStep[];
@@ -223,6 +224,15 @@ export function generatePickListForOrder(orderId: string): OutboundOrder | null 
   if (order.status === 'SUBMITTED') {
     order.status = 'IN_PICKING';
   }
+
+  const isFullyAllocated = order.items.every(i => {
+    const allocated = pickSteps.filter(p => p.itemMasterId === i.itemMasterId).reduce((sum, p) => sum + p.quantityToPick, 0);
+    return allocated >= i.quantityRequested;
+  });
+  if (isFullyAllocated) {
+    (order as any).isFullyAllocated = true;
+  }
+
   order.updatedAt = new Date().toISOString();
 
   const idx = orders.findIndex((o) => o.id === order.id);
@@ -242,6 +252,7 @@ export function createOutboundOrder(data: {
   warehouseName: string;
   vendorId?: string | null;
   vendorName?: string;
+  vendorEmail?: string;
   items: Array<{
     itemMasterId: string;
     sku: string;
@@ -252,17 +263,31 @@ export function createOutboundOrder(data: {
   }>;
   notes?: string;
 }): OutboundOrder {
+  const stockOnHand = calculateStockOnHand();
+  const shortItems = [];
+  for (const i of data.items) {
+    const stockRec = stockOnHand.find(s => s.warehouseCode === data.warehouseCode && (s.itemMasterId === i.itemMasterId || s.sku.toLowerCase() === i.sku.toLowerCase()));
+    const available = stockRec ? stockRec.quantityAvailable : 0;
+    if (available < i.quantityRequested) {
+      shortItems.push(`${i.sku} (Req: ${i.quantityRequested}, Avail: ${available})`);
+    }
+  }
+  if (shortItems.length > 0) {
+    throw new Error(`Insufficient stock for items: ${shortItems.join(', ')}`);
+  }
+
   const orders = loadPersistentOrders();
 
   const newOrder: OutboundOrder = {
     id: `ord_${Date.now()}`,
-    orderNumber: `ORD-2026-${Math.floor(100 + Math.random() * 900)}`,
+    orderNumber: `ORD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
     customerName: data.customerName,
     deliveryAddress: data.deliveryAddress,
     warehouseCode: data.warehouseCode,
     warehouseName: data.warehouseName,
     vendorId: data.vendorId || null,
     vendorName: data.vendorName || 'Vendor Partner',
+    vendorEmail: data.vendorEmail || undefined,
     status: 'SUBMITTED',
     items: data.items.map((i) => ({
       ...i,
@@ -302,6 +327,14 @@ export function confirmOrderPacking(
     return { success: false, message: 'Order not found' };
   }
 
+  if (order.status === 'PACKED' || order.status === 'DISPATCHED' || order.status === 'CANCELLED') {
+    throw new Error('Order has already been packed/dispatched/cancelled');
+  }
+
+  if (order.status !== 'SUBMITTED' && order.status !== 'IN_PICKING' && order.status !== 'PICKED') {
+    return { success: false, message: `Order cannot be packed from status: ${order.status}` };
+  }
+
   const trackingNum = `TRK-${order.orderNumber}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   order.packageDetails = {
@@ -324,28 +357,49 @@ export function confirmOrderPacking(
 
   // PHYSICAL STOCK DECREMENT TRIGGER: Appends ISSUE movement row to stock ledger for each item
   for (const item of order.items) {
-    // Find bin location from pick steps or default to BIN-A1-01
-    const matchingStep = order.pickSteps?.find((p) => p.itemMasterId === item.itemMasterId);
-    const targetBin = matchingStep ? matchingStep.binLocation : 'BIN-A1-01';
-
-    addStockLedgerEntry({
-      warehouseId: `wh_${order.warehouseCode.toLowerCase().replace(/-/g, '_')}`,
-      warehouseCode: order.warehouseCode,
-      warehouseName: order.warehouseName,
-      itemMasterId: item.itemMasterId,
-      sku: item.sku,
-      barcode: item.barcode,
-      itemName: item.itemName,
-      vendorId: order.vendorId || null,
-      vendorName: order.vendorName || 'LogiQ-On Internal Stock',
-      binLocation: targetBin,
-      movementType: 'ISSUE',
-      quantityDelta: -Math.abs(item.quantityRequested),
-      referenceNumber: order.orderNumber,
-      reasonCode: `Outbound Customer Order Fulfillment (${order.orderNumber})`,
-      createdById: 'usr_wh_operator',
-      createdByEmail: operatorEmail,
-    });
+    const matchingSteps = order.pickSteps?.filter((p) => p.itemMasterId === item.itemMasterId) || [];
+    
+    if (matchingSteps.length > 0) {
+      for (const step of matchingSteps) {
+        addStockLedgerEntry({
+          warehouseId: order.warehouseCode.toLowerCase().replace(/-/g, '_'),
+          warehouseCode: order.warehouseCode,
+          warehouseName: order.warehouseName,
+          itemMasterId: item.itemMasterId,
+          sku: item.sku,
+          barcode: item.barcode,
+          itemName: item.itemName,
+          vendorId: order.vendorId || null,
+          vendorName: order.vendorName || 'LogiQ-On Internal Stock',
+          binLocation: step.binLocation,
+          movementType: 'ISSUE',
+          quantityDelta: -Math.abs(step.quantityToPick),
+          referenceNumber: order.orderNumber,
+          reasonCode: `Outbound Customer Order Fulfillment (${order.orderNumber})`,
+          createdById: 'usr_wh_operator',
+          createdByEmail: operatorEmail,
+        });
+      }
+    } else {
+      addStockLedgerEntry({
+        warehouseId: order.warehouseCode.toLowerCase().replace(/-/g, '_'),
+        warehouseCode: order.warehouseCode,
+        warehouseName: order.warehouseName,
+        itemMasterId: item.itemMasterId,
+        sku: item.sku,
+        barcode: item.barcode,
+        itemName: item.itemName,
+        vendorId: order.vendorId || null,
+        vendorName: order.vendorName || 'LogiQ-On Internal Stock',
+        binLocation: 'BIN-A1-01',
+        movementType: 'ISSUE',
+        quantityDelta: -Math.abs(item.quantityRequested),
+        referenceNumber: order.orderNumber,
+        reasonCode: `Outbound Customer Order Fulfillment (${order.orderNumber})`,
+        createdById: 'usr_wh_operator',
+        createdByEmail: operatorEmail,
+      });
+    }
   }
 
   savePersistentOrders(orders);
@@ -391,7 +445,8 @@ export function dispatchOutboundOrder(
   }
 
   const manifestRef = manifestInfo.manifestId || `MANIFEST-${order.warehouseCode}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
-  order.notes = `Dispatched via Carrier Manifest #${manifestRef}. Driver: ${manifestInfo.driverName || 'StarTrack Express Freight'} (${manifestInfo.vehicleReg || 'NSW-TRK-901'}). ${manifestInfo.notes || ''}`.trim();
+  const dispatchNote = `Dispatched via Carrier Manifest #${manifestRef}. Driver: ${manifestInfo.driverName || 'StarTrack Express Freight'} (${manifestInfo.vehicleReg || 'NSW-TRK-901'}). ${manifestInfo.notes || ''}`.trim();
+  order.notes = order.notes ? `${order.notes} | ${dispatchNote}` : dispatchNote;
 
   savePersistentOrders(orders);
 
@@ -400,4 +455,52 @@ export function dispatchOutboundOrder(
     order,
     message: `Order ${order.orderNumber} successfully DISPATCHED to carrier under Manifest #${manifestRef}!`,
   };
+}
+
+export function markOrderPicked(orderId: string): OutboundOrder | null {
+  const orders = loadPersistentOrders();
+  const order = orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+  if (!order) return null;
+  if (order.status === 'IN_PICKING') {
+    order.status = 'PICKED';
+    order.updatedAt = new Date().toISOString();
+    savePersistentOrders(orders);
+  }
+  return order;
+}
+
+export function cancelOrder(orderId: string): OutboundOrder | null {
+  const orders = loadPersistentOrders();
+  const order = orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+  if (!order) return null;
+  if (order.status !== 'DISPATCHED') {
+    if (order.status === 'PACKED' && order.items) {
+      for (const item of order.items) {
+        const qty = (item as any).quantityPacked || (item as any).quantityRequested || 0;
+        if (qty > 0) {
+          const bin = order.pickSteps?.find((p: any) => p.itemMasterId === item.itemMasterId)?.binLocation || 'BIN-A1-01';
+          addStockLedgerEntry({
+            warehouseId: order.warehouseCode.toLowerCase().replace(/-/g, '_'),
+            warehouseCode: order.warehouseCode,
+            warehouseName: order.warehouseCode,
+            binLocation: bin,
+            itemMasterId: item.itemMasterId,
+            sku: item.sku,
+            barcode: '',
+            itemName: item.itemName,
+            movementType: 'RETURN',
+            quantityDelta: Math.abs(qty),
+            referenceNumber: order.orderNumber,
+            reasonCode: `Order ${order.orderNumber} cancelled — stock reversal`,
+            createdById: 'system',
+            createdByEmail: 'system@logiqon.com',
+          });
+        }
+      }
+    }
+    order.status = 'CANCELLED';
+    order.updatedAt = new Date().toISOString();
+    savePersistentOrders(orders);
+  }
+  return order;
 }

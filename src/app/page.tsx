@@ -10,7 +10,7 @@ export default function HomePage() {
       {/* Header */}
       <Header />
 
-      {/* Hero Section matching Senura's layout */}
+      {/* Hero Section */}
       <section className="relative min-h-screen flex items-end overflow-hidden bg-slate-950 pt-36 pb-16 md:pb-20">
         <div className="absolute inset-0 z-0">
           <HeroVideo />
@@ -21,7 +21,7 @@ export default function HomePage() {
           <div className="max-w-3xl">
             <div className="mb-8 md:mb-10">
               <span className="inline-block text-xs font-bold text-white bg-white/20 border border-white/40 px-4 py-1.5 rounded-full mb-6 uppercase tracking-widest backdrop-blur-md shadow-sm">
-                INDUSTRIAL PRECISION AT SCALE • DAY 3 BUILD
+                INDUSTRIAL PRECISION AT SCALE
               </span>
               <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white leading-tight drop-shadow-xl">
                 The Intelligent Pulse of <br />
@@ -44,7 +44,7 @@ export default function HomePage() {
                   href="/dashboard/owner"
                   className="px-8 py-4 bg-white/15 hover:bg-white/25 text-white font-semibold rounded-xl border border-white/40 backdrop-blur-md transition-all flex items-center gap-2"
                 >
-                  <ShieldCheck className="w-5 h-5 text-indigo-300" /> Platform Owner Shell
+                  <ShieldCheck className="w-5 h-5 text-indigo-300" /> Admin Console
                 </Link>
               </div>
             </div>
@@ -52,12 +52,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Core Business Pillars - Senura Light Design System */}
+      {/* Core Business Pillars */}
       <section className="py-24 px-6 sm:px-10 md:px-16 lg:px-20 bg-slate-50 border-t border-slate-200">
         <div className="max-w-7xl mx-auto space-y-12">
           <div className="text-center space-y-3">
             <span className="text-xs font-bold uppercase tracking-[0.25em] text-indigo-600 block font-mono">
-              PROJECT ARCHITECTURE
+              CORE CAPABILITIES
             </span>
             <h2 className="text-3xl md:text-5xl font-extrabold text-slate-950 tracking-tight">
               4 Core Business Pillars
@@ -199,36 +199,36 @@ export default function HomePage() {
               <div>
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    alt="Master Data"
+                    alt="Order Fulfillment"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    src={getAssetPath("/images/pexels/partners-server-hardware.jpg")}
+                    src={getAssetPath("/images/stitch/e4da613a9de1.png")}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
                   <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-md">
                     04
                   </span>
                   <div className="absolute bottom-3 left-4 w-9 h-9 bg-white rounded-xl flex items-center justify-center text-slate-950 shadow-md border border-white">
-                    <Database className="w-4 h-4 text-indigo-600" />
+                    <ShoppingCart className="w-4 h-4 text-indigo-600" />
                   </div>
                 </div>
                 <div className="p-6 pb-2">
                   <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2 font-mono">
-                    MASTER DATA
+                    FULFILLMENT
                   </span>
                   <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">
-                    Master Data Management (MDM)
+                    Order Fulfillment &amp; Dispatch Engine
                   </h3>
                   <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">
-                    SKU barcode registry, Unit of Measure (UOM) definitions, category taxonomy, and product masters.
+                    Pick-pack-ship workflows, carrier dispatch manifests, RMA returns processing, and real-time order tracking.
                   </p>
                 </div>
               </div>
               <div className="px-6 pb-6 pt-0">
                 <Link
-                  href="/dashboard/owner"
+                  href="/dashboard/owner/inventory"
                   className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors"
                 >
-                  View Executive Shell
+                  View Fulfillment Console
                   <span className="w-7 h-7 rounded-full bg-white text-slate-950 border border-slate-300 shadow-sm flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-all">
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
@@ -239,21 +239,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Day 3 Delivered Capability Showcase */}
+      {/* Platform Features Showcase */}
       <section className="py-20 px-6 sm:px-10 md:px-16 lg:px-20 bg-white border-t border-slate-200">
         <div className="max-w-7xl mx-auto space-y-12">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
             <div>
               <span className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-600 block font-mono mb-2">
-                DAY 3 DELIVERABLES
+                PLATFORM FEATURES
               </span>
               <h2 className="text-3xl md:text-4xl font-extrabold text-slate-950 tracking-tight">
-                Implemented Features &amp; UI Library
+                Enterprise Technology Stack
               </h2>
             </div>
             <div className="flex items-center gap-2 text-xs font-mono text-slate-600 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              100% Day 3 Scope Completed
+              All Modules Operational
             </div>
           </div>
 
@@ -298,13 +298,13 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-2xl bg-purple-100 border border-purple-200 text-purple-700 flex items-center justify-center">
                 <Layers className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-slate-950">Base UI Component Library</h3>
+              <h3 className="text-xl font-bold text-slate-950">Enterprise UI Framework</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Shared production component library (`DataTable`, `Modal`, `FileUpload`, `Toast`, `Button`, `Input`, `Select`, `Badge`).
+                Purpose-built component library with DataTable, Modal, FileUpload, Toast, Button, Input, Select, and Badge modules.
               </p>
               <ul className="space-y-2 pt-2 text-xs text-slate-700">
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Senura UI Color Tokens
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Design System Tokens
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Drag &amp; Drop File Upload Zone
@@ -319,7 +319,7 @@ export default function HomePage() {
       <footer className="border-t border-slate-200 py-8 px-6 sm:px-10 md:px-16 lg:px-20 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white">
         <div>LogiQ-On Tech &copy; 2026. All rights reserved. Industrial-grade logistics platform.</div>
         <div className="font-mono text-[11px] text-slate-500">
-          Branch: <span className="text-indigo-600 font-bold">feature/KAN-2-auth-rbac-mfa</span> | Environment: <span className="text-emerald-600 font-bold">Staging</span>
+          Platform: <span className="text-indigo-600 font-bold">v1.0</span> | Status: <span className="text-emerald-600 font-bold">Active</span>
         </div>
       </footer>
     </div>

@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions, loadPersistentUsers, updateRuntimeVendorProfile } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
+import { calculateVendorMetrics, checkAbnAcnCompliance } from '@/lib/vendor-metrics';
+import { isValidAbnAcn } from '@/lib/validation';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -34,20 +36,28 @@ export async function GET(req: Request) {
   } catch (e: any) {}
 
   // Determine current status consistently
-  const effectiveStatus = persistentRecord?.status || dbVendor?.status || 'APPROVED';
+  const effectiveStatus = persistentRecord?.status || dbVendor?.status || 'PENDING';
+
+  const vendorId = dbVendor?.id || `vnd_${userId}`;
+  const metrics = calculateVendorMetrics(vendorId, userEmail, [userId]);
+  const abnAcnValue = persistentRecord?.abnAcn || dbVendor?.abnAcn || '';
+  const compliance = checkAbnAcnCompliance(abnAcnValue);
 
   if (persistentRecord && (persistentRecord.companyName || persistentRecord.abnAcn || (persistentRecord.docs && persistentRecord.docs.length > 0))) {
     return NextResponse.json({
       vendor: {
-        id: dbVendor?.id || `vnd_${persistentRecord.id}`,
+        id: vendorId,
         companyName: persistentRecord.companyName || dbVendor?.companyName || '',
         abnAcn: persistentRecord.abnAcn || dbVendor?.abnAcn || '',
+        abnAcnVerified: compliance.verified,
+        abnAcnMessage: compliance.message,
         status: effectiveStatus,
         rejectionReason: persistentRecord.rejectionReason || dbVendor?.rejectionReason,
         userId: persistentRecord.id,
         user: { email: persistentRecord.email, fullName: persistentRecord.fullName },
         createdAt: persistentRecord.createdAt,
         docs: persistentRecord.docs || dbVendor?.docs || [],
+        ...metrics,
       },
     });
   }
@@ -57,17 +67,25 @@ export async function GET(req: Request) {
       vendor: {
         ...dbVendor,
         status: effectiveStatus,
+        abnAcnVerified: compliance.verified,
+        abnAcnMessage: compliance.message,
+        ...metrics,
       },
     });
   }
 
   // Demo seed account fallback for preset default vendor
   if (user.email === 'vendor@logiqon.com' || userId === 'usr_vendor_01') {
+    const demoVendorId = `vnd_${userId || 'usr_vendor_01'}`;
+    const demoMetrics = calculateVendorMetrics(demoVendorId, user.email);
+    const demoCompliance = checkAbnAcnCompliance('51 824 753 556');
     return NextResponse.json({
       vendor: {
-        id: `vnd_${userId || 'usr_vendor_01'}`,
+        id: demoVendorId,
         companyName: 'Apex Hardware & Logistics Ltd',
-        abnAcn: '51 824 753 910',
+        abnAcn: '51 824 753 556',
+        abnAcnVerified: demoCompliance.verified,
+        abnAcnMessage: demoCompliance.message,
         status: effectiveStatus,
         userId: userId || 'usr_vendor_01',
         user: { email: user.email, fullName: user.name || 'Apex Hardware Manager' },
@@ -92,6 +110,7 @@ export async function GET(req: Request) {
             uploadedAt: new Date().toISOString(),
           },
         ],
+        ...demoMetrics,
       },
     });
   }
@@ -99,14 +118,17 @@ export async function GET(req: Request) {
   // Newly Registered Vendors start with PENDING
   return NextResponse.json({
     vendor: {
-      id: `vnd_${userId}`,
+      id: vendorId,
       companyName: '',
       abnAcn: '',
+      abnAcnVerified: false,
+      abnAcnMessage: 'Not Submitted',
       status: persistentRecord?.status || 'PENDING',
       userId: userId,
       user: { email: user.email, fullName: user.name || 'New Vendor Account' },
       createdAt: new Date().toISOString(),
       docs: [],
+      ...metrics,
     },
   });
 }
@@ -125,11 +147,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Company Name and ABN/ACN are required.' }, { status: 400 });
   }
 
-  // 1. Validate Australian ABN (11 digits) or ACN (9 digits)
+  // 1. Validate Australian ABN (11 digits) or ACN (9 digits) with ATO/ASIC checksum
   const cleanAbn = abnAcn.replace(/\s+/g, '');
-  if (!/^\d{9}$|^\d{11}$/.test(cleanAbn)) {
+  const abnValidation = isValidAbnAcn(cleanAbn);
+  if (!abnValidation.valid) {
     return NextResponse.json(
-      { error: `Invalid Australian ABN/ACN format (${cleanAbn.length} digits). ABN must be exactly 11 numeric digits and ACN must be exactly 9 numeric digits.` },
+      { error: abnValidation.message || 'Invalid ABN/ACN.' },
       { status: 400 }
     );
   }

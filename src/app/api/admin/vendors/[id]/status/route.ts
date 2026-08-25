@@ -28,6 +28,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: 'Invalid target status provided.' }, { status: 400 });
   }
 
+  // Will be enforced after currentStatus is resolved below
+
   let currentStatus = 'PENDING';
   let vendorEmail = '';
   let companyName = '';
@@ -65,6 +67,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     currentStatus = persistentRecord.status || currentStatus;
     if (!vendorEmail) vendorEmail = persistentRecord.email;
     if (!companyName) companyName = persistentRecord.companyName || '';
+  }
+
+  // Enforce valid transition
+  const allowedTargets = ALLOWED_TRANSITIONS[currentStatus];
+  if (allowedTargets && !allowedTargets.includes(targetStatus)) {
+    return NextResponse.json({ error: `Invalid transition from ${currentStatus} to ${targetStatus}.` }, { status: 400 });
   }
 
   // 1. Synchronize status transition to persistent store

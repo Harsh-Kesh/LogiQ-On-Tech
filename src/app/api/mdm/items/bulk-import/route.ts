@@ -55,7 +55,7 @@ export async function POST(req: Request) {
         costPrice: isNaN(costPrice) ? 0 : costPrice,
         sellingPrice: isNaN(sellingPrice) ? 0 : sellingPrice,
         status,
-        vendorId: 'vnd_admin_owner',
+        vendorId: null,
         vendorEmail: user.email || 'admin@logiqon.tech',
         categoryId: catObj ? catObj.id : undefined,
         categoryName: catObj ? catObj.name : 'General Hardware',

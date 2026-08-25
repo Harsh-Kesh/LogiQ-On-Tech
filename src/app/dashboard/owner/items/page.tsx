@@ -49,6 +49,7 @@ interface ItemMaster {
   barcode: string;
   itemName: string;
   description?: string;
+  imageUrl?: string;
   costPrice: number;
   sellingPrice: number;
   wholesalePrice?: number;
@@ -109,6 +110,7 @@ export default function MasterDataItemsPage() {
   const [moq, setMoq] = useState('1');
   const [status, setStatus] = useState<'ACTIVE' | 'DRAFT' | 'DISCONTINUED'>('ACTIVE');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [uomId, setUomId] = useState('');
   const [attrPairs, setAttrPairs] = useState<Array<{ key: string; value: string }>>([
@@ -120,17 +122,25 @@ export default function MasterDataItemsPage() {
   // Form State - New Category
   const [catName, setCatName] = useState('');
   const [catParentId, setCatParentId] = useState('');
+  
+  // Edit Category State
+  const [isEditCatModalOpen, setIsEditCatModalOpen] = useState(false);
+  const [editCatId, setEditCatId] = useState('');
+  const [editCatName, setEditCatName] = useState('');
 
   // Form State - New UOM
   const [uomCode, setUomCode] = useState('');
   const [uomName, setUomName] = useState('');
   const [uomDesc, setUomDesc] = useState('');
 
+  // Edit UOM State
+  const [isEditUomModalOpen, setIsEditUomModalOpen] = useState(false);
+  const [editUomId, setEditUomId] = useState('');
+  const [editUomName, setEditUomName] = useState('');
+  const [editUomDesc, setEditUomDesc] = useState('');
+
   // Toast
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-
-  const [vendorsList, setVendorsList] = useState<Array<{ id: string; companyName: string }>>([]);
-  const [vendorId, setVendorId] = useState('PLATFORM');
 
   useEffect(() => {
     fetchInitialData();
@@ -148,12 +158,10 @@ export default function MasterDataItemsPage() {
       const itemsData = await itemsRes.json();
       const catData = await catRes.json();
       const uomData = await uomRes.json();
-      const vndData = await vndRes.json();
 
       setItems(itemsData.items || []);
       setCategories(catData.categories || []);
       setUoms(uomData.uoms || []);
-      setVendorsList(Array.isArray(vndData.vendors) ? vndData.vendors.map((v: any) => ({ id: v.id, companyName: v.companyName || v.user?.email })) : []);
     } catch (e) {
       setToast({ message: 'Failed to load Master Data.', type: 'error' });
     } finally {
@@ -172,6 +180,7 @@ export default function MasterDataItemsPage() {
     setMoq('1');
     setStatus('ACTIVE');
     setDescription('');
+    setImageUrl('');
     setCategoryId('');
     setUomId('');
     setAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
@@ -186,10 +195,11 @@ export default function MasterDataItemsPage() {
     setBarcode(item.barcode);
     setCostPrice(item.costPrice.toString());
     setSellingPrice(item.sellingPrice.toString());
-    setWholesalePrice(item.wholesalePrice ? item.wholesalePrice.toString() : item.sellingPrice.toString());
+    setWholesalePrice((item.wholesalePrice !== null && item.wholesalePrice !== undefined) ? item.wholesalePrice.toString() : item.sellingPrice.toString());
     setMoq(item.moq ? item.moq.toString() : '1');
     setStatus(item.status);
     setDescription(item.description || '');
+    setImageUrl(item.imageUrl || '');
     setCategoryId(item.categoryId || '');
     setUomId(item.uomId || '');
 
@@ -226,6 +236,7 @@ export default function MasterDataItemsPage() {
       moq: moq || '1',
       status,
       description,
+      imageUrl,
       categoryId,
       uomId,
       attributes: attributesObj,
@@ -288,6 +299,37 @@ export default function MasterDataItemsPage() {
     }
   };
 
+  const handleEditCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/mdm/categories', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editCatId, name: editCatName }),
+      });
+      if (!res.ok) throw new Error();
+      setToast({ message: 'Category updated successfully.', type: 'success' });
+      setIsEditCatModalOpen(false);
+      setEditCatId('');
+      setEditCatName('');
+      fetchInitialData();
+    } catch (e) {
+      setToast({ message: 'Failed to update Category.', type: 'error' });
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this Category?')) return;
+    try {
+      const res = await fetch(`/api/mdm/categories?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      setToast({ message: 'Category deleted.', type: 'info' });
+      fetchInitialData();
+    } catch (e) {
+      setToast({ message: 'Failed to delete Category.', type: 'error' });
+    }
+  };
+
   const handleCreateUOM = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -305,6 +347,38 @@ export default function MasterDataItemsPage() {
       fetchInitialData();
     } catch (e) {
       setToast({ message: 'Failed to register UOM.', type: 'error' });
+    }
+  };
+
+  const handleEditUOM = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/mdm/uom', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editUomId, name: editUomName, description: editUomDesc }),
+      });
+      if (!res.ok) throw new Error();
+      setToast({ message: 'UOM updated successfully.', type: 'success' });
+      setIsEditUomModalOpen(false);
+      setEditUomId('');
+      setEditUomName('');
+      setEditUomDesc('');
+      fetchInitialData();
+    } catch (e) {
+      setToast({ message: 'Failed to update UOM.', type: 'error' });
+    }
+  };
+
+  const handleDeleteUOM = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this UOM?')) return;
+    try {
+      const res = await fetch(`/api/mdm/uom?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      setToast({ message: 'UOM deleted.', type: 'info' });
+      fetchInitialData();
+    } catch (e) {
+      setToast({ message: 'Failed to delete UOM. System UOMs cannot be deleted.', type: 'error' });
     }
   };
 
@@ -501,7 +575,7 @@ export default function MasterDataItemsPage() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
               <Layers className="w-3.5 h-3.5 text-indigo-600" />
-              PILLAR 02 • MASTER DATA MANAGEMENT (MDM) HUB
+              MASTER DATA MANAGEMENT (MDM) HUB
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
               Item Master &amp; Product Governance Catalog
@@ -719,6 +793,38 @@ export default function MasterDataItemsPage() {
           </div>
 
           <CategoryTree categories={categories} />
+
+          {/* Category Management List */}
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <h3 className="text-sm font-bold text-slate-900 mb-4">Category Management</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {categories.map((c) => (
+                <div key={c.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-slate-800">{c.name}</div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditCatId(c.id);
+                        setEditCatName(c.name);
+                        setIsEditCatModalOpen(true);
+                      }}
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-indigo-600" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteCategory(c.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -742,7 +848,29 @@ export default function MasterDataItemsPage() {
                   <span className="text-sm font-mono font-extrabold text-indigo-700 bg-indigo-100 px-2.5 py-0.5 rounded border border-indigo-200">
                     {u.code}
                   </span>
-                  <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="p-1 h-auto"
+                      onClick={() => {
+                        setEditUomId(u.id);
+                        setEditUomName(u.name);
+                        setEditUomDesc(u.description || '');
+                        setIsEditUomModalOpen(true);
+                      }}
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-indigo-600" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="p-1 h-auto"
+                      onClick={() => handleDeleteUOM(u.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="text-sm font-bold text-slate-900">{u.name}</div>
                 {u.description && <div className="text-xs text-slate-500">{u.description}</div>}
@@ -799,6 +927,21 @@ export default function MasterDataItemsPage() {
                   placeholder="e.g. 9312345678901"
                   helperText="GS1 compliant 13-digit barcode"
                 />
+              </div>
+
+              {/* Product Image URL */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-600 font-mono uppercase tracking-wider">Product Image URL (Optional)</label>
+                <Input
+                  placeholder="https://example.com/product-image.jpg"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                />
+                {imageUrl && (
+                  <div className="mt-2 w-20 h-20 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                    <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1004,6 +1147,11 @@ export default function MasterDataItemsPage() {
 
             {/* Item Attributes & Pricing Summary */}
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              {selectedItem.imageUrl && (
+                <div className="w-full h-48 rounded-xl overflow-hidden mb-4 border border-slate-200 bg-white flex items-center justify-center">
+                  <img src={selectedItem.imageUrl} alt={selectedItem.itemName} className="max-w-full max-h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div className="text-base font-extrabold text-slate-900">{selectedItem.itemName}</div>
                 <Badge variant={selectedItem.status === 'ACTIVE' ? 'success' : selectedItem.status === 'DRAFT' ? 'warning' : 'neutral'}>
@@ -1157,6 +1305,24 @@ export default function MasterDataItemsPage() {
         </form>
       </Modal>
 
+      {/* MODAL 4.5: EDIT CATEGORY */}
+      <Modal isOpen={isEditCatModalOpen} onClose={() => setIsEditCatModalOpen(false)} title="Edit Category">
+        <form onSubmit={handleEditCategory} className="space-y-4 font-sans text-xs">
+          <Input
+            label="Category Name"
+            required
+            value={editCatName}
+            onChange={(e) => setEditCatName(e.target.value)}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setIsEditCatModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Update Category</Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* MODAL 5: ADD UOM */}
       <Modal isOpen={isUomModalOpen} onClose={() => setIsUomModalOpen(false)} title="Register New Unit of Measure (UOM)">
         <form onSubmit={handleCreateUOM} className="space-y-4 font-sans text-xs">
@@ -1185,6 +1351,29 @@ export default function MasterDataItemsPage() {
               Cancel
             </Button>
             <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Register UOM</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL 6: EDIT UOM */}
+      <Modal isOpen={isEditUomModalOpen} onClose={() => setIsEditUomModalOpen(false)} title="Edit Unit of Measure (UOM)">
+        <form onSubmit={handleEditUOM} className="space-y-4 font-sans text-xs">
+          <Input
+            label="UOM Name"
+            required
+            value={editUomName}
+            onChange={(e) => setEditUomName(e.target.value)}
+          />
+          <Input
+            label="Description (Optional)"
+            value={editUomDesc}
+            onChange={(e) => setEditUomDesc(e.target.value)}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setIsEditUomModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Update UOM</Button>
           </div>
         </form>
       </Modal>

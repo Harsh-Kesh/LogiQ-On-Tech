@@ -279,6 +279,7 @@ export default function UserManagementPage() {
                 { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
                 { value: 'VENDOR', label: 'Vendor' },
                 { value: 'WAREHOUSE', label: 'Warehouse Manager' },
+                { value: 'MDM', label: 'Master Data Manager' },
               ]}
             />
           </div>
@@ -299,7 +300,10 @@ export default function UserManagementPage() {
       </div>
 
       {/* Bulk Upload Section */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4 relative overflow-hidden">
+        <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-bl-xl font-bold text-[10px] uppercase tracking-wider">
+          Available
+        </div>
         <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
           <Upload className="w-4 h-4 text-indigo-600" />
           Bulk CSV Import User Provisioning
@@ -308,7 +312,7 @@ export default function UserManagementPage() {
           accept=".csv,.xlsx"
           onFileSelect={(file) => {
             if (file) {
-              setToast({ message: `Uploaded ${file.name} (Ready for background processing)`, type: 'info' });
+              setToast({ message: `Feature queued for future implementation. ${file.name} not processed.`, type: 'info' });
             }
           }}
         />
@@ -327,6 +331,7 @@ export default function UserManagementPage() {
               { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
               { value: 'VENDOR', label: 'Vendor' },
               { value: 'WAREHOUSE', label: 'Warehouse Manager' },
+              { value: 'MDM', label: 'Master Data Specialist (MDM)' },
             ]}
           />
           <Input label="Initial Password" type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
@@ -351,6 +356,7 @@ export default function UserManagementPage() {
               { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
               { value: 'VENDOR', label: 'Vendor' },
               { value: 'WAREHOUSE', label: 'Warehouse Manager' },
+              { value: 'MDM', label: 'Master Data Specialist (MDM)' },
             ]}
           />
           <div className="flex justify-end gap-3 pt-2">

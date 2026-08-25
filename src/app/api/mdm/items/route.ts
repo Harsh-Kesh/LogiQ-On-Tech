@@ -8,6 +8,11 @@ import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const search = (searchParams.get('search') || '').toLowerCase().trim();
   const categoryId = searchParams.get('categoryId');
@@ -95,6 +100,7 @@ export async function POST(req: Request) {
       categoryId,
       uomId,
       attributes,
+      imageUrl,
     } = body;
 
     if (!itemName || !itemName.trim()) {
@@ -208,6 +214,7 @@ export async function POST(req: Request) {
       uomId: uomObj ? uomObj.id : undefined,
       uomCode,
       uomName,
+      imageUrl: imageUrl || '',
       attributes: attributes && typeof attributes === 'object' ? attributes : {},
       statusHistory: [{ from: 'NEW', to: finalStatus, changedBy: user.email || 'Admin', changedAt: new Date().toISOString(), reason: 'Initial Item Master Registration' }],
       createdAt: new Date().toISOString(),
@@ -275,6 +282,7 @@ export async function PUT(req: Request) {
       categoryId,
       uomId,
       attributes,
+      imageUrl,
     } = body;
 
     if (!id) {
@@ -285,6 +293,13 @@ export async function PUT(req: Request) {
     const item = persistentProducts[id];
     if (!item) {
       return NextResponse.json({ error: 'Item not found.' }, { status: 404 });
+    }
+    
+    if (user.role === 'VENDOR') {
+      const vendorId = `vnd_${user.id}`;
+      if (item.vendorId !== vendorId && item.vendorEmail !== user.email) {
+         return NextResponse.json({ error: 'Forbidden: You do not own this item.' }, { status: 403 });
+      }
     }
 
     const cost = costPrice !== undefined ? parseFloat(costPrice) : item.costPrice;
@@ -357,6 +372,7 @@ export async function PUT(req: Request) {
     }
 
     if (description !== undefined) item.description = description;
+    if (imageUrl !== undefined) item.imageUrl = imageUrl;
     if (attributes && typeof attributes === 'object') item.attributes = attributes;
     if (catObj) {
       item.categoryId = catObj.id;

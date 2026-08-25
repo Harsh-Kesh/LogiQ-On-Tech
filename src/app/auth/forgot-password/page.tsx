@@ -16,7 +16,6 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [demoCode, setDemoCode] = useState('');
 
   // Password Policy live check
   const passwordResult = validatePasswordPolicy(newPassword);
@@ -45,11 +44,7 @@ export default function ForgotPasswordPage() {
       if (!res.ok) {
         setError(data.error || 'Failed to request password reset code');
       } else {
-        setSuccess('🎉 6-Digit Verification Code sent! Check your inbox (or copy the demo code below).');
-        if (data.demoOtpCode) {
-          setDemoCode(data.demoOtpCode);
-          setOtpCode(data.demoOtpCode); // Auto-fill demo code for seamless testing
-        }
+        setSuccess('🎉 6-Digit Verification Code sent! Please check your email inbox.');
         setStep(2);
       }
     } catch (err: any) {
@@ -177,12 +172,6 @@ export default function ForgotPasswordPage() {
         ) : (
           /* STEP 2: Verify OTP & Enter New Password */
           <form onSubmit={handleVerifyAndReset} className="space-y-4">
-            {demoCode && (
-              <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs font-mono text-indigo-300 flex items-center justify-between">
-                <span>Demo Staging OTP Code:</span>
-                <span className="font-bold text-amber-400 text-sm tracking-widest">{demoCode}</span>
-              </div>
-            )}
 
             <div>
               <label className="block text-xs font-semibold text-sky-400 mb-1.5 uppercase tracking-wider font-mono">

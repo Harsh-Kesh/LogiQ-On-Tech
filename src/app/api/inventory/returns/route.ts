@@ -5,6 +5,8 @@ import { loadPersistentReturns, processRmaReturn } from '@/lib/returns';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const returns = loadPersistentReturns();
   return NextResponse.json({ success: true, returns });
 }

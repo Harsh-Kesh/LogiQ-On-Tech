@@ -94,10 +94,10 @@ export default function LoginView() {
 
       if (res?.ok) {
         // Fetch session to check MFA status
-        const sessionRes = await fetch("/api/auth/role");
+        const sessionRes = await fetch("/api/auth/session");
         if (sessionRes.ok) {
-          const data = await sessionRes.json();
-          if (data.mfaEnabled && !data.mfaVerified) {
+          const session = await sessionRes.json();
+          if (session?.user?.mfaEnabled && !session?.user?.mfaVerified) {
             router.push("/auth/mfa-verify");
             return;
           }
@@ -372,7 +372,7 @@ export default function LoginView() {
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#334155", display: "flex", alignItems: "center", gap: 5 }}>
-                  <span>🔑</span> Staging Demo Credentials:
+                  <span>🔑</span> Quick Access Credentials:
                 </span>
                 <button
                   type="button"

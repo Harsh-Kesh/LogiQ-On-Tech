@@ -36,10 +36,16 @@ export const PERMISSION_MATRIX: Record<UserRole, Record<AppModule, PermissionRul
     MASTER_DATA_MDM: { create: false, read: true, update: false, delete: false },
   },
   MDM: {
-    GOVERNANCE: { create: false, read: true, update: false, delete: false },
+    GOVERNANCE: { create: false, read: false, update: false, delete: false },
     VENDOR_MANAGEMENT: { create: false, read: true, update: false, delete: false },
     WAREHOUSE_OPERATIONS: { create: false, read: true, update: false, delete: false },
     MASTER_DATA_MDM: { create: true, read: true, update: true, delete: true },
+  },
+  CUSTOMER: {
+    GOVERNANCE: { create: false, read: false, update: false, delete: false },
+    VENDOR_MANAGEMENT: { create: false, read: false, update: false, delete: false },
+    WAREHOUSE_OPERATIONS: { create: false, read: false, update: false, delete: false },
+    MASTER_DATA_MDM: { create: false, read: true, update: false, delete: false },
   },
 };
 
@@ -73,7 +79,7 @@ export function getDefaultDashboardForRole(role: UserRole): string {
     case 'WAREHOUSE':
       return '/dashboard/warehouse';
     case 'MDM':
-      return '/dashboard/owner';
+      return '/dashboard/owner/items';
     default:
       return '/dashboard/vendor';
   }

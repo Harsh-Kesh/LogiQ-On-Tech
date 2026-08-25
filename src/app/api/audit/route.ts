@@ -5,23 +5,28 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user || (session.user as any).role !== 'PLATFORM_OWNER') {
     return NextResponse.json({ error: 'Unauthorized: Platform Owner permission required' }, { status: 403 });
   }
 
-  const logs = await prisma.auditLog.findMany({
-    orderBy: { timestamp: 'desc' },
-    take: 50,
-    include: {
-      user: {
-        select: {
-          email: true,
-          fullName: true,
+  try {
+    const logs = await prisma.auditLog.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: 50,
+      include: {
+        user: {
+          select: {
+            email: true,
+            fullName: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return NextResponse.json({ logs });
+    return NextResponse.json({ logs });
+  } catch (e: any) {
+    console.warn('Audit log DB query failed, returning empty set:', e.message);
+    return NextResponse.json({ logs: [] });
+  }
 }

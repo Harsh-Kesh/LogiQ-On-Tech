@@ -30,8 +30,10 @@ export async function POST(req: Request) {
       } catch (e) {}
 
       if (!userExists) {
-        // Security best practice: return neutral response or clear error
-        return NextResponse.json({ error: 'No active account found with this email address' }, { status: 404 });
+        return NextResponse.json({
+          success: true,
+          message: 'If an account exists with this email, a verification code has been dispatched.',
+        });
       }
 
       const otpCode = generatePasswordResetOtp(emailClean);
@@ -45,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         message: 'A 6-digit verification code has been dispatched to your email!',
-        demoOtpCode: otpCode, // Exposed for staging demo UI convenience
+        // OTP delivered via email channel — never expose in API response
       });
     }
 

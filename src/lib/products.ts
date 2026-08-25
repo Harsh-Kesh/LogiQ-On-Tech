@@ -24,6 +24,7 @@ export interface PersistentProduct {
   uomName?: string;
   lowStockThreshold?: number;
   reorderQuantity?: number;
+  imageUrl?: string;
   attributes?: Record<string, string>;
   statusHistory?: Array<{
     from: string;
@@ -54,7 +55,7 @@ export function loadPersistentProducts(): Record<string, PersistentProduct> {
         parsed['item_09_rfid'] = { ...parsed['item_09'], id: 'item_09_rfid' };
         delete parsed['item_09'];
       }
-      return { ...parsed, ...seedProducts };
+      return { ...seedProducts, ...parsed };
     }
   } catch (e) {}
   return seedProducts;

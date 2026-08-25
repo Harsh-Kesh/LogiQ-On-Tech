@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Shield, Building, Warehouse, Lock, FileText, CheckCircle2, UserCheck, ArrowRight, Clock, Key } from 'lucide-react';
+import { Shield, Building, Warehouse, Lock, FileText, CheckCircle2, UserCheck, ArrowRight, Clock, Key, Package } from 'lucide-react';
 
 export default function MainDashboardPage() {
   const { data: session, status } = useSession();
@@ -46,11 +46,11 @@ export default function MainDashboardPage() {
       desc: 'Bin allocations, stock balances & immutable ledger feed.',
     },
     MDM: {
-      title: 'Master Data MDM Hub',
-      href: '/dashboard/owner',
-      color: 'purple',
-      icon: Key,
-      desc: 'SKU barcode registry, UOM definitions & category taxonomy.',
+      title: 'Master Data Management',
+      href: '/dashboard/owner/items',
+      color: 'sky',
+      icon: Package,
+      desc: 'Item master catalog, categories, UOMs & bulk data imports.',
     },
   };
 
@@ -59,7 +59,7 @@ export default function MainDashboardPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto font-sans">
-      {/* Light Welcome Banner matching Senura Design System */}
+      {/* Welcome Banner */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">

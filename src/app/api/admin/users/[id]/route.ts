@@ -54,6 +54,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     let targetEmail = Object.keys(persistentUsers).find((em) => persistentUsers[em].id === userId);
     if (targetEmail && persistentUsers[targetEmail]) {
       if (role) persistentUsers[targetEmail].role = role as UserRole;
+      if (typeof isSuspended === 'boolean') persistentUsers[targetEmail].isSuspended = isSuspended;
       savePersistentUsers(persistentUsers);
       return NextResponse.json({ success: true, user: persistentUsers[targetEmail] });
     }

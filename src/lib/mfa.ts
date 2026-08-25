@@ -60,9 +60,10 @@ export function generateTotpToken(secret: string, timeStepWindow = 0): string {
 
 export function verifyMfaToken(token: string, secret: string): boolean {
   if (!token || !secret || token.length !== 6) return false;
-  // Allow current window, -1 window, +1 window for clock drift
-  for (let window of [0, -1, 1]) {
-    if (generateTotpToken(secret, window) === token) {
+  const cleanToken = token.trim();
+  // Allow current window, -1, +1, -2, +2 windows for clock drift tolerance (+/- 60 seconds)
+  for (let window of [0, -1, 1, -2, 2]) {
+    if (generateTotpToken(secret, window) === cleanToken) {
       return true;
     }
   }

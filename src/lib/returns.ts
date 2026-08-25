@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { addStockLedgerEntry, loadPersistentWarehouses } from './stock';
 import { loadPersistentProducts } from './products';
-import { prisma } from './prisma';
 
 export type ReturnCondition = 'RESTOCKABLE' | 'DAMAGED_WRITE_OFF';
 
@@ -53,7 +52,11 @@ export function loadPersistentReturns(): RmaReturnRequest[] {
 
 export function savePersistentReturns(returnsList: RmaReturnRequest[]) {
   ensureStorageDirExists();
-  fs.writeFileSync(RETURNS_FILE, JSON.stringify(returnsList, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(RETURNS_FILE, JSON.stringify(returnsList, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[RETURNS] Failed to persist returns data:', e);
+  }
 }
 
 export function getSeededReturns(): RmaReturnRequest[] {
@@ -151,13 +154,16 @@ export function processRmaReturn(
 
   // Determine Stock Ledger Action
   // If RESTOCKABLE -> Write RETURN movement row (+qty)
-  // If DAMAGED_WRITE_OFF -> Write ADJUSTMENT write-off ledger row (-qty)
+  // If DAMAGED_WRITE_OFF -> Write ADJUSTMENT write-off ledger row (0 qty to avoid double-deducting)
   const isRestockable = data.condition === 'RESTOCKABLE';
   const movementType = isRestockable ? 'RETURN' : 'ADJUSTMENT';
-  const delta = isRestockable ? Math.abs(data.quantityReturned) : -Math.abs(data.quantityReturned);
+  const delta = isRestockable ? Math.abs(data.quantityReturned) : 0;
   const reasonText = isRestockable
     ? `RMA Customer Return (${newReturn.rmaNumber}): Restocked`
     : `RMA Customer Return (${newReturn.rmaNumber}): Damaged Write-off`;
+  const referenceNumber = isRestockable
+    ? newReturn.rmaNumber
+    : `${newReturn.rmaNumber} - DAMAGED_WRITE_OFF - No stock movement (already deducted at dispatch)`;
 
   addStockLedgerEntry({
     warehouseId: wh ? wh.id : 'wh_syd_01',

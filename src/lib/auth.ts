@@ -14,12 +14,14 @@ export interface PersistentUser {
   role: UserRole;
   mfaEnabled: boolean;
   mfaVerified?: boolean;
+  mfaSecret?: string;
   passwordHash: string;
   createdAt: string;
   companyName?: string;
   abnAcn?: string;
   status?: string;
   rejectionReason?: string;
+  isSuspended?: boolean;
   docs?: any[];
   assignedWarehouseCode?: string;
 }
@@ -39,16 +41,16 @@ function ensureStorageDirExists() {
 function getSeededDemoAccounts(): Record<string, PersistentUser> {
   const defaultPasswordHash = bcrypt.hashSync('Password123!', 10);
   return {
-    'admin@logiqon.tech': { id: 'usr_admin_01', email: 'admin@logiqon.tech', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'owner@logiqon.com': { id: 'usr_owner_01', email: 'owner@logiqon.com', fullName: 'Platform Owner', role: 'PLATFORM_OWNER', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'vendor@logiqon.tech': { id: 'usr_vendor_01', email: 'vendor@logiqon.tech', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 910', status: 'APPROVED' },
-    'vendor@logiqon.com': { id: 'usr_vendor_02', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 910', status: 'APPROVED' },
-    'sydney.manager@logiqon.com': { id: 'usr_wh_syd', email: 'sydney.manager@logiqon.com', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
-    'melbourne.manager@logiqon.com': { id: 'usr_wh_mel', email: 'melbourne.manager@logiqon.com', fullName: 'Sarah Jenkins', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-MEL-02' },
-    'brisbane.manager@logiqon.com': { id: 'usr_wh_bne', email: 'brisbane.manager@logiqon.com', fullName: 'Michael Chang', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-BNE-03' },
-    'perth.manager@logiqon.com': { id: 'usr_wh_per', email: 'perth.manager@logiqon.com', fullName: 'David Wilson', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-PER-04' },
-    'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
-    'warehouse@logiqon.com': { id: 'usr_wh_02', email: 'warehouse@logiqon.com', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: true, passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
+    'admin@logiqon.tech': { id: 'usr_admin_01', email: 'admin@logiqon.tech', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPTEST', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'owner@logiqon.com': { id: 'usr_owner_01', email: 'owner@logiqon.com', fullName: 'Platform Owner', role: 'PLATFORM_OWNER', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPOWNR', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
+    'vendor@logiqon.tech': { id: 'usr_vendor_01', email: 'vendor@logiqon.tech', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPVND1', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 556', status: 'APPROVED' },
+    'vendor@logiqon.com': { id: 'usr_vendor_02', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPVND2', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 556', status: 'APPROVED' },
+    'sydney.manager@logiqon.com': { id: 'usr_wh_syd', email: 'sydney.manager@logiqon.com', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHS1', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
+    'melbourne.manager@logiqon.com': { id: 'usr_wh_mel', email: 'melbourne.manager@logiqon.com', fullName: 'Sarah Jenkins', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHM2', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-MEL-02' },
+    'brisbane.manager@logiqon.com': { id: 'usr_wh_bne', email: 'brisbane.manager@logiqon.com', fullName: 'Michael Chang', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHB3', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-BNE-03' },
+    'perth.manager@logiqon.com': { id: 'usr_wh_per', email: 'perth.manager@logiqon.com', fullName: 'David Wilson', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHP4', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-PER-04' },
+    'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHT1', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
+    'warehouse@logiqon.com': { id: 'usr_wh_02', email: 'warehouse@logiqon.com', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHC2', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
   };
 }
 
@@ -65,12 +67,19 @@ export function loadPersistentUsers(): Record<string, PersistentUser> {
       if (merged['vendor@logiqon.com'] && (!merged['vendor@logiqon.com'].status || merged['vendor@logiqon.com'].status === 'PENDING')) {
         merged['vendor@logiqon.com'].status = 'APPROVED';
         merged['vendor@logiqon.com'].companyName = 'Apex Hardware & Logistics Ltd';
-        merged['vendor@logiqon.com'].abnAcn = '51 824 753 910';
+        merged['vendor@logiqon.com'].abnAcn = '51 824 753 556';
       }
       if (merged['vendor@logiqon.tech'] && (!merged['vendor@logiqon.tech'].status || merged['vendor@logiqon.tech'].status === 'PENDING')) {
         merged['vendor@logiqon.tech'].status = 'APPROVED';
         merged['vendor@logiqon.tech'].companyName = 'Apex Hardware & Logistics Ltd';
-        merged['vendor@logiqon.tech'].abnAcn = '51 824 753 910';
+        merged['vendor@logiqon.tech'].abnAcn = '51 824 753 556';
+      }
+
+      // Auto-normalize: accounts without mfaSecret should not enforce MFA challenge on login
+      for (const key in merged) {
+        if (merged[key].mfaEnabled && !merged[key].mfaSecret) {
+          merged[key].mfaEnabled = false;
+        }
       }
 
       return merged;
@@ -253,6 +262,10 @@ export function verifyPasswordResetOtp(email: string, inputCode: string): boolea
   return false;
 }
 
+if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_SECRET) {
+  console.warn('CRITICAL: NEXTAUTH_SECRET is not set in production. This is insecure.');
+}
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
@@ -316,13 +329,15 @@ export const authOptions: NextAuthOptions = {
                 payloadJson: { email: user.email, role: user.role },
               }).catch(() => {});
 
+              const isMfaActive = Boolean(user.mfaEnabled && user.mfaSecret);
               return {
                 id: user.id,
                 email: user.email,
                 name: user.fullName,
                 role: user.role,
-                mfaEnabled: user.mfaEnabled,
-                mfaVerified: !user.mfaEnabled,
+                mfaEnabled: isMfaActive,
+                mfaVerified: !isMfaActive,
+                mfaSecret: user.mfaSecret || null,
               };
             }
           }
@@ -348,13 +363,15 @@ export const authOptions: NextAuthOptions = {
 
           const isValidPassword = await bcrypt.compare(credentials.password, runtimeUser.passwordHash);
           if (isValidPassword) {
+            const isMfaActive = Boolean(runtimeUser.mfaEnabled && runtimeUser.mfaSecret);
             return {
               id: runtimeUser.id,
               email: emailClean,
               name: runtimeUser.fullName,
               role: runtimeUser.role,
-              mfaEnabled: runtimeUser.mfaEnabled,
-              mfaVerified: !runtimeUser.mfaEnabled,
+              mfaEnabled: isMfaActive,
+              mfaVerified: !isMfaActive,
+              mfaSecret: runtimeUser.mfaSecret || null,
               assignedWarehouseCode: runtimeUser.assignedWarehouseCode || (runtimeUser.role === 'WAREHOUSE' ? 'UNASSIGNED' : undefined),
             };
           }
@@ -371,12 +388,14 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role;
         token.mfaEnabled = (user as any).mfaEnabled;
         token.mfaVerified = (user as any).mfaVerified;
+        token.mfaSecret = (user as any).mfaSecret || null;
         token.assignedWarehouseCode = (user as any).assignedWarehouseCode;
       }
       if (trigger === 'update') {
         if (session?.role) token.role = session.role;
         if (session?.mfaEnabled !== undefined) token.mfaEnabled = session.mfaEnabled;
         if (session?.mfaVerified !== undefined) token.mfaVerified = session.mfaVerified;
+        if (session?.mfaSecret !== undefined) token.mfaSecret = session.mfaSecret;
         if (session?.assignedWarehouseCode) token.assignedWarehouseCode = session.assignedWarehouseCode;
       }
       return token;
@@ -387,10 +406,12 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = token.role as UserRole;
         (session.user as any).mfaEnabled = token.mfaEnabled as boolean;
         (session.user as any).mfaVerified = token.mfaVerified as boolean;
+        (session.user as any).mfaSecret = token.mfaSecret as string;
         (session.user as any).assignedWarehouseCode = token.assignedWarehouseCode as string;
       }
       return session;
     },
   },
+  // Insecure for production, only used as fallback for development
   secret: process.env.NEXTAUTH_SECRET || 'super-secret-ci-key-logiq-2026',
 };

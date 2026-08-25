@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const assignedRole: UserRole = (['VENDOR', 'WAREHOUSE', 'PLATFORM_OWNER'].includes(role) ? role : 'VENDOR') as UserRole;
+    const assignedRole: UserRole = 'VENDOR' as UserRole;
 
     // 5. Strict Email Uniqueness Check across Runtime Store
     if (isUserRegistered(emailClean)) {

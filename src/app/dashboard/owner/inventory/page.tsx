@@ -60,7 +60,6 @@ export default function OwnerInventoryPage() {
   const [warehouses, setWarehouses] = useState<WarehouseLocation[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [orders, setOrders] = useState<OutboundOrder[]>([]);
-  const [reconciliation, setReconciliation] = useState<ReconciliationReport | null>(null);
   const [loading, setLoading] = useState(true);
 
   const assignedWh = React.useMemo(() => {
@@ -111,7 +110,6 @@ export default function OwnerInventoryPage() {
   const [whCode, setWhCode] = useState('');
   const [whName, setWhName] = useState('');
   const [whAddress, setWhAddress] = useState('');
-  const [whContact, setWhContact] = useState('');
   const [whManagerEmail, setWhManagerEmail] = useState('sydney.manager@logiqon.com');
   const [whManagerName, setWhManagerName] = useState('Jack Taylor (Sydney Warehouse Manager)');
   const [registeredManagers, setRegisteredManagers] = useState<Array<{ fullName: string; email: string }>>([
@@ -185,8 +183,6 @@ export default function OwnerInventoryPage() {
   // Day 10: Reports, RMA Returns, Carrier Dispatch & Safety Threshold States
   const [returnsList, setReturnsList] = useState<RmaReturnRequest[]>([]);
   const [reportSubTab, setReportSubTab] = useState<'valuation' | 'lowstock' | 'movement'>('valuation');
-  const [reportWhFilter, setReportWhFilter] = useState('ALL');
-  const [reportCatFilter, setReportCatFilter] = useState('ALL');
 
   // Carrier Dispatch Release State
   const [selectedDispatchOrder, setSelectedDispatchOrder] = useState<OutboundOrder | null>(null);
@@ -265,7 +261,6 @@ export default function OwnerInventoryPage() {
       }
 
       setStockList(stockData.stock || []);
-      setReconciliation(stockData.reconciliation || null);
       setLedgerList(ledgerData.ledger || []);
       setWarehouses(whData.warehouses || []);
       setItems(itemsData.items || []);
@@ -533,8 +528,6 @@ export default function OwnerInventoryPage() {
           code: whCode,
           name: whName,
           address: whAddress,
-          contactPerson: whContact || whManagerName,
-          contactEmail: whManagerEmail,
           managerName: whManagerName,
           managerEmail: whManagerEmail,
           initialBins: binRows.map((r) => ({
@@ -714,13 +707,14 @@ export default function OwnerInventoryPage() {
   // Day 10: CSV Exporter Helper Functions
   const exportStockReportCSV = () => {
     const headers = ['SKU', 'Item Name', 'EAN Barcode', 'Warehouse', 'Bin Location', 'Vendor', 'Stock On Hand (Units)', 'Available (Units)', 'Reserved (Units)', 'Unit Price ($)', 'Est. Stock Value ($)'];
-    const rows = stockList.map((s) => {
+    const exportTargetStock = isWarehouseManager ? stockList.filter((s) => s.warehouseCode === assignedWh) : stockList;
+    const rows = exportTargetStock.map((s) => {
       const itemMaster = items.find((i) => i.id === s.itemMasterId || i.sku === s.sku);
       const unitPrice = itemMaster?.sellingPrice || 100;
       const stockVal = s.quantityOnHand * unitPrice;
       return [
         s.sku,
-        `"${s.itemName.replace(/"/g, '""')}"`,
+        `"${(s.itemName || '').replace(/"/g, '""')}"`,
         s.barcode,
         s.warehouseCode,
         s.binLocation,
@@ -746,8 +740,11 @@ export default function OwnerInventoryPage() {
 
   const exportLowStockReportCSV = () => {
     const headers = ['SKU', 'Item Name', 'EAN Barcode', 'Total Stock On Hand', 'Safety Threshold', 'Deficit Quantity Needed', 'Suggested Reorder Qty', 'Vendor Contact', 'Alert Severity'];
-    const lowStockItems = items.map((item) => {
-      const totalStock = stockList
+    const exportTargetStock = isWarehouseManager ? stockList.filter((s) => s.warehouseCode === assignedWh) : stockList;
+    const exportTargetItems = isWarehouseManager ? items.filter((i) => exportTargetStock.some((s) => s.itemMasterId === i.id || s.sku === i.sku)) : items;
+
+    const lowStockItems = exportTargetItems.map((item) => {
+      const totalStock = exportTargetStock
         .filter((s) => s.itemMasterId === item.id || s.sku === item.sku)
         .reduce((sum, s) => sum + s.quantityOnHand, 0);
       const threshold = item.lowStockThreshold || 10;
@@ -759,7 +756,7 @@ export default function OwnerInventoryPage() {
 
     const rows = lowStockItems.map((x) => [
       x.item.sku,
-      `"${x.item.itemName.replace(/"/g, '""')}"`,
+      `"${(x.item.itemName || '').replace(/"/g, '""')}"`,
       x.item.barcode,
       x.totalStock,
       x.threshold,
@@ -782,13 +779,14 @@ export default function OwnerInventoryPage() {
 
   const exportLedgerReportCSV = () => {
     const headers = ['Ledger Row ID', 'Timestamp', 'Movement Type', 'Reference Number', 'SKU', 'Item Name', 'Warehouse', 'Bin Location', 'Quantity Delta', 'Reason Code', 'Operator Email'];
-    const rows = ledgerList.map((l) => [
+    const exportTargetLedger = isWarehouseManager ? ledgerList.filter((l) => l.warehouseCode === assignedWh) : ledgerList;
+    const rows = exportTargetLedger.map((l) => [
       l.id,
       `"${new Date(l.createdAt).toLocaleString()}"`,
       l.movementType,
       l.referenceNumber,
       l.sku,
-      `"${l.itemName.replace(/"/g, '""')}"`,
+      `"${(l.itemName || '').replace(/"/g, '""')}"`,
       l.warehouseCode,
       l.binLocation,
       l.quantityDelta,
@@ -1014,7 +1012,7 @@ export default function OwnerInventoryPage() {
       <div className="p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 font-sans">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
-            <Boxes className="w-3.5 h-3.5 text-emerald-600" /> PILLAR 03 • GLOBAL ENTERPRISE 3PL INVENTORY CORE
+            <Boxes className="w-3.5 h-3.5 text-emerald-600" /> GLOBAL ENTERPRISE 3PL INVENTORY CORE
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
             Enterprise Inventory Stock &amp; Immutable Ledger Hub
@@ -1867,7 +1865,7 @@ export default function OwnerInventoryPage() {
                                   onClick={() => setSelectedDispatchOrder(ord)}
                                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] gap-1 py-1"
                                 >
-                                  <Truck className="w-3.5 h-3.5" /> 🚚 Release Dispatch
+                                  <Truck className="w-3.5 h-3.5" /> Release Dispatch
                                 </Button>
                                 <Button
                                   size="sm"
@@ -1936,21 +1934,21 @@ export default function OwnerInventoryPage() {
             <div className="flex items-center gap-2 w-full md:w-auto justify-end">
               {reportSubTab === 'valuation' && (
                 <Button onClick={exportStockReportCSV} variant="outline" className="text-xs font-bold gap-1.5 border-slate-300">
-                  <Download className="w-3.5 h-3.5 text-emerald-600" /> 📥 Export Valuation CSV
+                  <Download className="w-3.5 h-3.5 text-emerald-600" /> Export Valuation CSV
                 </Button>
               )}
               {reportSubTab === 'lowstock' && (
                 <Button onClick={exportLowStockReportCSV} variant="outline" className="text-xs font-bold gap-1.5 border-slate-300">
-                  <Download className="w-3.5 h-3.5 text-amber-600" /> 📥 Export Low-Stock CSV
+                  <Download className="w-3.5 h-3.5 text-amber-600" /> Export Low-Stock CSV
                 </Button>
               )}
               {reportSubTab === 'movement' && (
                 <Button onClick={exportLedgerReportCSV} variant="outline" className="text-xs font-bold gap-1.5 border-slate-300">
-                  <Download className="w-3.5 h-3.5 text-indigo-600" /> 📥 Export Movement CSV
+                  <Download className="w-3.5 h-3.5 text-indigo-600" /> Export Movement CSV
                 </Button>
               )}
               <Button onClick={() => window.print()} className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5">
-                <Printer className="w-3.5 h-3.5" /> 🖨️ Print / Save PDF
+                <Printer className="w-3.5 h-3.5" /> Print / Save PDF
               </Button>
             </div>
           </div>
@@ -1962,14 +1960,14 @@ export default function OwnerInventoryPage() {
                 <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Physical Inventory</div>
                   <div className="text-2xl font-black text-slate-900 font-mono mt-1">
-                    {stockList.reduce((sum, s) => sum + (s?.quantityOnHand || 0), 0).toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
+                    {displayStockList.reduce((sum, s) => sum + (s?.quantityOnHand || 0), 0).toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
                   </div>
                 </div>
 
                 <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Total Stock Value</div>
                   <div className="text-2xl font-black text-emerald-700 font-mono mt-1">
-                    ${stockList.reduce((sum, s) => {
+                    ${displayStockList.reduce((sum, s) => {
                       if (!s) return sum;
                       const itemMaster = items.find((i) => i && (i.id === s.itemMasterId || (i.sku && s.sku && i.sku === s.sku)));
                       const unitPrice = itemMaster?.sellingPrice || 100;
@@ -1981,7 +1979,7 @@ export default function OwnerInventoryPage() {
                 <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl">
                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Warehouses Reported</div>
                   <div className="text-2xl font-black text-slate-900 font-mono mt-1">
-                    {warehouses.length} <span className="text-xs font-normal text-slate-500">facilities nationwide</span>
+                    {isWarehouseManager ? 1 : warehouses.length} <span className="text-xs font-normal text-slate-500">facilities</span>
                   </div>
                 </div>
               </div>
@@ -2009,7 +2007,7 @@ export default function OwnerInventoryPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {stockList.map((s) => {
+                      {displayStockList.map((s) => {
                         if (!s) return null;
                         const itemMaster = items.find((i) => i && (i.id === s.itemMasterId || (i.sku && s.sku && i.sku === s.sku)));
                         const unitPrice = itemMaster?.sellingPrice || 100;
@@ -2040,7 +2038,7 @@ export default function OwnerInventoryPage() {
                 <div className="p-4 border border-rose-200 bg-rose-50/50 shadow-sm rounded-2xl">
                   <div className="text-xs font-bold text-rose-700 uppercase tracking-wider">Critical Zero Stock Items</div>
                   <div className="text-2xl font-black text-rose-700 font-mono mt-1">
-                    {items.filter((i) => i && stockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sum, s) => sum + (s.quantityOnHand || 0), 0) === 0).length} <span className="text-xs font-normal text-rose-600">SKUs out of stock</span>
+                    {items.filter((i) => i && displayStockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sum, s) => sum + (s.quantityOnHand || 0), 0) === 0).length} <span className="text-xs font-normal text-rose-600">SKUs out of stock</span>
                   </div>
                 </div>
 
@@ -2049,7 +2047,7 @@ export default function OwnerInventoryPage() {
                   <div className="text-2xl font-black text-amber-800 font-mono mt-1">
                     {items.filter((i) => {
                       if (!i) return false;
-                      const totalStock = stockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sum, s) => sum + (s.quantityOnHand || 0), 0);
+                      const totalStock = displayStockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sum, s) => sum + (s.quantityOnHand || 0), 0);
                       const threshold = i.lowStockThreshold || 10;
                       return totalStock > 0 && totalStock <= threshold;
                     }).length} <span className="text-xs font-normal text-amber-700">SKUs below threshold</span>
@@ -2061,7 +2059,7 @@ export default function OwnerInventoryPage() {
                   <div className="text-2xl font-black text-slate-900 font-mono mt-1">
                     {items.reduce((sum, i) => {
                       if (!i) return sum;
-                      const totalStock = stockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sAcc, s) => sAcc + (s.quantityOnHand || 0), 0);
+                      const totalStock = displayStockList.filter((s) => s && (s.itemMasterId === i.id || (s.sku && i.sku && s.sku === i.sku))).reduce((sAcc, s) => sAcc + (s.quantityOnHand || 0), 0);
                       const threshold = i.lowStockThreshold || 10;
                       const reorderQty = i.reorderQuantity || 50;
                       return totalStock <= threshold ? sum + (reorderQty - totalStock) : sum;
@@ -2093,8 +2091,8 @@ export default function OwnerInventoryPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {items.map((item) => {
-                        const totalStock = stockList
+                      {(isWarehouseManager ? items.filter((i) => displayStockList.some((s) => s.itemMasterId === i.id || s.sku === i.sku)) : items).map((item) => {
+                        const totalStock = displayStockList
                           .filter((s) => s.itemMasterId === item.id || s.sku === item.sku)
                           .reduce((sum, s) => sum + s.quantityOnHand, 0);
                         const threshold = item.lowStockThreshold || 10;
@@ -2146,7 +2144,7 @@ export default function OwnerInventoryPage() {
                                 }}
                                 className="text-[11px] font-bold border-slate-300 text-slate-700 hover:bg-slate-100 py-1"
                               >
-                                <Sliders className="w-3.5 h-3.5 text-slate-500" /> ⚙️ Configure Threshold
+                                <Sliders className="w-3.5 h-3.5 text-slate-500" /> Configure Threshold
                               </Button>
                             </td>
                           </tr>
@@ -2215,7 +2213,7 @@ export default function OwnerInventoryPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-mono">
-                      {ledgerList.map((entry) => {
+                      {(isWarehouseManager ? ledgerList.filter((l) => l.warehouseCode === assignedWh) : ledgerList).map((entry) => {
                         const isPos = entry.quantityDelta > 0;
                         return (
                           <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
@@ -2267,13 +2265,15 @@ export default function OwnerInventoryPage() {
                 setIsRmaModalOpen(true);
                 if (items.length > 0) setRmaItem(items[0].id);
                 if (warehouses.length > 0) {
-                  setRmaWarehouse(warehouses[0].code);
-                  setRmaBin(warehouses[0].bins[0]?.code || 'BIN-A1-01');
+                  const whCode = isWarehouseManager ? (assignedWh || warehouses[0].code) : warehouses[0].code;
+                  setRmaWarehouse(whCode);
+                  const target = warehouses.find((w) => w.code === whCode);
+                  setRmaBin(target?.bins[0]?.code || 'BIN-A1-01');
                 }
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2"
             >
-              <Plus className="w-4 h-4" /> + Process Customer RMA Return
+              <Plus className="w-4 h-4" /> Process Customer RMA Return
             </Button>
           </div>
 
@@ -2417,7 +2417,7 @@ export default function OwnerInventoryPage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={dispatchSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-2">
-                <Truck className="w-4 h-4" /> 🚚 Confirm Carrier Pickup &amp; Release
+                <Truck className="w-4 h-4" /> Confirm Carrier Pickup &amp; Release
               </Button>
             </div>
           </form>
@@ -2503,14 +2503,20 @@ export default function OwnerInventoryPage() {
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Target Warehouse *</label>
               <Select
-                value={rmaWarehouse}
+                value={isWarehouseManager ? assignedWh : rmaWarehouse}
+                disabled={isWarehouseManager}
                 onChange={(e) => {
+                  if (isWarehouseManager) return;
                   const whCode = e.target.value;
                   setRmaWarehouse(whCode);
                   const target = warehouses.find((w) => w.code === whCode);
                   if (target && target.bins.length > 0) setRmaBin(target.bins[0].code);
                 }}
-                options={warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))}
+                options={
+                  isWarehouseManager
+                    ? [{ value: assignedWh, label: `🔒 Facility Desk: ${assignedWh}` }]
+                    : warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` }))
+                }
                 className="text-xs"
               />
             </div>
@@ -2811,7 +2817,7 @@ export default function OwnerInventoryPage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={packSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2">
-                <Package className="w-4 h-4" /> 📦 Confirm Packing &amp; Release Dispatch
+                <Package className="w-4 h-4" /> Confirm Packing &amp; Release Dispatch
               </Button>
             </div>
           </form>

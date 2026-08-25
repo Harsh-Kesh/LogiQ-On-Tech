@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { loadPersistentOrders } from './orders';
 
 export type MovementType = 'RECEIPT' | 'ISSUE' | 'ADJUSTMENT' | 'RETURN' | 'TRANSFER';
 
@@ -340,6 +341,19 @@ export function addStockLedgerEntry(entry: Omit<StockLedgerEntry, 'id' | 'create
 export function calculateStockOnHand(): StockOnHandItem[] {
   const ledger = loadPersistentStockLedger();
   const stockMap = new Map<string, StockOnHandItem>();
+  const orders = loadPersistentOrders();
+  const reservedMap = new Map<string, number>();
+
+  for (const order of orders) {
+    if (order.status === 'IN_PICKING' || order.status === 'PICKED') {
+      if (order.pickSteps) {
+        for (const step of order.pickSteps) {
+          const key = `${order.warehouseCode}___${step.binLocation}___${step.itemMasterId}`;
+          reservedMap.set(key, (reservedMap.get(key) || 0) + step.quantityToPick);
+        }
+      }
+    }
+  }
 
   for (const row of ledger) {
     const key = `${row.warehouseCode}___${row.binLocation}___${row.itemMasterId}`;
@@ -371,6 +385,7 @@ export function calculateStockOnHand(): StockOnHandItem[] {
 
     // Keep non-negative (guard against software glitches)
     if (existing.quantityOnHand < 0) existing.quantityOnHand = 0;
+    existing.quantityReserved = reservedMap.get(key) || 0;
     existing.quantityAvailable = Math.max(0, existing.quantityOnHand - existing.quantityReserved);
 
     stockMap.set(key, existing);
@@ -393,20 +408,46 @@ export function reconcileStockLedger(): ReconciliationReport {
   let totalReturns = 0;
   let netStockOnHand = 0;
 
+  // Compute ledger-derived stock per warehouse+bin+item
+  const ledgerStockMap = new Map<string, number>();
   for (const row of ledger) {
     netStockOnHand += row.quantityDelta;
     if (row.movementType === 'RECEIPT') totalReceipts += row.quantityDelta;
     else if (row.movementType === 'ISSUE') totalIssues += Math.abs(row.quantityDelta);
     else if (row.movementType === 'ADJUSTMENT') totalAdjustments += row.quantityDelta;
     else if (row.movementType === 'RETURN') totalReturns += row.quantityDelta;
+    else if (row.movementType === 'TRANSFER') totalAdjustments += row.quantityDelta;
+
+    const key = `${row.warehouseCode}___${row.binLocation}___${row.itemMasterId}`;
+    ledgerStockMap.set(key, (ledgerStockMap.get(key) || 0) + row.quantityDelta);
+  }
+
+  // Compare against calculated stock on hand and detect discrepancies
+  const discrepancies: Array<{ itemMasterId: string; sku: string; warehouseId: string; binLocation: string; derivedFromLedger: number; recordedStock: number; difference: number }> = [];
+  for (const stockItem of calculatedStock) {
+    const key = `${stockItem.warehouseCode}___${stockItem.binLocation}___${stockItem.itemMasterId}`;
+    const ledgerQty = ledgerStockMap.get(key) || 0;
+    const actualQty = stockItem.quantityOnHand;
+    // Note: quantityOnHand is clamped to 0, so discrepancy is when ledger shows negative but display shows 0
+    if (Math.abs(ledgerQty - actualQty) > 0.001) {
+      discrepancies.push({
+        itemMasterId: stockItem.itemMasterId,
+        sku: stockItem.sku,
+        warehouseId: stockItem.warehouseCode,
+        binLocation: stockItem.binLocation,
+        derivedFromLedger: ledgerQty,
+        recordedStock: actualQty,
+        difference: actualQty - ledgerQty,
+      });
+    }
   }
 
   return {
     timestamp: new Date().toISOString(),
     totalLedgerRecords: ledger.length,
     totalStockItems: calculatedStock.length,
-    reconciled: true,
-    discrepancyCount: 0,
+    reconciled: discrepancies.length === 0,
+    discrepancyCount: discrepancies.length,
     summary: {
       totalReceipts,
       totalIssues,
@@ -414,7 +455,7 @@ export function reconcileStockLedger(): ReconciliationReport {
       totalReturns,
       netStockOnHand,
     },
-    discrepancies: [],
+    discrepancies,
   };
 }
 
