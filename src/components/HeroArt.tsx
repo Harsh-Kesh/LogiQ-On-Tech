@@ -8,6 +8,7 @@ export type HeroArtVariant =
   | "contact"
   | "demo"
   | "login"
+  | "customer-login"
   | "vendor-login";
 
 const PHOTOS: Record<HeroArtVariant, { src: string; alt: string }> = {
@@ -32,6 +33,10 @@ const PHOTOS: Record<HeroArtVariant, { src: string; alt: string }> = {
     alt: "Warehouse employee scanning inventory with a tablet and scanner",
   },
   login: {
+    src: "https://images.pexels.com/photos/4484042/pexels-photo-4484042.jpeg?auto=compress&cs=tinysrgb&w=800",
+    alt: "Warehouse worker checking inventory on a tablet",
+  },
+  "customer-login": {
     src: "https://images.pexels.com/photos/4484042/pexels-photo-4484042.jpeg?auto=compress&cs=tinysrgb&w=800",
     alt: "Warehouse worker checking inventory on a tablet",
   },

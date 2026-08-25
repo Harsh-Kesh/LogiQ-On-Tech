@@ -3,23 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NAV_LINKS } from "@/lib/nav";
 import Brand from "./Brand";
 import MobileNav from "./MobileNav";
-
-const PROJECT_NAV_ITEMS = [
-  { label: "Home", href: "/" },
-  { label: "Owner Console", href: "/dashboard/owner" },
-  { label: "User Directory", href: "/dashboard/owner/users" },
-  { label: "Audit Logs", href: "/dashboard/owner/audit-logs" },
-  { label: "Vendor Portal", href: "/dashboard/vendor" },
-  { label: "Warehouse", href: "/dashboard/warehouse" },
-];
 
 export default function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  if (pathname?.startsWith("/dashboard/")) return null;
+  if (
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/auth") ||
+    pathname?.startsWith("/portal") ||
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/customer-login" ||
+    pathname === "/vendor-login"
+  )
+    return null;
 
   return (
     <>
@@ -27,18 +28,17 @@ export default function Header() {
         <div className="container header-container header-inner">
           <Brand />
           <nav className="main-nav" aria-label="Primary">
-            {PROJECT_NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={pathname === item.href ? "active" : ""}
-              >
-                {item.label}
+            {NAV_LINKS.map((l) => (
+              <Link key={l.key} href={l.href} className={pathname === l.href ? "active" : ""}>
+                {l.label}
               </Link>
             ))}
           </nav>
           <div className="header-actions">
-            <Link href="/auth/login" className="btn-liquid-login">
+            <Link
+              href="/auth/login"
+              className="btn-liquid-login"
+            >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
