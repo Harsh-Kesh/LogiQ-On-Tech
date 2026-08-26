@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { loadPersistentWarehouses, savePersistentWarehouses, WarehouseLocation } from '@/lib/stock';
+import { loadPersistentWarehouses, savePersistentWarehouses, WarehouseLocation, loadPersistentStockLedger, savePersistentStockLedger, StockLedgerEntry } from '@/lib/stock';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized: Admin or Warehouse operator role required.' }, { status: 403 });
   }
 
-  const { code, name, address, contactPerson, contactEmail, managerName, managerEmail, binCode, binZone, binCapacity, initialBins } = await req.json();
+  const { code, name, address, contactPerson, contactEmail, managerName, managerEmail, binCode, binZone, binCapacity, initialBins, items } = await req.json();
 
   if (!code) {
     return NextResponse.json({ error: 'Warehouse Code is required.' }, { status: 400 });
@@ -136,6 +136,40 @@ export async function POST(req: Request) {
   persistentWarehouses[cleanCode] = targetWh;
   savePersistentWarehouses(persistentWarehouses);
 
+  // A1: seed initial stock ledger entries for items selected from Master Data
+  let seededItems = 0;
+  if (Array.isArray(items) && items.length > 0) {
+    const ledger = loadPersistentStockLedger();
+    for (const it of items) {
+      if (!it?.itemMasterId) continue;
+      const qty = Math.max(0, parseInt(String(it.initialQty), 10) || 0);
+      const binLocation = (it.binLocation || targetWh.bins[0]?.code || 'BIN-A1-01').toString().toUpperCase();
+      if (qty > 0) {
+        const entry: StockLedgerEntry = {
+          id: `ldg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          warehouseId: targetWh.id,
+          warehouseCode: targetWh.code,
+          warehouseName: targetWh.name,
+          itemMasterId: it.itemMasterId,
+          sku: it.sku || 'UNKNOWN',
+          barcode: '',
+          itemName: it.itemName || 'Unknown Item',
+          binLocation,
+          movementType: 'RECEIPT',
+          quantityDelta: qty,
+          referenceNumber: `WH-OPEN-${cleanCode}-${Date.now()}`,
+          reasonCode: 'Warehouse commissioning — initial stock from Master Data',
+          createdById: user.id,
+          createdByEmail: user.email || 'owner@logiqon.com',
+          createdAt: new Date().toISOString(),
+        };
+        ledger.push(entry);
+      }
+      seededItems++;
+    }
+    savePersistentStockLedger(ledger);
+  }
+
   try {
     await prisma.warehouse.upsert({
       where: { code: cleanCode },
@@ -150,12 +184,13 @@ export async function POST(req: Request) {
     action: 'WAREHOUSE_LOCATION_CONFIGURED',
     module: 'WAREHOUSE_OPERATIONS',
     targetId: targetWh.id,
-    payloadJson: { code: cleanCode, name: targetWh.name, binCount: targetWh.bins.length },
+    payloadJson: { code: cleanCode, name: targetWh.name, binCount: targetWh.bins.length, itemCount: seededItems },
   }).catch(() => {});
 
   return NextResponse.json({
     success: true,
-    message: `Warehouse '${cleanCode}' updated with ${targetWh.bins.length} bin locations.`,
+    message: `Warehouse '${cleanCode}' updated with ${targetWh.bins.length} bin locations and ${seededItems} items.`,
     warehouse: targetWh,
+    seededItems,
   });
 }

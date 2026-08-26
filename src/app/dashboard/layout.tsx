@@ -7,7 +7,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Brand from '@/components/Brand';
-import { Shield, Building, Warehouse, Key, FileText, LogOut, Lock, Users, Package } from 'lucide-react';
+import HelpdeskLauncher from '@/components/HelpdeskLauncher';
+import { Shield, Building, Warehouse, Key, FileText, LogOut, Lock, Users, Package, Truck, ShoppingCart, ClipboardList, Receipt } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -37,11 +38,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navLinks = [
     { name: 'Platform Owner', href: '/dashboard/owner', roleRequired: ['PLATFORM_OWNER'], icon: Shield },
-    { name: 'Item Master (MDM)', href: '/dashboard/owner/items', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Package },
+    { name: 'B2B Orders', href: '/dashboard/owner/b2b-orders', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: ShoppingCart },
+    { name: 'Master Data', href: '/dashboard/owner/items', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Package },
+    { name: 'Vendor Master Data', href: '/dashboard/owner/vendor-master', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Truck },
+    { name: 'Customer Master Data', href: '/dashboard/owner/customer-master', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: ShoppingCart },
     { name: 'User Directory', href: '/dashboard/owner/users', roleRequired: ['PLATFORM_OWNER'], icon: Users },
     { name: 'Vendor Directory', href: '/dashboard/owner/vendors', roleRequired: ['PLATFORM_OWNER'], icon: Building },
     { name: 'Vendor Portal', href: '/dashboard/vendor', roleRequired: ['VENDOR'], icon: Building },
     { name: 'Warehouse Point', href: '/dashboard/warehouse', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: Warehouse },
+    { name: 'Warehouse Dispatch List', href: '/dashboard/warehouse/dispatch-notes', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: ClipboardList },
+    { name: 'Dispatch Invoice & Payment', href: '/dashboard/warehouse/dispatch-invoices', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: Receipt },
     { name: 'Audit Logs', href: '/dashboard/owner/audit-logs', roleRequired: ['PLATFORM_OWNER'], icon: FileText },
     { name: 'MFA Security', href: '/dashboard/mfa-enrol', roleRequired: ['PLATFORM_OWNER', 'VENDOR', 'WAREHOUSE'], icon: Lock },
   ];
@@ -77,6 +83,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
               </div>
             </div>
+
+            <HelpdeskLauncher compact />
 
             <button
               onClick={() => signOut({ callbackUrl: '/auth/login' })}

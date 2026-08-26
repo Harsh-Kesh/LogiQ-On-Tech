@@ -26,10 +26,6 @@ interface VendorRecord {
   abnAcn: string;
   status: 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'SUSPENDED' | 'REJECTED';
   rejectionReason?: string;
-  fulfillmentRate?: number;
-  onTimeDeliveryRate?: number;
-  qualityRating?: number;
-  ordersFulfilled?: number;
   userId: string;
   user: {
     id: string;
@@ -393,39 +389,6 @@ export default function AdminVendorsPage() {
                 <Badge variant={selectedVendor.status === 'APPROVED' ? 'emerald' : selectedVendor.status === 'UNDER_REVIEW' ? 'amber' : 'danger'}>
                   {selectedVendor.status}
                 </Badge>
-              </div>
-            </div>
-
-            {/* Vendor Performance Telemetry Fields (Contextual for New vs Approved Vendors) */}
-            <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2">
-              <h4 className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-indigo-600" /> Executed Vendor Performance Monitoring Telemetry
-              </h4>
-              <div className="grid grid-cols-4 gap-2 pt-1 font-mono text-center">
-                <div className="p-2 rounded-xl bg-white border border-indigo-100">
-                  <span className="text-[10px] text-slate-500 block font-sans">Fulfillment</span>
-                  <span className="font-bold text-slate-900 text-sm">
-                    {selectedVendor.fulfillmentRate != null ? `${selectedVendor.fulfillmentRate}%` : 'N/A'}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-white border border-indigo-100">
-                  <span className="text-[10px] text-slate-500 block font-sans">On-Time Index</span>
-                  <span className="font-bold text-slate-900 text-sm">
-                    {selectedVendor.onTimeDeliveryRate != null ? `${selectedVendor.onTimeDeliveryRate}%` : 'N/A'}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-white border border-indigo-100">
-                  <span className="text-[10px] text-slate-500 block font-sans">QA Rating</span>
-                  <span className="font-bold text-slate-900 text-sm">
-                    {selectedVendor.qualityRating != null ? `${selectedVendor.qualityRating} / 5` : 'N/A'}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-white border border-indigo-100">
-                  <span className="text-[10px] text-slate-500 block font-sans">Fulfilled Orders</span>
-                  <span className="font-bold text-slate-900 text-sm">
-                    {selectedVendor.ordersFulfilled ?? 0}
-                  </span>
-                </div>
               </div>
             </div>
 

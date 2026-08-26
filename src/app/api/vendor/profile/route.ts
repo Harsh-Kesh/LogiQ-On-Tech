@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions, loadPersistentUsers, updateRuntimeVendorProfile } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
-import { calculateVendorMetrics, checkAbnAcnCompliance } from '@/lib/vendor-metrics';
+import { checkAbnAcnCompliance } from '@/lib/vendor-metrics';
 import { isValidAbnAcn } from '@/lib/validation';
 
 export async function GET(req: Request) {
@@ -39,7 +39,6 @@ export async function GET(req: Request) {
   const effectiveStatus = persistentRecord?.status || dbVendor?.status || 'PENDING';
 
   const vendorId = dbVendor?.id || `vnd_${userId}`;
-  const metrics = calculateVendorMetrics(vendorId, userEmail, [userId]);
   const abnAcnValue = persistentRecord?.abnAcn || dbVendor?.abnAcn || '';
   const compliance = checkAbnAcnCompliance(abnAcnValue);
 
@@ -57,7 +56,6 @@ export async function GET(req: Request) {
         user: { email: persistentRecord.email, fullName: persistentRecord.fullName },
         createdAt: persistentRecord.createdAt,
         docs: persistentRecord.docs || dbVendor?.docs || [],
-        ...metrics,
       },
     });
   }
@@ -69,7 +67,6 @@ export async function GET(req: Request) {
         status: effectiveStatus,
         abnAcnVerified: compliance.verified,
         abnAcnMessage: compliance.message,
-        ...metrics,
       },
     });
   }
@@ -77,7 +74,6 @@ export async function GET(req: Request) {
   // Demo seed account fallback for preset default vendor
   if (user.email === 'vendor@logiqon.com' || userId === 'usr_vendor_01') {
     const demoVendorId = `vnd_${userId || 'usr_vendor_01'}`;
-    const demoMetrics = calculateVendorMetrics(demoVendorId, user.email);
     const demoCompliance = checkAbnAcnCompliance('51 824 753 556');
     return NextResponse.json({
       vendor: {
@@ -110,7 +106,6 @@ export async function GET(req: Request) {
             uploadedAt: new Date().toISOString(),
           },
         ],
-        ...demoMetrics,
       },
     });
   }
@@ -128,7 +123,6 @@ export async function GET(req: Request) {
       user: { email: user.email, fullName: user.name || 'New Vendor Account' },
       createdAt: new Date().toISOString(),
       docs: [],
-      ...metrics,
     },
   });
 }

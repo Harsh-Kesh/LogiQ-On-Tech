@@ -122,7 +122,27 @@ export default function OwnerInventoryPage() {
     { code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacity: '1000' },
     { code: 'BIN-A1-02', zone: 'Zone A - Reserve', capacity: '2000' },
   ]);
+  // A1: Warehouse item picker (search MDM master data → attach items to warehouse at creation)
+  const [whItems, setWhItems] = useState<Array<{ itemMasterId: string; sku: string; itemName: string; initialQty: string; binLocation: string }>>([]);
+  const [whItemSearch, setWhItemSearch] = useState('');
+  const [isWhItemDropdownOpen, setIsWhItemDropdownOpen] = useState(false);
   const [whSubmitting, setWhSubmitting] = useState(false);
+
+  const addWhItem = (item: any) => {
+    if (whItems.some((r) => r.itemMasterId === item.id)) return;
+    setWhItems([
+      ...whItems,
+      { itemMasterId: item.id, sku: item.sku, itemName: item.itemName, initialQty: '0', binLocation: binRows[0]?.code || '' },
+    ]);
+    setWhItemSearch('');
+    setIsWhItemDropdownOpen(false);
+  };
+  const removeWhItem = (idx: number) => setWhItems(whItems.filter((_, i) => i !== idx));
+  const updateWhItem = (idx: number, field: 'initialQty' | 'binLocation', value: string) => {
+    const updated = [...whItems];
+    updated[idx][field] = value;
+    setWhItems(updated);
+  };
 
   const addBinRow = () => {
     const nextIdx = binRows.length + 1;
@@ -535,6 +555,13 @@ export default function OwnerInventoryPage() {
             zone: r.zone,
             capacity: parseInt(r.capacity, 10) || 1000,
           })),
+          items: whItems.map((r) => ({
+            itemMasterId: r.itemMasterId,
+            sku: r.sku,
+            itemName: r.itemName,
+            initialQty: parseInt(r.initialQty, 10) || 0,
+            binLocation: (r.binLocation || '').trim().toUpperCase(),
+          })),
         }),
       });
 
@@ -542,7 +569,7 @@ export default function OwnerInventoryPage() {
       if (!res.ok) {
         setToast({ message: data.error || 'Failed to add warehouse.', type: 'error' });
       } else {
-        setToast({ message: `Warehouse location '${whName}' (${whCode.toUpperCase()}) created with ${binRows.length} bins!`, type: 'success' });
+        setToast({ message: `Warehouse '${whName}' (${whCode.toUpperCase()}) created with ${binRows.length} bins and ${whItems.length} items.`, type: 'success' });
         setIsWhModalOpen(false);
         setWhCode('');
         setWhName('');
@@ -551,6 +578,8 @@ export default function OwnerInventoryPage() {
           { code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacity: '1000' },
           { code: 'BIN-A1-02', zone: 'Zone A - Reserve', capacity: '2000' },
         ]);
+        setWhItems([]);
+        setWhItemSearch('');
         fetchAllData();
       }
     } catch (e) {
@@ -3046,7 +3075,7 @@ export default function OwnerInventoryPage() {
                 leftIcon={<Plus className="w-3.5 h-3.5 text-emerald-600" />}
                 className="text-xs font-bold text-emerald-700 border-emerald-300 hover:bg-emerald-50 h-8"
               >
-                Add More Bins
+                Add items
               </Button>
             </div>
 
@@ -3101,6 +3130,111 @@ export default function OwnerInventoryPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* A1: Warehouse Items — searchable picker from MDM Master Data */}
+          <div className="pt-3 border-t border-slate-100 space-y-3 font-sans">
+            <div>
+              <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider font-mono">
+                Warehouse Items ({whItems.length} selected)
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Search items from Master Data (MDM) and pre-stock this warehouse with their initial quantities.
+              </p>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search items from Master Data by name, SKU or barcode..."
+                value={whItemSearch}
+                onFocus={() => setIsWhItemDropdownOpen(true)}
+                onChange={(e) => {
+                  setWhItemSearch(e.target.value);
+                  setIsWhItemDropdownOpen(true);
+                }}
+                onBlur={() => setTimeout(() => setIsWhItemDropdownOpen(false), 200)}
+                className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 font-semibold text-slate-900"
+              />
+              {isWhItemDropdownOpen && (
+                <div className="absolute z-30 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100">
+                  {items
+                    .filter((i) => {
+                      if (!whItemSearch) return true;
+                      const q = whItemSearch.toLowerCase();
+                      return (
+                        i.itemName.toLowerCase().includes(q) ||
+                        i.sku.toLowerCase().includes(q) ||
+                        (i.barcode || '').toLowerCase().includes(q)
+                      );
+                    })
+                    .slice(0, 25)
+                    .map((i) => (
+                      <div
+                        key={i.id}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => addWhItem(i)}
+                        className="p-3 text-xs hover:bg-emerald-50 cursor-pointer flex items-center justify-between transition-colors"
+                      >
+                        <div>
+                          <div className="font-extrabold text-slate-900">{i.itemName}</div>
+                          <div className="flex items-center gap-2 mt-0.5 font-mono text-[11px] text-slate-500">
+                            <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">{i.sku}</span>
+                            {i.barcode && <span>EAN: {i.barcode}</span>}
+                          </div>
+                        </div>
+                        <Plus className="w-4 h-4 text-emerald-600" />
+                      </div>
+                    ))}
+                  {items.length === 0 && (
+                    <div className="p-4 text-xs text-slate-500 text-center">No items in Master Data yet.</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {whItems.length > 0 && (
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {whItems.map((row, idx) => (
+                  <div key={row.itemMasterId} className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl grid grid-cols-12 gap-2.5 items-center">
+                    <div className="col-span-5">
+                      <div className="text-xs font-extrabold text-slate-900">{row.itemName}</div>
+                      <div className="text-[10px] font-mono text-emerald-700">{row.sku}</div>
+                    </div>
+                    <div className="col-span-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Initial Qty</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={row.initialQty}
+                        onChange={(e) => updateWhItem(idx, 'initialQty', e.target.value)}
+                        className="text-xs font-mono bg-white"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Bin Location</label>
+                      <Input
+                        value={row.binLocation}
+                        onChange={(e) => updateWhItem(idx, 'binLocation', e.target.value)}
+                        placeholder="e.g. BIN-A1-01"
+                        className="text-xs font-mono uppercase bg-white"
+                      />
+                    </div>
+                    <div className="col-span-1 flex justify-end pt-4">
+                      <button
+                        type="button"
+                        onClick={() => removeWhItem(idx)}
+                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700"
+                        title="Remove item"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">

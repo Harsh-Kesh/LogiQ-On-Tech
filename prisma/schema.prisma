@@ -65,12 +65,6 @@ model Vendor {
   userId              String       @unique
   user                User         @relation(fields: [userId], references: [id])
   approvedAt          DateTime?
-  
-  // Vendor Performance Monitoring Fields
-  fulfillmentRate    Float        @default(0)
-  onTimeDeliveryRate Float        @default(0)
-  qualityRating      Float        @default(0)
-  ordersFulfilled    Int          @default(0)
 
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt

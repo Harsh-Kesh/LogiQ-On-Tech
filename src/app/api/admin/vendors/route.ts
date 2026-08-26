@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions, loadPersistentUsers } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { calculateVendorMetrics, checkAbnAcnCompliance } from '@/lib/vendor-metrics';
+import { checkAbnAcnCompliance } from '@/lib/vendor-metrics';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -62,13 +62,10 @@ export async function GET(req: Request) {
   mockVendors.forEach((v) => {
     const pUser = persistentUsers[v.user.email.toLowerCase()];
     const realStatus = pUser?.status || v.status;
-    const extraIds = pUser?.id ? [pUser.id] : [];
-    const metrics = calculateVendorMetrics(v.id, v.user.email, extraIds);
     const compliance = checkAbnAcnCompliance(pUser?.abnAcn || v.abnAcn);
     combinedMap.set(v.user.email.toLowerCase(), {
       ...v,
       status: realStatus,
-      ...metrics,
       abnAcnVerified: compliance.verified,
       abnAcnMessage: compliance.message,
     });
@@ -96,7 +93,6 @@ export async function GET(req: Request) {
       const realStatus = pUser?.status || v?.status || existing?.status || 'PENDING';
       const vendorIdResolved = v?.id || existing?.id || `vnd_${u.id}`;
       const abnAcnResolved = v?.abnAcn || pUser?.abnAcn || existing?.abnAcn || '';
-      const metrics = calculateVendorMetrics(vendorIdResolved, u.email, [u.id]);
       const compliance = checkAbnAcnCompliance(abnAcnResolved);
 
       combinedMap.set(emailLower, {
@@ -107,7 +103,6 @@ export async function GET(req: Request) {
         abnAcnMessage: compliance.message,
         status: realStatus,
         rejectionReason: v?.rejectionReason || pUser?.rejectionReason || existing?.rejectionReason,
-        ...metrics,
         userId: u.id,
         user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: u.isSuspended },
         createdAt: v?.createdAt?.toISOString() || u.createdAt.toISOString(),
@@ -128,7 +123,6 @@ export async function GET(req: Request) {
       const realStatus = u.status || existing?.status || 'PENDING';
       const vendorIdResolved = existing?.id || `vnd_${u.id}`;
       const abnAcnResolved = u.abnAcn || existing?.abnAcn || '';
-      const metrics = calculateVendorMetrics(vendorIdResolved, u.email, [u.id]);
       const compliance = checkAbnAcnCompliance(abnAcnResolved);
 
       combinedMap.set(emailLower, {
@@ -139,7 +133,6 @@ export async function GET(req: Request) {
         abnAcnMessage: compliance.message,
         status: realStatus,
         rejectionReason: u.rejectionReason || existing?.rejectionReason,
-        ...metrics,
         userId: u.id,
         user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: false },
         createdAt: u.createdAt,

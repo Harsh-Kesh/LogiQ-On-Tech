@@ -36,10 +36,6 @@ interface VendorProfile {
   abnAcn?: string;
   status: 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
   rejectionReason?: string;
-  fulfillmentRate?: number;
-  onTimeDeliveryRate?: number;
-  qualityRating?: number;
-  ordersFulfilled?: number;
   totalOrders?: number;
   totalReturns?: number;
   damagedReturns?: number;
@@ -1077,100 +1073,18 @@ export default function VendorDashboardPage() {
         )}
       </div>
 
-      {/* Vendor Performance Scorecard & SLA Compliance Dashboard */}
+      {/* Compliance Status Summary (Performance metrics removed) */}
       {vendor && vendor.status === 'APPROVED' && (
         <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-            <div>
-              <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Award className="w-4 h-4 text-amber-500" /> Performance Scorecard & SLA Compliance
-              </div>
-              <h2 className="text-xl font-extrabold text-slate-900 mt-1">Your Vendor Performance Dashboard</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Real-time SLA metrics, fulfillment rates, quality ratings, and compliance tracking as evaluated by LogiQ-On Platform Governance.</p>
+          <div className="border-b border-slate-100 pb-5">
+            <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <FileCheck className="w-4 h-4 text-emerald-600" /> Statutory Compliance
             </div>
+            <h2 className="text-xl font-extrabold text-slate-900 mt-1">ATO Compliance Status</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Current compliance and platform governance status for your vendor account.</p>
           </div>
 
-          {/* 4 KPI Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold text-emerald-700 uppercase">Fulfillment Rate</span>
-                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                  <Target className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-emerald-900 font-mono">
-                {vendor.fulfillmentRate != null ? `${vendor.fulfillmentRate}%` : '0%'}
-              </div>
-              <div className="w-full bg-emerald-200/50 rounded-full h-2">
-                <div className="bg-emerald-600 h-2 rounded-full transition-all" style={{ width: `${vendor.fulfillmentRate ?? 0}%` }} />
-              </div>
-              <p className="text-[10px] text-emerald-700 font-mono">Target: &ge; 95% SLA Threshold</p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-sky-50/60 border border-sky-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold text-sky-700 uppercase">On-Time Delivery</span>
-                <div className="p-1.5 rounded-lg bg-sky-100 text-sky-700">
-                  <Clock className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-sky-900 font-mono">
-                {vendor.onTimeDeliveryRate != null ? `${vendor.onTimeDeliveryRate}%` : '0%'}
-              </div>
-              <div className="w-full bg-sky-200/50 rounded-full h-2">
-                <div className="bg-sky-600 h-2 rounded-full transition-all" style={{ width: `${vendor.onTimeDeliveryRate ?? 0}%` }} />
-              </div>
-              <p className="text-[10px] text-sky-700 font-mono">Target: &ge; 90% SLA Threshold</p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold text-amber-700 uppercase">Quality Rating</span>
-                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
-                  <ThumbsUp className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-amber-900 font-mono">
-                {vendor.qualityRating != null ? `${vendor.qualityRating} / 5.0` : '0 / 5.0'}
-              </div>
-              <div className="flex items-center gap-0.5 mt-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star
-                    key={s}
-                    className={`w-4 h-4 ${
-                      s <= Math.round(vendor.qualityRating ?? 0)
-                        ? 'text-amber-500 fill-amber-400'
-                        : 'text-slate-300'
-                    }`}
-                  />
-                ))}
-              </div>
-              <p className="text-[10px] text-amber-700 font-mono">Platform Governance QA Score</p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold text-indigo-700 uppercase">Fulfilled Orders</span>
-                <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
-                  <BarChart3 className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-indigo-900 font-mono">
-                {vendor.ordersFulfilled ?? vendorOrders.filter((o: any) => o.status === 'DISPATCHED').length}
-              </div>
-              <p className="text-xs text-indigo-700 font-semibold flex items-center gap-1 mt-1">
-                <TrendingUp className="w-3.5 h-3.5" /> Outbound Dispatch Volume
-              </p>
-              <p className="text-[10px] text-indigo-600 font-mono">Lifetime Total Orders Processed</p>
-            </div>
-          </div>
-
-          {/* Compliance & Document Status Summary */}
           <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-emerald-600" /> ATO Statutory Compliance Status
-            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
               <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
                 <span className="text-slate-600">ABN / ACN Registration</span>

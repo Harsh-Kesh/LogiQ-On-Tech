@@ -456,16 +456,16 @@ export default function PlatformOwnerDashboard() {
         )}
       </div>
 
-      {/* 4. Vendor Performance Monitoring Console */}
+      {/* 4. Vendor Directory & Compliance */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div>
             <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-500" /> Vendor Telemetry &amp; SLA Compliance Engine
+              <Building className="w-4 h-4 text-amber-500" /> Vendor Directory &amp; Compliance
             </div>
-            <h2 className="text-xl font-extrabold text-slate-900 mt-1">Vendor Performance Monitoring Console</h2>
+            <h2 className="text-xl font-extrabold text-slate-900 mt-1">Vendor Onboarding &amp; Statutory Compliance</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Real-time monitoring of on-time fulfillment rates, quality assurance (QA) scores, completed order volumes, and statutory ATO ABN compliance status.
+              Registered vendor partners with statutory ATO ABN/ACN compliance status and approval workflow.
             </p>
           </div>
 
@@ -483,9 +483,6 @@ export default function PlatformOwnerDashboard() {
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-mono">
                 <th className="py-3.5 px-4 font-bold">Vendor Company</th>
                 <th className="py-3.5 px-4 font-bold">ATO ABN / ACN</th>
-                <th className="py-3.5 px-4 font-bold">On-Time Index</th>
-                <th className="py-3.5 px-4 font-bold">QA Score Rating</th>
-                <th className="py-3.5 px-4 font-bold">Fulfilled Orders</th>
                 <th className="py-3.5 px-4 font-bold">Status</th>
                 <th className="py-3.5 px-4 font-bold">Compliance Docs</th>
                 <th className="py-3.5 px-4 font-bold text-right">Action</th>
@@ -494,13 +491,13 @@ export default function PlatformOwnerDashboard() {
             <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
-                    Loading vendor performance telemetry...
+                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                    Loading vendor directory...
                   </td>
                 </tr>
               ) : vendorsList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={5} className="py-8 text-center text-slate-400">
                     No vendor partners onboarded yet.
                   </td>
                 </tr>
@@ -508,10 +505,6 @@ export default function PlatformOwnerDashboard() {
                 vendorsList.map((vendor) => {
                   const isApproved = vendor.status === 'APPROVED';
                   const isPending = vendor.status === 'PENDING' || vendor.status === 'UNDER_REVIEW';
-
-                  const onTimeRate = vendor.onTimeDeliveryRate != null ? `${vendor.onTimeDeliveryRate}%` : 'N/A';
-                  const qaRating = vendor.qualityRating != null ? `${vendor.qualityRating} / 5.0` : 'N/A';
-                  const fulfilledCount = vendor.ordersFulfilled ?? 0;
 
                   return (
                     <tr key={vendor.id} className="hover:bg-slate-50/80 transition-colors">
@@ -523,18 +516,6 @@ export default function PlatformOwnerDashboard() {
                       </td>
 
                       <td className="py-3.5 px-4 text-slate-700">{vendor.abnAcn || '—'}</td>
-
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          {onTimeRate}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-amber-700 font-bold flex items-center gap-1">
-                        <Award className="w-3.5 h-3.5 text-amber-500 fill-amber-400" /> {qaRating}
-                      </td>
-
-                      <td className="py-3.5 px-4 text-slate-800 font-bold">{fulfilledCount.toLocaleString()} orders</td>
 
                       <td className="py-3.5 px-4">
                         <span
