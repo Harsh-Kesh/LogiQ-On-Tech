@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { dataFilePath, ensureDataDir } from './storage';
+import { nextDocumentNumber } from './document-sequences';
 
 // Owner-side #9, #10 — Purchase Orders. FR-PO-001..005.
 
@@ -99,12 +100,13 @@ export function nextPoNumber(): string {
   return `PO-${y}-${String(seq).padStart(5, '0')}`;
 }
 
-export function createPurchaseOrder(input: Omit<PurchaseOrder, 'id' | 'poNumber' | 'createdAt' | 'updatedAt' | 'status'> & { status?: PurchaseOrderStatus }): PurchaseOrder {
+// BR-012 atomic number allocation.
+export async function createPurchaseOrder(input: Omit<PurchaseOrder, 'id' | 'poNumber' | 'createdAt' | 'updatedAt' | 'status'> & { status?: PurchaseOrderStatus }): Promise<PurchaseOrder> {
   const now = new Date().toISOString();
   const rec: PurchaseOrder = {
     ...input,
     id: `po_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-    poNumber: nextPoNumber(),
+    poNumber: await nextDocumentNumber('PO'),
     status: input.status || 'DRAFT',
     createdAt: now,
     updatedAt: now,

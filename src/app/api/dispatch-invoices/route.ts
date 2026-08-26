@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadDispatchInvoices, createDispatchInvoice } from '@/lib/dispatch-invoices';
 import { logAuditEvent } from '@/lib/audit';
+import { FINANCE_ROLES, isRoleIn } from '@/lib/api-auth';
+
+const DI_ROLES = [...FINANCE_ROLES, 'SALES_OPS' as const, 'MDM' as const];
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -13,7 +16,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || !['PLATFORM_OWNER', 'MDM'].includes(user.role)) {
+  if (!isRoleIn(user, DI_ROLES)) {
     return NextResponse.json({ error: 'Unauthorized: Owner or Finance role required.' }, { status: 403 });
   }
 

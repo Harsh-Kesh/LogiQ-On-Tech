@@ -3,6 +3,11 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadVendorInvoices, createVendorInvoice, updateVendorInvoice, recordVendorPayment } from '@/lib/vendor-invoices';
 import { logAuditEvent } from '@/lib/audit';
+import { FINANCE_ROLES, isRoleIn } from '@/lib/api-auth';
+
+// Vendor invoice registration is allowed for Vendor, Finance, Owner.
+// Approval / payment is Finance + Owner only.
+const VI_ROLES = [...FINANCE_ROLES, 'VENDOR' as const, 'MDM' as const, 'SALES_OPS' as const];
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -17,7 +22,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || !['PLATFORM_OWNER', 'MDM'].includes(user.role)) {
+  if (!isRoleIn(user, VI_ROLES)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -57,7 +62,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || !['PLATFORM_OWNER', 'MDM'].includes(user.role)) {
+  if (!isRoleIn(user, VI_ROLES)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
   const body = await req.json();

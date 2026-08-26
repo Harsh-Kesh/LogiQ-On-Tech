@@ -3,9 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadSalesOrders, createSalesOrder } from '@/lib/sales-orders';
 import { logAuditEvent } from '@/lib/audit';
+import { COMMERCIAL_ROLES, isRoleIn } from '@/lib/api-auth';
 
 function ownerAuth(user: any) {
-  return user && ['PLATFORM_OWNER', 'MDM'].includes(user.role);
+  return isRoleIn(user, COMMERCIAL_ROLES);
 }
 
 export async function GET(req: Request) {
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
   const taxTotal = Math.round((lines.reduce((s: number, l: any) => s + l.quantity * l.sellingPrice * (l.taxPercent / 100), 0)) * 100) / 100;
   const totalValue = Math.round((subtotal + taxTotal) * 100) / 100;
 
-  const rec = createSalesOrder({
+  const rec = await createSalesOrder({
     customerName: String(body.customerName).trim(),
     customerPoReference: body.customerPoReference || undefined,
     deliveryLocation: String(body.deliveryLocation).trim(),

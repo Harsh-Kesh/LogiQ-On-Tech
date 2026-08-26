@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { dataFilePath, ensureDataDir } from './storage';
+import { nextDocumentNumber } from './document-sequences';
 
 // Owner-side function #1, #2, #4 — Sales Orders and their allocation/dispatch statuses.
 // FR-SO-001..010, FR-IN-001..007.
@@ -111,6 +112,7 @@ export function saveSalesOrders(records: SalesOrder[]) {
   fs.writeFileSync(dataFilePath(FILE), JSON.stringify(records, null, 2), 'utf-8');
 }
 
+// Legacy sync helper kept for callers not yet migrated to the atomic generator.
 export function nextSalesOrderNumber(): string {
   const y = new Date().getFullYear();
   const existing = loadSalesOrders();
@@ -118,12 +120,13 @@ export function nextSalesOrderNumber(): string {
   return `SO-${y}-${String(seq).padStart(5, '0')}`;
 }
 
-export function createSalesOrder(input: Omit<SalesOrder, 'id' | 'salesOrderNumber' | 'createdAt' | 'updatedAt' | 'status'> & { status?: SalesOrderStatus }): SalesOrder {
+// BR-012 atomic number allocation.
+export async function createSalesOrder(input: Omit<SalesOrder, 'id' | 'salesOrderNumber' | 'createdAt' | 'updatedAt' | 'status'> & { status?: SalesOrderStatus }): Promise<SalesOrder> {
   const now = new Date().toISOString();
   const rec: SalesOrder = {
     ...input,
     id: `so_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-    salesOrderNumber: nextSalesOrderNumber(),
+    salesOrderNumber: await nextDocumentNumber('SO'),
     status: input.status || 'DRAFT',
     createdAt: now,
     updatedAt: now,

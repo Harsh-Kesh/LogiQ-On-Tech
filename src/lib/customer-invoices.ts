@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { dataFilePath, ensureDataDir } from './storage';
+import { nextDocumentNumber } from './document-sequences';
 
 // Owner-side #7, #8 — Sales Invoice creation + send to customer. FR-CI-001..008.
 
@@ -91,12 +92,13 @@ export function nextInvoiceNumber(): string {
   return `INV-${y}-${String(seq).padStart(4, '0')}`;
 }
 
-export function createCustomerInvoice(input: Omit<CustomerInvoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt' | 'status' | 'amountPaid'> & { status?: CustomerInvoiceStatus }): CustomerInvoice {
+// BR-012 atomic number allocation.
+export async function createCustomerInvoice(input: Omit<CustomerInvoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt' | 'status' | 'amountPaid'> & { status?: CustomerInvoiceStatus }): Promise<CustomerInvoice> {
   const now = new Date().toISOString();
   const rec: CustomerInvoice = {
     ...input,
     id: `ci_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-    invoiceNumber: nextInvoiceNumber(),
+    invoiceNumber: await nextDocumentNumber('CI'),
     status: input.status || 'DRAFT',
     amountPaid: 0,
     createdAt: now,

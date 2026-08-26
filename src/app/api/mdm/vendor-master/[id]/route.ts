@@ -4,8 +4,10 @@ import { authOptions } from '@/lib/auth';
 import { updateVendorMasterRecord, deleteVendorMasterRecord } from '@/lib/vendor-master';
 import { logAuditEvent } from '@/lib/audit';
 
+import { MDM_ROLES, isRoleIn } from '@/lib/api-auth';
+const AUTH_ROLES = [...MDM_ROLES, 'SALES_OPS' as const, 'FINANCE' as const];
 function authorised(user: any) {
-  return user && (user.role === 'PLATFORM_OWNER' || user.role === 'MDM');
+  return isRoleIn(user, AUTH_ROLES);
 }
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {

@@ -3,6 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadCustomerInvoices, createCustomerInvoice, updateCustomerInvoice } from '@/lib/customer-invoices';
 import { logAuditEvent } from '@/lib/audit';
+import { FINANCE_ROLES, isRoleIn } from '@/lib/api-auth';
+
+// Finance + Owner + Sales-Ops (for draft prep) may act on customer invoices.
+const FINANCE_LIKE = [...FINANCE_ROLES, 'SALES_OPS' as const, 'MDM' as const];
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -17,7 +21,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || !['PLATFORM_OWNER', 'MDM'].includes(user.role)) {
+  if (!isRoleIn(user, FINANCE_LIKE)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -45,7 +49,7 @@ export async function POST(req: Request) {
   const taxTotal = Math.round((lines.reduce((s: number, l: any) => s + l.quantity * l.unitPrice * (l.taxPercent / 100), 0)) * 100) / 100;
   const totalValue = Math.round((subtotal + taxTotal) * 100) / 100;
 
-  const rec = createCustomerInvoice({
+  const rec = await createCustomerInvoice({
     salesOrderNumber: body.salesOrderNumber,
     dispatchNumber: body.dispatchNumber,
     customerName: String(body.customerName).trim(),
@@ -77,7 +81,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || !['PLATFORM_OWNER', 'MDM'].includes(user.role)) {
+  if (!isRoleIn(user, FINANCE_LIKE)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
   const body = await req.json();

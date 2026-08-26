@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Lock, CheckCircle2, AlertCircle, ShieldCheck, ArrowRight, Building, Package, Warehouse, ExternalLink } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/Button';
 export default function MfaEnrolPage() {
   const { data: session, update } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // FR-AU-006 — Owner + Finance land here with ?mandatory=1 and cannot skip.
+  const isMandatory = searchParams?.get('mandatory') === '1';
 
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [secret, setSecret] = useState('');
@@ -96,6 +99,15 @@ export default function MfaEnrolPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 font-sans">
+      {isMandatory && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <div className="font-extrabold uppercase tracking-wider mb-1">MFA enrolment required</div>
+            <p>Your role ({userRole}) requires multi-factor authentication before you can access commercial or financial modules. Complete pairing below to continue.</p>
+          </div>
+        </div>
+      )}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadPurchaseOrders, createPurchaseOrder } from '@/lib/purchase-orders';
 import { logAuditEvent } from '@/lib/audit';
+import { COMMERCIAL_ROLES, isRoleIn } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || !['PLATFORM_OWNER', 'MDM'].includes(user.role)) {
+  if (!isRoleIn(user, COMMERCIAL_ROLES)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
   const taxTotal = Math.round((lines.reduce((s: number, l: any) => s + l.quantity * l.unitCost * (l.taxPercent / 100), 0)) * 100) / 100;
   const totalValue = Math.round((subtotal + taxTotal) * 100) / 100;
 
-  const rec = createPurchaseOrder({
+  const rec = await createPurchaseOrder({
     vendorName: String(body.vendorName).trim(),
     vendorId: body.vendorId,
     linkedSalesOrderNumber: body.linkedSalesOrderNumber,

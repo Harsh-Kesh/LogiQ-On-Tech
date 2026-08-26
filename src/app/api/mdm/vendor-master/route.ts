@@ -10,8 +10,10 @@ import { logAuditEvent } from '@/lib/audit';
 
 // FR-MD-004 Vendor Master pricing data
 
+import { MDM_ROLES, isRoleIn } from '@/lib/api-auth';
+const AUTH_ROLES = [...MDM_ROLES, 'SALES_OPS' as const, 'FINANCE' as const];
 function authorised(user: any) {
-  return user && (user.role === 'PLATFORM_OWNER' || user.role === 'MDM');
+  return isRoleIn(user, AUTH_ROLES);
 }
 
 export async function GET() {

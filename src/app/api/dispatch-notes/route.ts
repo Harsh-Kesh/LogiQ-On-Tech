@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadDispatchNotes, createDispatchNote } from '@/lib/dispatch-notes';
 import { logAuditEvent } from '@/lib/audit';
+import { COMMERCIAL_ROLES, isRoleIn } from '@/lib/api-auth';
 
 function scopedForRole(records: any[], user: any) {
   // FR-AU-003 / BR-003 — warehouse users only see their own warehouse's dispatches.
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || !['PLATFORM_OWNER', 'MDM'].includes(user.role)) {
+  if (!isRoleIn(user, COMMERCIAL_ROLES)) {
     return NextResponse.json({ error: 'Unauthorized: Owner or Sales/Ops role required.' }, { status: 403 });
   }
 
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const rec = createDispatchNote({
+  const rec = await createDispatchNote({
     salesOrderNumber: body.salesOrderNumber,
     salesOrderId: body.salesOrderId,
     customerName: body.customerName,

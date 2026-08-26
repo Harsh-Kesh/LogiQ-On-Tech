@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { dataFilePath, ensureDataDir } from './storage';
+import { nextDocumentNumber } from './document-sequences';
 
 // FR-DN-001..012 — Dispatch Notes. Structured to match:
 //   • Warehouse Dispatch Note List (columns: SO No., Dispatch No., Customer, Item, Qty, Status, Tracking, Comments)
@@ -84,12 +85,13 @@ export function nextDispatchNumber(): string {
   return `DSP-${y}-${String(seq).padStart(5, '0')}`;
 }
 
-export function createDispatchNote(input: Omit<DispatchNote, 'id' | 'dispatchNumber' | 'createdAt' | 'updatedAt' | 'status'> & { status?: DispatchStatus }): DispatchNote {
+// BR-012 atomic number allocation.
+export async function createDispatchNote(input: Omit<DispatchNote, 'id' | 'dispatchNumber' | 'createdAt' | 'updatedAt' | 'status'> & { status?: DispatchStatus }): Promise<DispatchNote> {
   const now = new Date().toISOString();
   const rec: DispatchNote = {
     ...input,
     id: `dsp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-    dispatchNumber: nextDispatchNumber(),
+    dispatchNumber: await nextDocumentNumber('DN'),
     status: input.status || 'PENDING',
     createdAt: now,
     updatedAt: now,

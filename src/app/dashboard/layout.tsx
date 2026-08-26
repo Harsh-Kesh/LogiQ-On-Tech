@@ -19,37 +19,68 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const mfaEnabled = (session?.user as any)?.mfaEnabled || false;
   const mfaVerified = (session?.user as any)?.mfaVerified || false;
 
-  useEffect(() => {
-    if (status === 'authenticated' && mfaEnabled && !mfaVerified) {
-      router.push('/auth/mfa-verify');
-    }
-  }, [status, mfaEnabled, mfaVerified, router]);
+  // FR-AU-006 — MFA mandatory for PLATFORM_OWNER and FINANCE.
+  // If they have not enrolled yet, redirect to enrolment. If enrolled but not
+  // verified for this session, redirect to challenge.
+  const MFA_REQUIRED_ROLES = ['PLATFORM_OWNER', 'FINANCE'];
+  const mfaMandatory = MFA_REQUIRED_ROLES.includes(role);
+  const mustEnrol = mfaMandatory && !mfaEnabled;
+  const mustVerify = mfaEnabled && !mfaVerified;
+  const onEnrolPage = pathname === '/dashboard/mfa-enrol';
+  const onVerifyPage = pathname === '/auth/mfa-verify';
 
-  if (status === 'loading' || (status === 'authenticated' && mfaEnabled && !mfaVerified)) {
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    if (mustVerify && !onVerifyPage) {
+      router.push('/auth/mfa-verify');
+      return;
+    }
+    if (mustEnrol && !onEnrolPage) {
+      router.push('/dashboard/mfa-enrol?mandatory=1');
+    }
+  }, [status, mustVerify, mustEnrol, onVerifyPage, onEnrolPage, router]);
+
+  const showBlockingLoader =
+    status === 'loading' ||
+    (status === 'authenticated' && mustVerify && !onVerifyPage) ||
+    (status === 'authenticated' && mustEnrol && !onEnrolPage);
+
+  if (showBlockingLoader) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center font-sans">
         <div className="flex items-center gap-3 bg-white p-6 rounded-2xl shadow-md border border-slate-200">
           <div className="w-5 h-5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-          <span className="text-xs font-semibold text-slate-600">Verifying Security Session...</span>
+          <span className="text-xs font-semibold text-slate-600">
+            {mustEnrol ? 'Enrolling required MFA…' : 'Verifying Security Session…'}
+          </span>
         </div>
       </div>
     );
   }
 
+  // SRS §7.1 role-scoped navigation.
+  const OWNER_LIKE = ['PLATFORM_OWNER'];
+  const SALES_LIKE = ['PLATFORM_OWNER', 'SALES_OPS', 'MDM'];
+  const FINANCE_LIKE = ['PLATFORM_OWNER', 'FINANCE'];
+  const WAREHOUSE_LIKE = ['PLATFORM_OWNER', 'WAREHOUSE_MANAGER', 'WAREHOUSE_OPERATOR', 'WAREHOUSE'];
+  const AUDIT_LIKE = ['PLATFORM_OWNER', 'AUDITOR'];
+  const MDM_LIKE = ['PLATFORM_OWNER', 'MDM', 'SALES_OPS', 'FINANCE'];
+  const MFA_LIKE = ['PLATFORM_OWNER', 'FINANCE', 'SALES_OPS', 'WAREHOUSE_MANAGER', 'WAREHOUSE_OPERATOR', 'AUDITOR', 'VENDOR', 'WAREHOUSE', 'MDM'];
+
   const navLinks = [
-    { name: 'Platform Owner', href: '/dashboard/owner', roleRequired: ['PLATFORM_OWNER'], icon: Shield },
-    { name: 'B2B Orders', href: '/dashboard/owner/b2b-orders', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: ShoppingCart },
-    { name: 'Master Data', href: '/dashboard/owner/items', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Package },
-    { name: 'Vendor Master Data', href: '/dashboard/owner/vendor-master', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: Truck },
-    { name: 'Customer Master Data', href: '/dashboard/owner/customer-master', roleRequired: ['PLATFORM_OWNER', 'MDM'], icon: ShoppingCart },
-    { name: 'User Directory', href: '/dashboard/owner/users', roleRequired: ['PLATFORM_OWNER'], icon: Users },
-    { name: 'Vendor Directory', href: '/dashboard/owner/vendors', roleRequired: ['PLATFORM_OWNER'], icon: Building },
+    { name: 'Platform Owner', href: '/dashboard/owner', roleRequired: OWNER_LIKE, icon: Shield },
+    { name: 'B2B Orders', href: '/dashboard/owner/b2b-orders', roleRequired: [...SALES_LIKE, 'FINANCE'], icon: ShoppingCart },
+    { name: 'Master Data', href: '/dashboard/owner/items', roleRequired: MDM_LIKE, icon: Package },
+    { name: 'Vendor Master Data', href: '/dashboard/owner/vendor-master', roleRequired: MDM_LIKE, icon: Truck },
+    { name: 'Customer Master Data', href: '/dashboard/owner/customer-master', roleRequired: MDM_LIKE, icon: ShoppingCart },
+    { name: 'User Directory', href: '/dashboard/owner/users', roleRequired: OWNER_LIKE, icon: Users },
+    { name: 'Vendor Directory', href: '/dashboard/owner/vendors', roleRequired: [...OWNER_LIKE, ...FINANCE_LIKE, 'SALES_OPS'], icon: Building },
     { name: 'Vendor Portal', href: '/dashboard/vendor', roleRequired: ['VENDOR'], icon: Building },
-    { name: 'Warehouse Point', href: '/dashboard/warehouse', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: Warehouse },
-    { name: 'Warehouse Dispatch List', href: '/dashboard/warehouse/dispatch-notes', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: ClipboardList },
-    { name: 'Dispatch Invoice & Payment', href: '/dashboard/warehouse/dispatch-invoices', roleRequired: ['WAREHOUSE', 'PLATFORM_OWNER'], icon: Receipt },
-    { name: 'Audit Logs', href: '/dashboard/owner/audit-logs', roleRequired: ['PLATFORM_OWNER'], icon: FileText },
-    { name: 'MFA Security', href: '/dashboard/mfa-enrol', roleRequired: ['PLATFORM_OWNER', 'VENDOR', 'WAREHOUSE'], icon: Lock },
+    { name: 'Warehouse Point', href: '/dashboard/warehouse', roleRequired: WAREHOUSE_LIKE, icon: Warehouse },
+    { name: 'Warehouse Dispatch List', href: '/dashboard/warehouse/dispatch-notes', roleRequired: WAREHOUSE_LIKE, icon: ClipboardList },
+    { name: 'Dispatch Invoice & Payment', href: '/dashboard/warehouse/dispatch-invoices', roleRequired: [...WAREHOUSE_LIKE, 'FINANCE'], icon: Receipt },
+    { name: 'Audit Logs', href: '/dashboard/owner/audit-logs', roleRequired: AUDIT_LIKE, icon: FileText },
+    { name: 'MFA Security', href: '/dashboard/mfa-enrol', roleRequired: MFA_LIKE, icon: Lock },
   ];
 
   return (

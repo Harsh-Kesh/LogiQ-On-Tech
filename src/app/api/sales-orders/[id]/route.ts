@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { updateSalesOrder, SalesOrderStatus } from '@/lib/sales-orders';
 import { logAuditEvent } from '@/lib/audit';
+import { COMMERCIAL_ROLES, isRoleIn } from '@/lib/api-auth';
 
 const VALID_STATUSES: SalesOrderStatus[] = [
   'DRAFT', 'CONFIRMED', 'STOCK_CHECK', 'PARTIALLY_ALLOCATED', 'ALLOCATED',
@@ -13,7 +14,7 @@ const VALID_STATUSES: SalesOrderStatus[] = [
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!user || !['PLATFORM_OWNER', 'MDM'].includes(user.role)) {
+  if (!isRoleIn(user, COMMERCIAL_ROLES)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
   const body = await req.json();

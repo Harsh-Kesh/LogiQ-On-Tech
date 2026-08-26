@@ -7,8 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// SRS §7.1 FR-AU-002 — expanded role model.
+// Kept existing labels (VENDOR, WAREHOUSE, MDM, CUSTOMER) for backwards compat
+// with seeded users; added the SRS-mandated roles alongside.
 enum UserRole {
   PLATFORM_OWNER
+  SALES_OPS
+  FINANCE
+  WAREHOUSE_MANAGER
+  WAREHOUSE_OPERATOR
+  AUDITOR
   VENDOR
   WAREHOUSE
   MDM
@@ -72,6 +80,7 @@ model Vendor {
   docs                 ComplianceDoc[]
   items                ItemMaster[]
   warehouseAssignments VendorWarehouse[]
+  purchaseOrders       PurchaseOrder[]
 
   @@map("vendors")
 }
@@ -226,3 +235,762 @@ model AuditLog {
   @@index([timestamp])
   @@map("audit_logs")
 }
+
+// =====================================================================
+//  SRS §8 — Transactional entities. Money uses Decimal(18,4). Enums per §9.
+// =====================================================================
+
+// SRS §9 status lifecycles.
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  STOCK_CHECK_PENDING
+  PARTIALLY_ALLOCATED
+  ALLOCATED
+  DISPATCH_REQUESTED
+  PARTIALLY_DISPATCHED
+  DISPATCHED
+  DELIVERED
+  INVOICED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+  CLOSED
+}
+
+enum AllocationStatus {
+  PENDING
+  ALLOCATED
+  PARTIALLY_ALLOCATED
+  RELEASED
+  CONSUMED
+  CANCELLED
+}
+
+enum DispatchStatus {
+  DRAFT
+  ISSUED
+  ACKNOWLEDGED
+  PICKING
+  PICKED
+  PARTIALLY_DISPATCHED
+  DISPATCHED
+  PARTIALLY_DELIVERED
+  DELIVERED
+  DELIVERY_EXCEPTION
+  CANCELLED
+}
+
+enum CustomerInvoiceStatus {
+  DRAFT
+  APPROVED
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum CustomerPaymentStatus {
+  DRAFT
+  POSTED
+  PARTIALLY_ALLOCATED
+  ALLOCATED
+  REVERSED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  APPROVED
+  ISSUED
+  ACKNOWLEDGED
+  PARTIALLY_INVOICED
+  INVOICED
+  CLOSED
+  CANCELLED
+}
+
+enum SupplierInvoiceStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ON_HOLD
+  APPROVED
+  REJECTED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum SupplierPaymentStatus {
+  DRAFT
+  POSTED
+  PARTIALLY_ALLOCATED
+  ALLOCATED
+  REVERSED
+}
+
+enum TransactionOverallStatus {
+  OPEN
+  FULFILMENT_IN_PROGRESS
+  DELIVERED_AWAITING_CUSTOMER_PAYMENT
+  CUSTOMER_SETTLED_SUPPLIER_PENDING
+  SUPPLIER_SETTLED_CUSTOMER_PENDING
+  READY_TO_CLOSE
+  CLOSED
+  CANCELLED
+  EXCEPTION
+}
+
+enum OrderIntakeStatus {
+  RECEIVED
+  UNDER_REVIEW
+  CONVERTED
+  REJECTED
+  CANCELLED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  BOUNCED
+  RETRYING
+}
+
+// FR-MD-005 Tax codes.
+model TaxCode {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  name          String
+  ratePercent   Decimal  @db.Decimal(6, 3)
+  jurisdiction  String?
+  isActive      Boolean  @default(true)
+  effectiveFrom DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  salesOrderLines    SalesOrderLine[]
+  customerInvoiceLines CustomerInvoiceLine[]
+  purchaseOrderLines PurchaseOrderLine[]
+
+  @@map("tax_codes")
+}
+
+// FR-MD-006 Payment terms + currencies + payment methods.
+model PaymentTerm {
+  id           String  @id @default(uuid())
+  code         String  @unique
+  name         String
+  dueDays      Int
+  description  String?
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customers    Customer[]
+
+  @@map("payment_terms")
+}
+
+model Currency {
+  id       String  @id @default(uuid())
+  code     String  @unique
+  name     String
+  symbol   String
+  isActive Boolean @default(true)
+
+  @@map("currencies")
+}
+
+model PaymentMethod {
+  id       String  @id @default(uuid())
+  code     String  @unique
+  name     String
+  isActive Boolean @default(true)
+
+  @@map("payment_methods")
+}
+
+// FR-MD-007 / BR-012 — Atomic document number sequences.
+model DocumentSequence {
+  id            String   @id @default(uuid())
+  key           String   @unique // e.g. "SO", "PO", "DN", "CI", "VI"
+  prefix        String              // "SO"
+  yearScope     Boolean  @default(true)
+  currentYear   Int?
+  currentValue  Int      @default(0)
+  padLength     Int      @default(5)
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  @@map("document_sequences")
+}
+
+// FR-MD-001 — Customer master.
+model Customer {
+  id             String    @id @default(uuid())
+  customerCode   String    @unique
+  legalName      String
+  tradingName    String?
+  billingEmail   String?
+  billingAddress String?
+  deliveryAddresses Json?  // free-form list of delivery addresses
+  taxNumber      String?
+  paymentTermsId String?
+  paymentTerms   PaymentTerm? @relation(fields: [paymentTermsId], references: [id])
+  currencyCode   String   @default("AUD")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  salesOrders     SalesOrder[]
+  customerInvoices CustomerInvoice[]
+  customerPayments CustomerPayment[]
+  customerPricing  CustomerPricing[]
+  orderIntakes     OrderIntake[]
+
+  @@map("customers")
+}
+
+// FR-MD-004 — customer-specific pricing (Customer Master Data screen).
+model CustomerPricing {
+  id             String   @id @default(uuid())
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  itemMasterId   String?
+  itemCode       String
+  itemDescription String
+  sellingPrice   Decimal  @db.Decimal(18, 4)
+  currency       String   @default("AUD")
+  moq            Int      @default(1)
+  paymentTerms   String
+  effectiveFrom  DateTime @default(now())
+  effectiveTo    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([itemCode])
+  @@map("customer_pricing")
+}
+
+// FR-MD-004 — vendor-specific pricing (Vendor Master Data screen).
+model VendorPricing {
+  id             String  @id @default(uuid())
+  vendorId       String?
+  vendorName     String
+  itemMasterId   String?
+  itemCode       String
+  itemDescription String
+  purchasePrice  Decimal  @db.Decimal(18, 4)
+  currency       String   @default("AUD")
+  moq            Int      @default(1)
+  leadTimeDays   Int      @default(0)
+  paymentTerms   String
+  effectiveFrom  DateTime @default(now())
+  effectiveTo    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([vendorId])
+  @@index([itemCode])
+  @@map("vendor_pricing")
+}
+
+// FR-SO-001 — Order intake capture.
+model OrderIntake {
+  id          String   @id @default(uuid())
+  source      String
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  receivedAt  DateTime @default(now())
+  notes       String?
+  attachments Json?
+  status      OrderIntakeStatus @default(RECEIVED)
+  salesOrderId String? @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  salesOrder  SalesOrder? @relation(fields: [salesOrderId], references: [id])
+
+  @@map("order_intakes")
+}
+
+// FR-SO-003 — Sales Order + lines.
+model SalesOrder {
+  id               String   @id @default(uuid())
+  salesOrderNumber String   @unique
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  customerName     String
+  customerPoReference String?
+  deliveryLocation String
+  requestedDeliveryDate DateTime?
+  paymentTerms     String
+  currency         String   @default("AUD")
+  status           SalesOrderStatus @default(DRAFT)
+  subtotal         Decimal  @db.Decimal(18, 4) @default(0)
+  taxTotal         Decimal  @db.Decimal(18, 4) @default(0)
+  totalValue       Decimal  @db.Decimal(18, 4) @default(0)
+  internalNotes    String?
+  createdBy        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  lines            SalesOrderLine[]
+  allocations      Allocation[]
+  dispatchNotes    DispatchNote[]
+  customerInvoices CustomerInvoice[]
+  purchaseOrders   PurchaseOrder[]
+  intake           OrderIntake?
+  transaction      Transaction?
+
+  @@index([customerId])
+  @@index([status])
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id             String   @id @default(uuid())
+  salesOrderId   String
+  salesOrder     SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  itemMasterId   String?
+  itemCode       String
+  itemName       String
+  quantity       Int
+  sellingPrice   Decimal  @db.Decimal(18, 4)
+  taxCodeId      String?
+  taxCode        TaxCode? @relation(fields: [taxCodeId], references: [id])
+  taxPercent     Decimal  @db.Decimal(6, 3) @default(0)
+  lineTotal      Decimal  @db.Decimal(18, 4)
+  dispatchedQty  Int      @default(0)
+  invoicedQty    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  allocations    Allocation[]
+
+  @@index([salesOrderId])
+  @@map("sales_order_lines")
+}
+
+// FR-IN-003 — Allocation to a warehouse.
+model Allocation {
+  id               String   @id @default(uuid())
+  salesOrderId     String
+  salesOrder       SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  salesOrderLineId String
+  salesOrderLine   SalesOrderLine @relation(fields: [salesOrderLineId], references: [id], onDelete: Cascade)
+  warehouseCode    String
+  allocatedQty     Int
+  freshnessSource  String  @default("MANUAL") // MANUAL | SYSTEM | FEED
+  status           AllocationStatus @default(PENDING)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([salesOrderId])
+  @@index([warehouseCode])
+  @@map("allocations")
+}
+
+// FR-DN-001 — Dispatch note + lines.
+model DispatchNote {
+  id             String   @id @default(uuid())
+  dispatchNumber String   @unique
+  salesOrderId   String?
+  salesOrder     SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  salesOrderNumber String
+  customerName   String
+  customerAddress String
+  warehouseCode  String
+  warehouseName  String?
+  status         DispatchStatus @default(DRAFT)
+  dispatchDate   DateTime?
+  carrier        String?
+  trackingNumber String?
+  expectedDeliveryDate DateTime?
+  actualDeliveryDate   DateTime?
+  comments       String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lines          DispatchNoteLine[]
+  deliveryConfirmations DeliveryConfirmation[]
+  dispatchInvoiceRecords DispatchInvoiceRecord[]
+
+  @@index([salesOrderId])
+  @@index([warehouseCode])
+  @@index([status])
+  @@map("dispatch_notes")
+}
+
+model DispatchNoteLine {
+  id             String   @id @default(uuid())
+  dispatchNoteId String
+  dispatchNote   DispatchNote @relation(fields: [dispatchNoteId], references: [id], onDelete: Cascade)
+  itemCode       String
+  itemName       String
+  orderedQty     Int
+  pickedQty      Int      @default(0)
+  dispatchQty    Int      @default(0)
+  deliveredQty   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([dispatchNoteId])
+  @@map("dispatch_note_lines")
+}
+
+// FR-DL-001 — Delivery confirmation.
+model DeliveryConfirmation {
+  id               String   @id @default(uuid())
+  dispatchNoteId   String
+  dispatchNote     DispatchNote @relation(fields: [dispatchNoteId], references: [id], onDelete: Cascade)
+  confirmingSource String   // WAREHOUSE | CARRIER | MANUAL
+  recipientName    String?
+  deliveredAt      DateTime @default(now())
+  deliveredQty     Int
+  evidenceUrl      String?
+  outcome          String   // DELIVERED | PARTIAL | FAILED | EXCEPTION
+  notes            String?
+  createdBy        String?
+  createdAt        DateTime @default(now())
+
+  @@index([dispatchNoteId])
+  @@map("delivery_confirmations")
+}
+
+// Dispatch invoice / payment register (matches the shared "Dispatch Invoice & Payment List" spec).
+model DispatchInvoiceRecord {
+  id             String   @id @default(uuid())
+  dispatchNoteId String?
+  dispatchNote   DispatchNote? @relation(fields: [dispatchNoteId], references: [id])
+  dispatchNumber String
+  salesOrderNumber String?
+  customerPoNumber String?
+  customerName   String
+  dispatchValue  Decimal  @db.Decimal(18, 4)
+  currency       String   @default("AUD")
+  invoiceNumber  String
+  invoiceDate    DateTime?
+  invoiceAmount  Decimal  @db.Decimal(18, 4)
+  attachmentUrl  String?
+  attachmentType String?  // INVOICE | POD | DELIVERY_NOTE
+  paymentDueDate DateTime?
+  paymentStatus  String   @default("PAYMENT_PENDING")
+  paymentDate    DateTime?
+  paymentReference String?
+  comments       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([dispatchNoteId])
+  @@map("dispatch_invoice_records")
+}
+
+// FR-CI-001 — Customer Invoice + lines.
+model CustomerInvoice {
+  id             String   @id @default(uuid())
+  invoiceNumber  String   @unique
+  salesOrderId   String?
+  salesOrder     SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  salesOrderNumber String
+  dispatchNumber String?
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  customerName   String
+  customerEmail  String?
+  billingAddress String?
+  issueDate      DateTime @default(now())
+  dueDate        DateTime
+  currency       String   @default("AUD")
+  subtotal       Decimal  @db.Decimal(18, 4) @default(0)
+  taxTotal       Decimal  @db.Decimal(18, 4) @default(0)
+  totalValue     Decimal  @db.Decimal(18, 4) @default(0)
+  amountPaid     Decimal  @db.Decimal(18, 4) @default(0)
+  status         CustomerInvoiceStatus @default(DRAFT)
+  sentAt         DateTime?
+  viewedAt       DateTime?
+  paidAt         DateTime?
+  pdfSnapshotUrl String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lines            CustomerInvoiceLine[]
+  paymentAllocations CustomerPaymentAllocation[]
+
+  @@index([salesOrderId])
+  @@index([customerId])
+  @@index([status])
+  @@map("customer_invoices")
+}
+
+model CustomerInvoiceLine {
+  id                String   @id @default(uuid())
+  customerInvoiceId String
+  customerInvoice   CustomerInvoice @relation(fields: [customerInvoiceId], references: [id], onDelete: Cascade)
+  itemCode          String
+  itemName          String
+  quantity          Int
+  unitPrice         Decimal  @db.Decimal(18, 4)
+  taxCodeId         String?
+  taxCode           TaxCode? @relation(fields: [taxCodeId], references: [id])
+  taxPercent        Decimal  @db.Decimal(6, 3) @default(0)
+  lineTotal         Decimal  @db.Decimal(18, 4)
+
+  @@index([customerInvoiceId])
+  @@map("customer_invoice_lines")
+}
+
+// FR-CR-001 — Customer Payment + allocations.
+model CustomerPayment {
+  id             String   @id @default(uuid())
+  paymentNumber  String   @unique
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  paymentDate    DateTime
+  amount         Decimal  @db.Decimal(18, 4)
+  currency       String   @default("AUD")
+  paymentMethod  String
+  bankReference  String?
+  evidenceUrl    String?
+  notes          String?
+  status         CustomerPaymentStatus @default(DRAFT)
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  allocations    CustomerPaymentAllocation[]
+
+  @@index([customerId])
+  @@map("customer_payments")
+}
+
+model CustomerPaymentAllocation {
+  id                 String   @id @default(uuid())
+  customerPaymentId  String
+  customerPayment    CustomerPayment @relation(fields: [customerPaymentId], references: [id], onDelete: Cascade)
+  customerInvoiceId  String
+  customerInvoice    CustomerInvoice @relation(fields: [customerInvoiceId], references: [id])
+  amountAllocated    Decimal  @db.Decimal(18, 4)
+  createdAt          DateTime @default(now())
+
+  @@index([customerPaymentId])
+  @@index([customerInvoiceId])
+  @@map("customer_payment_allocations")
+}
+
+// FR-PO-001 — Purchase Order + lines.
+model PurchaseOrder {
+  id             String   @id @default(uuid())
+  poNumber       String   @unique
+  vendorId       String?
+  vendor         Vendor?  @relation(fields: [vendorId], references: [id])
+  vendorName     String
+  linkedSalesOrderId String?
+  linkedSalesOrder   SalesOrder? @relation(fields: [linkedSalesOrderId], references: [id])
+  linkedSalesOrderNumber String?
+  requestedDeliveryDate DateTime?
+  paymentTerms   String   @default("Net 30")
+  currency       String   @default("AUD")
+  status         PurchaseOrderStatus @default(DRAFT)
+  subtotal       Decimal  @db.Decimal(18, 4) @default(0)
+  taxTotal       Decimal  @db.Decimal(18, 4) @default(0)
+  totalValue     Decimal  @db.Decimal(18, 4) @default(0)
+  moq            Int?
+  leadTimeDays   Int?
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lines          PurchaseOrderLine[]
+  supplierInvoices SupplierInvoice[]
+
+  @@index([vendorId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id             String   @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder  PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  itemCode       String
+  itemName       String
+  quantity       Int
+  unitCost       Decimal  @db.Decimal(18, 4)
+  taxCodeId      String?
+  taxCode        TaxCode? @relation(fields: [taxCodeId], references: [id])
+  taxPercent     Decimal  @db.Decimal(6, 3) @default(0)
+  lineTotal      Decimal  @db.Decimal(18, 4)
+  receivedQty    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_lines")
+}
+
+// FR-SI-001 — Supplier / Vendor invoice.
+model SupplierInvoice {
+  id                    String   @id @default(uuid())
+  vendorInvoiceNumber   String
+  purchaseOrderId       String?
+  purchaseOrder         PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  linkedPoNumber        String
+  vendorId              String?
+  vendorName            String
+  invoiceDate           DateTime
+  dueDate               DateTime
+  currency              String   @default("AUD")
+  invoiceAmount         Decimal  @db.Decimal(18, 4)
+  amountPaid            Decimal  @db.Decimal(18, 4) @default(0)
+  varianceVsPo          Decimal? @db.Decimal(18, 4)
+  attachmentUrl         String?
+  attachmentFileName    String?
+  status                SupplierInvoiceStatus @default(SUBMITTED)
+  approvalReason        String?
+  createdBy             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  paymentAllocations    SupplierPaymentAllocation[]
+
+  @@index([purchaseOrderId])
+  @@index([vendorId])
+  @@index([status])
+  @@unique([vendorId, vendorInvoiceNumber])
+  @@map("supplier_invoices")
+}
+
+model SupplierPayment {
+  id             String   @id @default(uuid())
+  paymentNumber  String   @unique
+  vendorId       String?
+  vendorName     String
+  paymentDate    DateTime
+  amount         Decimal  @db.Decimal(18, 4)
+  currency       String   @default("AUD")
+  paymentMethod String
+  bankReference String?
+  evidenceUrl    String?
+  notes          String?
+  status         SupplierPaymentStatus @default(DRAFT)
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  allocations    SupplierPaymentAllocation[]
+
+  @@index([vendorId])
+  @@map("supplier_payments")
+}
+
+model SupplierPaymentAllocation {
+  id                String   @id @default(uuid())
+  supplierPaymentId String
+  supplierPayment   SupplierPayment @relation(fields: [supplierPaymentId], references: [id], onDelete: Cascade)
+  supplierInvoiceId String
+  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id])
+  amountAllocated   Decimal  @db.Decimal(18, 4)
+  createdAt         DateTime @default(now())
+
+  @@index([supplierPaymentId])
+  @@index([supplierInvoiceId])
+  @@map("supplier_payment_allocations")
+}
+
+// FR-CL-001 — Umbrella transaction workspace.
+model Transaction {
+  id             String   @id @default(uuid())
+  salesOrderId   String   @unique
+  salesOrder     SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  overallStatus  TransactionOverallStatus @default(OPEN)
+  closureChecklistJson Json?
+  exceptionReason String?
+  closedAt       DateTime?
+  closedBy       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  events         TransactionEvent[]
+
+  @@map("transactions")
+}
+
+model TransactionEvent {
+  id            String   @id @default(uuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  eventType     String
+  entityType    String?
+  entityId      String?
+  actor         String?
+  message       String?
+  payloadJson   Json?
+  occurredAt    DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([occurredAt])
+  @@map("transaction_events")
+}
+
+// FR-NT-002 / FR-DL-004 — email + notification communication history.
+model EmailCommunication {
+  id             String   @id @default(uuid())
+  channel        String   @default("EMAIL")
+  templateKey    String?
+  templateVersion String?
+  senderEmail    String?
+  recipientEmails Json
+  subject        String?
+  relatedEntity  String?
+  relatedEntityId String?
+  attemptCount   Int      @default(0)
+  status         NotificationStatus @default(PENDING)
+  lastAttemptAt  DateTime?
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([relatedEntity, relatedEntityId])
+  @@map("email_communications")
+}
+
+// FR-DM-001 — Attachments with content hash + malware scan result.
+model Attachment {
+  id             String   @id @default(uuid())
+  entityType     String
+  entityId       String
+  fileName       String
+  contentType    String
+  size           Int
+  storageKey     String
+  contentHash    String
+  scanStatus     String   @default("PENDING") // PENDING | CLEAN | INFECTED | FAILED
+  version        Int      @default(1)
+  uploadedBy     String?
+  createdAt      DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@map("attachments")
+}
+
+// FR-DN-003 / BR-006 — immutable snapshots of issued documents.
+model DocumentSnapshot {
+  id            String   @id @default(uuid())
+  entityType    String   // SALES_ORDER | DISPATCH_NOTE | CUSTOMER_INVOICE | PURCHASE_ORDER | SUPPLIER_INVOICE
+  entityId      String
+  documentNumber String
+  snapshotJson  Json
+  contentHash   String
+  createdAt     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@map("document_snapshots")
+}
+
