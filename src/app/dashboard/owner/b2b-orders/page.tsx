@@ -974,7 +974,7 @@ export default function B2BOwnerOrdersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-          <ClipboardList className="w-6 h-6 text-indigo-600" /> B2B Outbound Order Management
+          <ClipboardList className="w-6 h-6 text-indigo-600" /> Order Management
         </h1>
         <p className="text-xs text-slate-500 mt-1">
           Sales Order → Allocation → Dispatch → Invoice → Payment. Purchase Order → Vendor Invoice → Vendor Payment.
