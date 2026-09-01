@@ -6,6 +6,7 @@ import { loadPurchaseOrders, cascadePurchaseOrderByNumber } from '@/lib/purchase
 import { hasPendingTransportCost } from '@/lib/transport-costs';
 import { logAuditEvent } from '@/lib/audit';
 import { FINANCE_ROLES, guardPermission, vendorOwnsRecord, isVendorApproved, resolveVendorIdForUser } from '@/lib/api-auth';
+import { prisma } from '@/lib/prisma';
 import { findTransitionPath, getAllowedTransitions } from '@/lib/lifecycle';
 
 export async function GET(req: Request) {
@@ -73,11 +74,28 @@ export async function POST(req: Request) {
     varianceVsPo = invoiceAmount - linkedPo.totalValue;
   }
 
+  // Never trust a client-supplied vendorId for who's submitting — resolve the vendor's
+  // own id from their session the same way GET does. A vendor never sends vendorId at
+  // all today, so without this the row was created with vendorId=null and could never
+  // match the vendor's own "my invoices" list (vendorOwnsRecord has no way to match a
+  // null vendorId). The Platform Owner registering one on a vendor's behalf doesn't have
+  // a vendor session to resolve from, so fall back to matching the vendor name they typed
+  // against a real Vendor record.
+  let resolvedVendorId: string | null = null;
+  if (user.role === 'VENDOR') {
+    resolvedVendorId = await resolveVendorIdForUser(user);
+  } else if (body.vendorId) {
+    resolvedVendorId = body.vendorId;
+  } else if (body.vendorName) {
+    const matchedVendor = await prisma.vendor.findFirst({ where: { companyName: { equals: body.vendorName, mode: 'insensitive' } } });
+    resolvedVendorId = matchedVendor?.id || null;
+  }
+
   const rec = await createVendorInvoice({
     vendorInvoiceNumber: body.vendorInvoiceNumber,
     linkedPoNumber: body.linkedPoNumber,
     vendorName: body.vendorName,
-    vendorId: body.vendorId,
+    vendorId: resolvedVendorId || undefined,
     invoiceDate: body.invoiceDate || new Date().toISOString(),
     dueDate: body.dueDate,
     currency: (body.currency || 'AUD').toUpperCase(),
