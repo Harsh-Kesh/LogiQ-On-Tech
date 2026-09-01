@@ -166,6 +166,42 @@ async function main() {
   }
   console.log(`  ${inserted} stock ledger row(s) created, ${skipped} already existed`);
 
+  // Vendor Master Data (VendorPricing) is normally created/updated as a side effect of
+  // the Item Master creation API (see upsertVendorMasterRecord in src/lib/vendor-master.ts)
+  // — every item allocated to a vendor gets a matching sourcing/cost record there. These
+  // 24 catalog items were seeded straight into ItemMaster, bypassing that route entirely,
+  // so Vendor Master Data was left empty despite every item having a vendorId. Backfill it
+  // here with the same defaults the real route uses (Net 30 / EXW / 7-day lead time).
+  console.log('Backfilling Vendor Master Data...');
+  let vendorPricingCreated = 0, vendorPricingSkipped = 0;
+  const allItems = await prisma.itemMaster.findMany({ where: { sku: { in: Object.keys(OPENING_STOCK) } } });
+  for (const item of allItems) {
+    if (!item.vendorId) continue;
+    const vendor = await prisma.vendor.findUnique({ where: { id: item.vendorId } });
+    if (!vendor) continue;
+
+    const existing = await prisma.vendorPricing.findFirst({ where: { vendorName: vendor.companyName, itemCode: item.sku } });
+    if (existing) { vendorPricingSkipped++; continue; }
+
+    await prisma.vendorPricing.create({
+      data: {
+        vendorId: vendor.id,
+        vendorName: vendor.companyName,
+        itemMasterId: item.id,
+        itemCode: item.sku,
+        itemDescription: item.itemName,
+        purchasePrice: item.costPrice,
+        currency: 'AUD',
+        moq: item.moq,
+        leadTimeDays: 7,
+        paymentTerms: 'Net 30',
+        incoterms: 'EXW',
+      },
+    });
+    vendorPricingCreated++;
+  }
+  console.log(`  ${vendorPricingCreated} Vendor Master Data row(s) created, ${vendorPricingSkipped} already existed`);
+
   console.log('Done.');
 }
 
