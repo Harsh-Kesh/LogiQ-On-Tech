@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { getAssetPath } from "@/lib/nav";
@@ -10,7 +9,6 @@ import { ShieldCheck } from "lucide-react";
 
 export default function MFAVerifyPage() {
   const { data: session, update } = useSession();
-  const router = useRouter();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -28,12 +26,16 @@ export default function MFAVerifyPage() {
 
       if (res.ok) {
         await update({ mfaVerified: true });
-        
-        // Dynamic Role-Based Redirect
+
+        // Dynamic Role-Based Redirect. A hard navigation (not router.push) is
+        // deliberate: middleware gates every /dashboard route on mfaVerified, and
+        // Next's client Router Cache can hold a stale "bounce back to mfa-verify"
+        // response prefetched before this session was verified — only a full
+        // reload guarantees middleware evaluates the freshly-updated cookie.
         const role = (session?.user as any)?.role || 'VENDOR';
         const targetPath = role === 'VENDOR' ? '/dashboard/vendor' : '/dashboard/owner';
 
-        router.push(targetPath);
+        window.location.href = targetPath;
       } else {
         const data = await res.json();
         setErrorMsg(data.error || "Invalid 6-digit code.");

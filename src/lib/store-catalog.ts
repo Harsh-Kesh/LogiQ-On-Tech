@@ -34,6 +34,21 @@ function isPublished(item: PersistentProduct): boolean {
   return item.publishToStore === true && item.status === 'ACTIVE';
 }
 
+// A product's own category can sit several levels below the slug a storefront page
+// asks for (e.g. "RFID Fixed Readers" under the "RFID & Tracking" grouping page) — walk
+// up the parent chain so a parent-level slug matches every descendant category too.
+function categorySlugChain(categoryId: string | undefined, categories: CategoryItem[]): string[] {
+  const chain: string[] = [];
+  let current = categories.find((c) => c.id === categoryId);
+  const seen = new Set<string>();
+  while (current && !seen.has(current.id)) {
+    chain.push(current.slug);
+    seen.add(current.id);
+    current = current.parentId ? categories.find((c) => c.id === current!.parentId) : undefined;
+  }
+  return chain;
+}
+
 async function availabilityBySku(): Promise<Map<string, number>> {
   const onHand = await calculateStockOnHand();
   const map = new Map<string, number>();
@@ -67,7 +82,7 @@ export async function getPublishedProducts(categorySlug?: string): Promise<Publi
   const availability = await availabilityBySku();
   let mapped = products.map((p) => toPublicProduct(p, categories, availability));
   if (categorySlug) {
-    mapped = mapped.filter((p) => p.categorySlug === categorySlug);
+    mapped = mapped.filter((p) => categorySlugChain(p.categoryId, categories).includes(categorySlug));
   }
   return mapped.sort((a, b) => a.itemName.localeCompare(b.itemName));
 }

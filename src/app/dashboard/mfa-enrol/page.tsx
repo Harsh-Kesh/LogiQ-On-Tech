@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Lock, CheckCircle2, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/Button';
 
 export default function MfaEnrolPage() {
   const { data: session, update } = useSession();
-  const router = useRouter();
   const searchParams = useSearchParams();
   // Platform Owner accounts land here with ?mandatory=1 and cannot skip.
   const isMandatory = searchParams?.get('mandatory') === '1';
@@ -72,9 +71,14 @@ export default function MfaEnrolPage() {
         setSuccess(`Two-factor authentication is now active.`);
         setLoading(false);
 
-        // Seamless auto-redirect to role dashboard after 1.5s
+        // Seamless auto-redirect to role dashboard after 1.5s. A hard navigation
+        // (not router.push) is deliberate: middleware gates every /dashboard route
+        // on mfaVerified, and Next's client Router Cache can have a stale "bounce
+        // back to mfa-enrol" response cached from before this session was verified
+        // (e.g. a prefetched sidebar link) — only a full reload guarantees the
+        // freshly-updated session cookie is what middleware evaluates next.
         setTimeout(() => {
-          router.push(targetDashboard);
+          window.location.href = targetDashboard;
         }, 1500);
       }
     } catch (e: any) {
@@ -109,6 +113,7 @@ export default function MfaEnrolPage() {
 
         <Link
           href={targetDashboard}
+          prefetch={false}
           className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5 shrink-0"
         >
           <span>Open {portalName}</span>
@@ -155,6 +160,7 @@ export default function MfaEnrolPage() {
             <div className="pt-1">
               <Link
                 href={targetDashboard}
+                prefetch={false}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all"
               >
                 <span>Launch {portalName} Now</span>
@@ -182,6 +188,7 @@ export default function MfaEnrolPage() {
             <div className="pt-3">
               <Link
                 href={targetDashboard}
+                prefetch={false}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all"
               >
                 <span>Proceed to {portalName}</span>
