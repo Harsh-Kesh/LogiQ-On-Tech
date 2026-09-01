@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ProductGrid from "@/components/products/ProductGrid";
-import { MOBILE_COMPUTERS } from "@/lib/data/mobile-computers";
 import { getAssetPath } from "@/lib/nav";
+import { getPublishedProducts } from "@/lib/store-catalog";
 
 export const metadata: Metadata = {
   title: "Rugged Mobile Computers",
@@ -10,7 +10,9 @@ export const metadata: Metadata = {
     "Rugged handhelds, tablets, and wearable computers from Honeywell, CipherLab, and Zebra for warehouse, transport, and field operations across Australia.",
 };
 
-export default function MobileComputersPage() {
+export default async function MobileComputersPage() {
+  const products = await getPublishedProducts("mobile-computers");
+
   return (
     <div>
       <section className="relative min-h-screen flex items-center overflow-hidden bg-slate-950 pt-36 pb-16 w-full">
@@ -41,7 +43,7 @@ export default function MobileComputersPage() {
             <Link href="/products" className="hover:text-primary">Products</Link> <span className="mx-1">&rsaquo;</span>
             <span className="text-on-background font-bold">Mobile Computers</span>
           </nav>
-          <ProductGrid products={MOBILE_COMPUTERS} />
+          <ProductGrid products={products} />
         </div>
       </section>
     </div>

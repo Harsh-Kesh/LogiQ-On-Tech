@@ -1,5 +1,4 @@
-import fs from 'fs';
-import { dataFilePath, ensureDataDir } from './storage';
+import { prisma } from './prisma';
 import { nextDocumentNumber } from './document-sequences';
 
 // Owner-side #7, #8 — Sales Invoice creation + send to customer. FR-CI-001..008.
@@ -40,81 +39,102 @@ export interface CustomerInvoice {
   updatedAt: string;
 }
 
-const FILE = 'customer_invoices.json';
+const CI_INCLUDE = { lines: true } as const;
+type CustomerInvoiceRow = Awaited<ReturnType<typeof prisma.customerInvoice.findFirstOrThrow<{ include: typeof CI_INCLUDE }>>>;
 
-const SEED_CI: CustomerInvoice[] = [
-  {
-    id: 'ci_seed_1',
-    invoiceNumber: 'INV-2026-0145',
-    salesOrderNumber: 'SO-2026-00125',
-    dispatchNumber: 'DSP-2026-00087',
-    customerName: 'Customer A',
-    customerEmail: 'ap@customer-a.example',
-    billingAddress: '12 Collins St, Melbourne VIC 3000',
-    issueDate: new Date().toISOString(),
-    dueDate: new Date(Date.now() + 30 * 86400000).toISOString(),
-    currency: 'AUD',
-    lines: [
-      { itemCode: 'ITEM-001', itemName: 'Zebra DS2200 Handheld Barcode Scanner', quantity: 50, unitPrice: 105.00, taxPercent: 10, lineTotal: 5775.00 },
-    ],
-    subtotal: 5250.00,
-    taxTotal: 525.00,
-    totalValue: 5775.00,
-    amountPaid: 0,
-    status: 'SENT',
-    sentAt: new Date().toISOString(),
-    createdBy: 'owner@logiqon.com',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-export function loadCustomerInvoices(): CustomerInvoice[] {
-  ensureDataDir();
-  const p = dataFilePath(FILE);
-  if (!fs.existsSync(p)) return SEED_CI;
-  try {
-    return JSON.parse(fs.readFileSync(p, 'utf-8')) as CustomerInvoice[];
-  } catch {
-    return SEED_CI;
-  }
+function toInvoice(row: CustomerInvoiceRow): CustomerInvoice {
+  return {
+    id: row.id,
+    invoiceNumber: row.invoiceNumber,
+    salesOrderNumber: row.salesOrderNumber,
+    dispatchNumber: row.dispatchNumber ?? undefined,
+    customerName: row.customerName,
+    customerEmail: row.customerEmail ?? undefined,
+    billingAddress: row.billingAddress ?? undefined,
+    issueDate: row.issueDate.toISOString(),
+    dueDate: row.dueDate.toISOString(),
+    currency: row.currency,
+    lines: (row.lines || []).map((l) => ({
+      itemCode: l.itemCode,
+      itemName: l.itemName,
+      quantity: l.quantity,
+      unitPrice: Number(l.unitPrice),
+      taxPercent: Number(l.taxPercent),
+      lineTotal: Number(l.lineTotal),
+    })),
+    subtotal: Number(row.subtotal),
+    taxTotal: Number(row.taxTotal),
+    totalValue: Number(row.totalValue),
+    amountPaid: Number(row.amountPaid),
+    status: row.status as CustomerInvoiceStatus,
+    sentAt: row.sentAt?.toISOString(),
+    viewedAt: row.viewedAt?.toISOString(),
+    paidAt: row.paidAt?.toISOString(),
+    pdfSnapshot: row.pdfSnapshotUrl ?? undefined,
+    createdBy: row.createdBy ?? '',
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
-export function saveCustomerInvoices(records: CustomerInvoice[]) {
-  ensureDataDir();
-  fs.writeFileSync(dataFilePath(FILE), JSON.stringify(records, null, 2), 'utf-8');
-}
-
-export function nextInvoiceNumber(): string {
-  const y = new Date().getFullYear();
-  const existing = loadCustomerInvoices();
-  const seq = existing.filter((r) => r.invoiceNumber.includes(`INV-${y}-`)).length + 1;
-  return `INV-${y}-${String(seq).padStart(4, '0')}`;
+export async function loadCustomerInvoices(): Promise<CustomerInvoice[]> {
+  const rows = await prisma.customerInvoice.findMany({ include: CI_INCLUDE, orderBy: { createdAt: 'desc' } });
+  return rows.map(toInvoice);
 }
 
 // BR-012 atomic number allocation.
 export async function createCustomerInvoice(input: Omit<CustomerInvoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt' | 'status' | 'amountPaid'> & { status?: CustomerInvoiceStatus }): Promise<CustomerInvoice> {
-  const now = new Date().toISOString();
-  const rec: CustomerInvoice = {
-    ...input,
-    id: `ci_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-    invoiceNumber: await nextDocumentNumber('CI'),
-    status: input.status || 'DRAFT',
-    amountPaid: 0,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const records = loadCustomerInvoices();
-  records.push(rec);
-  saveCustomerInvoices(records);
-  return rec;
+  const invoiceNumber = await nextDocumentNumber('CI');
+  const row = await prisma.customerInvoice.create({
+    data: {
+      invoiceNumber,
+      salesOrderNumber: input.salesOrderNumber,
+      dispatchNumber: input.dispatchNumber,
+      customerName: input.customerName,
+      customerEmail: input.customerEmail,
+      billingAddress: input.billingAddress,
+      issueDate: new Date(input.issueDate),
+      dueDate: new Date(input.dueDate),
+      currency: input.currency,
+      subtotal: input.subtotal,
+      taxTotal: input.taxTotal,
+      totalValue: input.totalValue,
+      amountPaid: 0,
+      status: input.status || 'DRAFT',
+      createdBy: input.createdBy,
+      lines: {
+        create: input.lines.map((l) => ({
+          itemCode: l.itemCode,
+          itemName: l.itemName,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          taxPercent: l.taxPercent,
+          lineTotal: l.lineTotal,
+        })),
+      },
+    },
+    include: CI_INCLUDE,
+  });
+  return toInvoice(row);
 }
 
-export function updateCustomerInvoice(id: string, patch: Partial<CustomerInvoice>): CustomerInvoice | null {
-  const records = loadCustomerInvoices();
-  const idx = records.findIndex((r) => r.id === id);
-  if (idx < 0) return null;
-  records[idx] = { ...records[idx], ...patch, id: records[idx].id, updatedAt: new Date().toISOString() };
-  saveCustomerInvoices(records);
-  return records[idx];
+export async function updateCustomerInvoice(id: string, patch: Partial<CustomerInvoice>): Promise<CustomerInvoice | null> {
+  const data: any = {};
+  (['salesOrderNumber', 'dispatchNumber', 'customerName', 'customerEmail', 'billingAddress', 'currency', 'subtotal', 'taxTotal', 'totalValue', 'amountPaid', 'status', 'createdBy'] as const).forEach((k) => {
+    if (patch[k] !== undefined) data[k] = patch[k];
+  });
+  if (patch.issueDate !== undefined) data.issueDate = new Date(patch.issueDate);
+  if (patch.dueDate !== undefined) data.dueDate = new Date(patch.dueDate);
+  if (patch.sentAt !== undefined) data.sentAt = patch.sentAt ? new Date(patch.sentAt) : null;
+  if (patch.viewedAt !== undefined) data.viewedAt = patch.viewedAt ? new Date(patch.viewedAt) : null;
+  if (patch.paidAt !== undefined) data.paidAt = patch.paidAt ? new Date(patch.paidAt) : null;
+  if (patch.pdfSnapshot !== undefined) data.pdfSnapshotUrl = patch.pdfSnapshot;
+
+  try {
+    await prisma.customerInvoice.update({ where: { id }, data });
+  } catch {
+    return null;
+  }
+  const row = await prisma.customerInvoice.findUnique({ where: { id }, include: CI_INCLUDE });
+  return row ? toInvoice(row) : null;
 }

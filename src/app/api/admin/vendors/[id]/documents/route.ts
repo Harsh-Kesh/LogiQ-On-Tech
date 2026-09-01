@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, loadPersistentUsers, savePersistentUsers } from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 
@@ -19,34 +19,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: 'Invalid document ID or status provided.' }, { status: 400 });
   }
 
-  let updatedDoc: any = null;
-
-  // 1. Update in Persistent File Store
-  const persistentUsers = loadPersistentUsers();
-  const rawUserId = vendorId.replace('vnd_', '');
-
-  Object.values(persistentUsers).forEach((u) => {
-    if (u.id === rawUserId || u.id === vendorId || `vnd_${u.id}` === vendorId || u.docs?.some((d) => d.id === docId)) {
-      if (u.docs) {
-        const d = u.docs.find((doc) => doc.id === docId);
-        if (d) {
-          d.status = status;
-          updatedDoc = d;
-        }
-      }
-    }
-  });
-
-  savePersistentUsers(persistentUsers);
-
-  // 2. Update in PostgreSQL DB
+  let updatedDoc;
   try {
-    const dbDoc = await prisma.complianceDoc.update({
+    updatedDoc = await prisma.complianceDoc.update({
       where: { id: docId },
-      data: { status: status as any },
+      data: { status },
     });
-    if (dbDoc) updatedDoc = dbDoc;
-  } catch (e: any) {}
+  } catch {
+    return NextResponse.json({ error: 'Compliance document not found.' }, { status: 404 });
+  }
 
   await logAuditEvent({
     userId: adminUser.id,

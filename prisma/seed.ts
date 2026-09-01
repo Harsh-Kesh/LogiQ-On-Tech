@@ -1,6 +1,5 @@
-import { PrismaClient, UserRole, VendorStatus, ItemStatus, LedgerMovementType } from '@prisma/client';
+import { PrismaClient, UserRole, VendorStatus, LedgerMovementType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { getSeedDemoProducts } from '../src/lib/products';
 
 const prisma = new PrismaClient();
 
@@ -33,18 +32,7 @@ async function main() {
     },
   });
 
-  const whUser = await prisma.user.upsert({
-    where: { email: 'warehouse@logiqon.tech' },
-    update: {},
-    create: {
-      email: 'warehouse@logiqon.tech',
-      passwordHash,
-      fullName: 'Robert Operations (WH Manager)',
-      role: UserRole.WAREHOUSE,
-    },
-  });
-
-  console.log('✅ Users seeded: Admin, Vendor, Warehouse');
+  console.log('✅ Users seeded: Admin, Vendor');
 
   // 2. Vendor Company Profile
   const vendor = await prisma.vendor.upsert({
@@ -87,38 +75,28 @@ async function main() {
     create: { code: 'BOX', name: 'Box of 10', description: 'Box containing 10 pcs' },
   });
 
-  // 5. Seed 22 Item Master Records from products library
-  const seedProducts = getSeedDemoProducts();
-  let firstItem: any = null;
+  // 5. Item Master seeding is handled by the dedicated production data migration
+  // (see the deployment runbook) rather than this dev-bootstrap script, so the real
+  // catalog — with its actual vendor/category/UOM allocations — is only ever entered
+  // once and doesn't drift from a second, hand-authored copy living here.
+  const firstItem = await prisma.itemMaster.upsert({
+    where: { sku: 'LQ-SCN-DEMO01' },
+    update: {},
+    create: {
+      sku: 'LQ-SCN-DEMO01',
+      barcode: '9312345000001',
+      itemName: 'Industrial Handheld Wireless Barcode Scanner 2D',
+      description: 'Heavy-duty IP65 Bluetooth 2D barcode scanner for warehouse receiving and bin picking.',
+      costPrice: 120,
+      sellingPrice: 249.99,
+      status: 'ACTIVE',
+      vendorId: vendor.id,
+      categoryId: catHardware.id,
+      uomId: uomPcs.id,
+    },
+  });
 
-  for (const p of Object.values(seedProducts)) {
-    const item = await prisma.itemMaster.upsert({
-      where: { sku: p.sku },
-      update: {
-        itemName: p.itemName,
-        barcode: p.barcode,
-        costPrice: p.costPrice,
-        sellingPrice: p.sellingPrice,
-        status: p.status as ItemStatus,
-      },
-      create: {
-        id: p.id,
-        sku: p.sku,
-        barcode: p.barcode,
-        itemName: p.itemName,
-        description: p.description || '',
-        costPrice: p.costPrice,
-        sellingPrice: p.sellingPrice,
-        status: p.status as ItemStatus,
-        vendorId: vendor.id,
-        categoryId: catHardware.id,
-        uomId: uomPcs.id,
-      },
-    });
-    if (!firstItem) firstItem = item;
-  }
-
-  console.log(`✅ Item Master Data seeded: ${Object.keys(seedProducts).length} items`);
+  console.log('✅ Item Master baseline demo item seeded');
 
   // 6. Warehouse & Vendor-Warehouse Assignment
   const warehouse1 = await prisma.warehouse.upsert({
@@ -158,7 +136,7 @@ async function main() {
         quantityDelta: 100,
         referenceNumber: 'PO-2026-0001',
         reasonCode: 'INITIAL_STOCK_RECEIPT',
-        createdById: whUser.id,
+        createdById: vendorUser.id,
       },
     });
 

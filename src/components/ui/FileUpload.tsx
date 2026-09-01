@@ -98,7 +98,7 @@ export function FileUpload({
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-slate-900 truncate">{selectedFile.name}</p>
-              <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
+              <p className="text-[10px] text-indigo-400 font-mono flex items-center gap-1 mt-0.5">
                 <CheckCircle2 className="w-3 h-3" /> {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready
               </p>
             </div>

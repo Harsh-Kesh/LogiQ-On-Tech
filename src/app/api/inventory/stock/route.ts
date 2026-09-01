@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { calculateStockOnHand, reconcileStockLedger } from '@/lib/stock';
+import { resolveVendorIdForUser } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -15,12 +16,23 @@ export async function GET(req: Request) {
   const warehouseCode = searchParams.get('warehouse');
   const search = searchParams.get('search')?.toLowerCase() || '';
 
-  let stockList = calculateStockOnHand();
-  const reconciliation = reconcileStockLedger();
+  let stockList = await calculateStockOnHand();
+  const reconciliation = await reconcileStockLedger();
 
   // If vendor role, filter strictly to items owned by that vendor
   if (user.role === 'VENDOR') {
-    stockList = stockList.filter((s) => s.vendorId === user.id || (s.vendorName && s.vendorName.toLowerCase().includes(user.name?.toLowerCase() || '')));
+    const sessionVendorId = await resolveVendorIdForUser(user);
+    const userComp = (user.companyName || '').toLowerCase();
+    const userName = (user.name || '').toLowerCase();
+    stockList = stockList.filter((s) => {
+      const vName = (s.vendorName || '').toLowerCase();
+      return (
+        (sessionVendorId && s.vendorId === sessionVendorId) ||
+        s.vendorId === user.id ||
+        (userComp && vName && (vName.includes(userComp) || userComp.includes(vName))) ||
+        (userName && vName && vName.includes(userName))
+      );
+    });
   }
 
   if (warehouseCode && warehouseCode !== 'ALL') {

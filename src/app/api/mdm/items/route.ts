@@ -1,11 +1,30 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { loadPersistentProducts, savePersistentProducts, PersistentProduct, calculateMarginAndMarkup } from '@/lib/products';
+import { loadPersistentProducts, PersistentProduct, calculateMarginAndMarkup, validateStorePublish, createItemMasterRecord, updateItemMasterRecord, deleteItemMasterRecord } from '@/lib/products';
 import { loadCategories } from '@/lib/categories';
 import { loadUOMs } from '@/lib/uom';
+import { upsertVendorMasterRecord } from '@/lib/vendor-master';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
+
+async function resolveVendorIdByCompanyName(companyName: string): Promise<string | null> {
+  const vendor = await prisma.vendor.findFirst({ where: { companyName } });
+  return vendor?.id || null;
+}
+
+async function resolveVendorById(vendorId?: string, vendorEmail?: string): Promise<{ id: string; companyName: string } | null> {
+  if (!vendorId && !vendorEmail) return null;
+  const vendor = await prisma.vendor.findFirst({
+    where: {
+      OR: [
+        ...(vendorId ? [{ id: vendorId }] : []),
+        ...(vendorEmail ? [{ user: { email: vendorEmail } }] : []),
+      ],
+    },
+  });
+  return vendor ? { id: vendor.id, companyName: vendor.companyName } : null;
+}
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -23,7 +42,7 @@ export async function GET(req: Request) {
   const attrKey = searchParams.get('attrKey');
   const attrValue = (searchParams.get('attrValue') || '').toLowerCase().trim();
 
-  const persistentProducts = loadPersistentProducts();
+  const persistentProducts = await loadPersistentProducts();
   let items = Object.values(persistentProducts);
 
   if (search) {
@@ -66,34 +85,24 @@ export async function GET(req: Request) {
     });
   }
 
-  const enrichedItems = items.map((i) => {
-    if (!i.vendorId || i.vendorId === 'PLATFORM') {
-      return { ...i, vendorId: null, vendorName: 'LogiQ-On Internal Stock' };
-    }
-    const resolvedName = i.vendorName && i.vendorName !== 'Vendor Partner' ? i.vendorName : 'Apex Hardware & Logistics Ltd';
-    return { ...i, vendorName: resolvedName };
-  });
-
-  return NextResponse.json({ items: enrichedItems, total: enrichedItems.length });
+  return NextResponse.json({ items, total: items.length });
 }
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM' && user.role !== 'VENDOR')) {
-    return NextResponse.json({ error: 'Unauthorized access.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Platform Owner or Vendor role required.' }, { status: 403 });
   }
 
   try {
     const body = await req.json();
     const {
       itemName,
-      sku,
       barcode,
       costPrice,
       sellingPrice,
-      wholesalePrice,
       moq,
       status,
       description,
@@ -101,15 +110,26 @@ export async function POST(req: Request) {
       uomId,
       attributes,
       imageUrl,
+      primaryVendorName,
+      additionalVendors,
+      publishToStore,
+      storeDescription,
+      storeImages,
     } = body;
 
     if (!itemName || !itemName.trim()) {
       return NextResponse.json({ error: 'Item Name is required.' }, { status: 400 });
     }
 
+    // Every item must be supplied by a registered vendor — there is no such thing as
+    // "LogiQ-On internal stock" here, since all warehouse stock is vendor-owned consigned
+    // inventory (see the procurement model this app follows).
+    if (!primaryVendorName || !String(primaryVendorName).trim()) {
+      return NextResponse.json({ error: 'Data Governance Lock: A Primary Vendor is required for every item.' }, { status: 400 });
+    }
+
     const cost = parseFloat(costPrice || '0');
     const selling = parseFloat(sellingPrice || '0');
-    const wholesale = wholesalePrice !== undefined && wholesalePrice !== '' ? parseFloat(wholesalePrice) : selling;
     const parsedMoq = moq !== undefined && moq !== '' ? parseInt(moq, 10) : 1;
 
     // Price Sanity Governance Validation
@@ -122,45 +142,37 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (wholesale > selling) {
-      return NextResponse.json(
-        { error: `Data Governance Lock: Wholesale tier price ($${wholesale.toFixed(2)}) cannot exceed retail selling price ($${selling.toFixed(2)}).` },
-        { status: 400 }
-      );
-    }
     if (isNaN(parsedMoq) || parsedMoq < 1) {
       return NextResponse.json({ error: 'Data Governance Lock: Minimum Order Quantity (MOQ) must be an integer >= 1.' }, { status: 400 });
     }
 
     // Category Lookup
-    const categories = loadCategories();
+    const categories = await loadCategories();
     const catObj = categories.find((c) => c.id === categoryId || c.slug === categoryId);
-    const catName = catObj ? catObj.name : 'General Hardware';
     const catCode = catObj ? catObj.slug.split('-')[0].toUpperCase() : 'GEN';
 
     // UOM Lookup
-    const uoms = loadUOMs();
+    const uoms = await loadUOMs();
     const uomObj = uoms.find((u) => u.id === uomId || u.code === uomId);
-    const uomCode = uomObj ? uomObj.code : 'PCS';
-    const uomName = uomObj ? uomObj.name : 'Pieces';
-
-    // Auto SKU & Barcode Generation
-    const seq = Math.floor(100 + Math.random() * 900);
-    const finalSku = sku && sku.trim() ? sku.trim().toUpperCase() : `LQ-${catCode}-${seq}`;
-    const finalBarcode = barcode && barcode.trim() ? barcode.trim() : `93123450${Math.floor(10000 + Math.random() * 89999)}`;
-    const finalStatus = ['ACTIVE', 'DRAFT', 'DISCONTINUED'].includes(status) ? status : 'ACTIVE';
 
     // Global Duplicate Governance Validation Checks
-    const persistentProducts = loadPersistentProducts();
+    const persistentProducts = await loadPersistentProducts();
     const existingItems = Object.values(persistentProducts);
 
-    const duplicateSku = existingItems.find((i) => i.sku.toUpperCase() === finalSku);
-    if (duplicateSku) {
-      return NextResponse.json(
-        { error: `Data Governance Lock: Duplicate SKU '${finalSku}' already exists in Master Data repository.` },
-        { status: 400 }
-      );
+    // SKU is always system-generated — never accepted from the client — so it can never
+    // collide with a typo or a duplicate manual entry. Retry with a fresh sequence on the
+    // rare random collision instead of surfacing that as a governance error to the owner.
+    const existingSkus = new Set(existingItems.map((i) => i.sku.toUpperCase()));
+    let finalSku = '';
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const seq = Math.floor(100 + Math.random() * 900);
+      const candidate = `LQ-${catCode}-${seq}`;
+      if (!existingSkus.has(candidate)) { finalSku = candidate; break; }
     }
+    if (!finalSku) finalSku = `LQ-${catCode}-${Date.now().toString().slice(-6)}`;
+
+    const finalBarcode = barcode && barcode.trim() ? barcode.trim() : `93123450${Math.floor(10000 + Math.random() * 89999)}`;
+    const finalStatus = ['ACTIVE', 'DRAFT', 'DISCONTINUED'].includes(status) ? status : 'ACTIVE';
 
     const duplicateBarcode = existingItems.find((i) => i.barcode === finalBarcode);
     if (duplicateBarcode) {
@@ -182,18 +194,29 @@ export async function POST(req: Request) {
       }
     }
 
-    const { marginPercent, markupPercent } = calculateMarginAndMarkup(cost, selling);
     const itemId = `item_${Date.now()}`;
 
-    // Resolve vendor ownership (Category 1: Vendor Supplied vs Category 2: Internal Platform Stock)
-    const inputVendorId = body.vendorId;
-    const isVendorProvided = inputVendorId && inputVendorId !== 'PLATFORM' && inputVendorId !== '';
-    const resolvedVendorId = user.role === 'VENDOR' ? `vnd_${user.id}` : (isVendorProvided ? inputVendorId : null);
-    const resolvedVendorName = user.role === 'VENDOR'
-      ? (user.name || 'Vendor Partner')
-      : (body.vendorName || (isVendorProvided ? 'Vendor Partner' : 'LogiQ-On Internal Stock'));
+    // Resolve vendor ownership. The stock behind this item is either supplied by a
+    // registered vendor (the "primary" allocation — an item can additionally be sourced
+    // from other vendors too, recorded below in Vendor Master Data at their own cost) or
+    // it's LogiQ's own internal stock, in which case no vendor is assigned at all.
+    const resolvedVendorName = primaryVendorName && String(primaryVendorName).trim() ? String(primaryVendorName).trim() : undefined;
+    const resolvedVendorId = resolvedVendorName ? await resolveVendorIdByCompanyName(resolvedVendorName) : null;
 
-    const newItem: PersistentProduct = {
+    const finalStoreImages = Array.isArray(storeImages) ? storeImages.filter((s: any) => typeof s === 'string' && s) : [];
+    if (publishToStore === true) {
+      const publishError = validateStorePublish({
+        vendorId: resolvedVendorId,
+        sellingPrice: selling,
+        storeDescription,
+        storeImages: finalStoreImages,
+      });
+      if (publishError) {
+        return NextResponse.json({ error: publishError }, { status: 400 });
+      }
+    }
+
+    const newItem = await createItemMasterRecord({
       id: itemId,
       sku: finalSku,
       barcode: finalBarcode,
@@ -201,47 +224,49 @@ export async function POST(req: Request) {
       description: description || '',
       costPrice: cost,
       sellingPrice: selling,
-      wholesalePrice: wholesale,
-      marginPercent,
-      markupPercent,
       moq: parsedMoq,
-      status: finalStatus as any,
+      status: finalStatus,
       vendorId: resolvedVendorId,
-      vendorEmail: user.role === 'VENDOR' ? user.email : (isVendorProvided ? body.vendorEmail : undefined),
-      vendorName: resolvedVendorName,
-      categoryId: catObj ? catObj.id : undefined,
-      categoryName: catName,
-      uomId: uomObj ? uomObj.id : undefined,
-      uomCode,
-      uomName,
+      categoryId: catObj ? catObj.id : null,
+      uomId: uomObj ? uomObj.id : null,
       imageUrl: imageUrl || '',
+      publishToStore: publishToStore === true,
+      storeDescription: storeDescription || '',
+      storeImages: finalStoreImages,
       attributes: attributes && typeof attributes === 'object' ? attributes : {},
       statusHistory: [{ from: 'NEW', to: finalStatus, changedBy: user.email || 'Admin', changedAt: new Date().toISOString(), reason: 'Initial Item Master Registration' }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    });
 
-    persistentProducts[itemId] = newItem;
-    savePersistentProducts(persistentProducts);
-
-    try {
-      await prisma.itemMaster.create({
-        data: {
-          id: itemId,
-          sku: finalSku,
-          barcode: finalBarcode,
-          itemName: newItem.itemName,
-          description: newItem.description,
-          costPrice: cost,
-          sellingPrice: selling,
-          status: finalStatus as any,
-          vendorId: newItem.vendorId,
-          categoryId: catObj ? catObj.id : null,
-          uomId: uomObj ? uomObj.id : null,
-          attributesJson: JSON.stringify(newItem.attributes),
-        },
-      });
-    } catch (e: any) {}
+    // Every vendor allocated to this item — the primary one and any additional vendors
+    // sourcing it at their own cost — gets (or updates) a Vendor Master Data sourcing
+    // record, since that table is the actual source of truth for "vendor X supplies item
+    // Y at cost Z" used everywhere pricing is looked up (e.g. Purchase Order creation).
+    const vendorSourcingRows: Array<{ vendorName: string; costOfGoods: number }> = [];
+    if (resolvedVendorName) vendorSourcingRows.push({ vendorName: resolvedVendorName, costOfGoods: cost });
+    if (Array.isArray(additionalVendors)) {
+      for (const v of additionalVendors) {
+        const vName = v?.vendorName ? String(v.vendorName).trim() : '';
+        const vCost = Number(v?.costPrice);
+        if (vName && !Number.isNaN(vCost) && vCost >= 0) {
+          vendorSourcingRows.push({ vendorName: vName, costOfGoods: vCost });
+        }
+      }
+    }
+    for (const row of vendorSourcingRows) {
+      try {
+        await upsertVendorMasterRecord({
+          vendorName: row.vendorName,
+          itemCode: finalSku,
+          itemDescription: newItem.itemName,
+          costOfGoods: row.costOfGoods,
+          currency: 'AUD',
+          moq: parsedMoq,
+          leadTimeDays: 7,
+          paymentTerms: 'Net 30',
+          incoterms: 'EXW',
+        });
+      } catch (e) {}
+    }
 
     await logAuditEvent({
       userId: user.id,
@@ -262,8 +287,8 @@ export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM' && user.role !== 'VENDOR')) {
-    return NextResponse.json({ error: 'Unauthorized access.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Item Master edits are restricted to the Platform Owner.' }, { status: 403 });
   }
 
   try {
@@ -271,11 +296,9 @@ export async function PUT(req: Request) {
     const {
       id,
       itemName,
-      sku,
       barcode,
       costPrice,
       sellingPrice,
-      wholesalePrice,
       moq,
       status,
       description,
@@ -283,28 +306,23 @@ export async function PUT(req: Request) {
       uomId,
       attributes,
       imageUrl,
+      publishToStore,
+      storeDescription,
+      storeImages,
     } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Item ID required.' }, { status: 400 });
     }
 
-    const persistentProducts = loadPersistentProducts();
+    const persistentProducts = await loadPersistentProducts();
     const item = persistentProducts[id];
     if (!item) {
       return NextResponse.json({ error: 'Item not found.' }, { status: 404 });
     }
-    
-    if (user.role === 'VENDOR') {
-      const vendorId = `vnd_${user.id}`;
-      if (item.vendorId !== vendorId && item.vendorEmail !== user.email) {
-         return NextResponse.json({ error: 'Forbidden: You do not own this item.' }, { status: 403 });
-      }
-    }
 
     const cost = costPrice !== undefined ? parseFloat(costPrice) : item.costPrice;
     const selling = sellingPrice !== undefined ? parseFloat(sellingPrice) : item.sellingPrice;
-    const wholesale = wholesalePrice !== undefined ? parseFloat(wholesalePrice) : (item.wholesalePrice || selling);
     const parsedMoq = moq !== undefined ? parseInt(moq, 10) : (item.moq || 1);
 
     if (selling < cost) {
@@ -314,23 +332,11 @@ export async function PUT(req: Request) {
       );
     }
 
-    if (wholesale > selling) {
-      return NextResponse.json(
-        { error: `Data Governance Lock: Wholesale tier price ($${wholesale.toFixed(2)}) cannot exceed retail selling price ($${selling.toFixed(2)}).` },
-        { status: 400 }
-      );
-    }
-
-    const cleanSku = sku ? sku.trim().toUpperCase() : item.sku;
+    // SKU is system-generated at creation and immutable thereafter — never accepted from
+    // the client on edit.
+    const cleanSku = item.sku;
     const cleanBarcode = barcode ? barcode.trim() : item.barcode;
     const existingItems = Object.values(persistentProducts);
-
-    if (cleanSku && cleanSku !== item.sku) {
-      const dupSku = existingItems.find((i) => i.id !== id && i.sku.toUpperCase() === cleanSku);
-      if (dupSku) {
-        return NextResponse.json({ error: `Data Governance Lock: Duplicate SKU '${cleanSku}' already exists.` }, { status: 400 });
-      }
-    }
 
     if (cleanBarcode && cleanBarcode !== item.barcode) {
       const dupBarcode = existingItems.find((i) => i.id !== id && i.barcode === cleanBarcode);
@@ -340,71 +346,66 @@ export async function PUT(req: Request) {
     }
 
     // Category Lookup
-    const categories = loadCategories();
+    const categories = await loadCategories();
     const catObj = categories.find((c) => c.id === categoryId || c.slug === categoryId);
 
     // UOM Lookup
-    const uoms = loadUOMs();
+    const uoms = await loadUOMs();
     const uomObj = uoms.find((u) => u.id === uomId || u.code === uomId);
 
+    const patch: Parameters<typeof updateItemMasterRecord>[1] = {
+      itemName: itemName || item.itemName,
+      sku: cleanSku,
+      barcode: cleanBarcode,
+      costPrice: cost,
+      sellingPrice: selling,
+      moq: parsedMoq,
+    };
+
     const oldStatus = item.status;
-    item.itemName = itemName || item.itemName;
-    if (cleanSku) item.sku = cleanSku;
-    if (cleanBarcode) item.barcode = cleanBarcode;
-    item.costPrice = cost;
-    item.sellingPrice = selling;
-    item.wholesalePrice = wholesale;
-    const { marginPercent, markupPercent } = calculateMarginAndMarkup(cost, selling);
-    item.marginPercent = marginPercent;
-    item.markupPercent = markupPercent;
-    item.moq = parsedMoq;
-
+    let nextStatusHistory = item.statusHistory;
     if (status && status !== oldStatus) {
-      item.status = status;
-      if (!item.statusHistory) item.statusHistory = [];
-      item.statusHistory.push({
-        from: oldStatus,
-        to: status,
-        changedBy: user.email || 'User',
-        changedAt: new Date().toISOString(),
-        reason: 'Status updated via MDM Console',
+      patch.status = status;
+      nextStatusHistory = [
+        ...(item.statusHistory || []),
+        { from: oldStatus, to: status, changedBy: user.email || 'User', changedAt: new Date().toISOString(), reason: 'Status updated via MDM Console' },
+      ];
+      patch.statusHistory = nextStatusHistory;
+    }
+
+    if (description !== undefined) patch.description = description;
+    if (body.vendorId !== undefined || body.vendorEmail !== undefined) {
+      const vendor = await resolveVendorById(body.vendorId, body.vendorEmail);
+      if (vendor) patch.vendorId = vendor.id;
+    }
+    if (imageUrl !== undefined) patch.imageUrl = imageUrl;
+    if (attributes && typeof attributes === 'object') patch.attributes = attributes;
+
+    const nextStoreDescription = storeDescription !== undefined ? storeDescription : item.storeDescription;
+    const nextStoreImages = storeImages !== undefined
+      ? (Array.isArray(storeImages) ? storeImages.filter((s: any) => typeof s === 'string' && s) : [])
+      : (item.storeImages || []);
+    const nextPublishToStore = publishToStore !== undefined ? publishToStore === true : !!item.publishToStore;
+
+    if (nextPublishToStore) {
+      const publishError = validateStorePublish({
+        vendorId: patch.vendorId !== undefined ? patch.vendorId : item.vendorId,
+        sellingPrice: selling,
+        storeDescription: nextStoreDescription,
+        storeImages: nextStoreImages,
       });
+      if (publishError) {
+        return NextResponse.json({ error: publishError }, { status: 400 });
+      }
     }
+    patch.storeDescription = nextStoreDescription;
+    patch.storeImages = nextStoreImages;
+    patch.publishToStore = nextPublishToStore;
+    if (catObj) patch.categoryId = catObj.id;
+    if (uomObj) patch.uomId = uomObj.id;
 
-    if (description !== undefined) item.description = description;
-    if (imageUrl !== undefined) item.imageUrl = imageUrl;
-    if (attributes && typeof attributes === 'object') item.attributes = attributes;
-    if (catObj) {
-      item.categoryId = catObj.id;
-      item.categoryName = catObj.name;
-    }
-    if (uomObj) {
-      item.uomId = uomObj.id;
-      item.uomCode = uomObj.code;
-      item.uomName = uomObj.name;
-    }
-    item.updatedAt = new Date().toISOString();
-
-    persistentProducts[id] = item;
-    savePersistentProducts(persistentProducts);
-
-    try {
-      await prisma.itemMaster.update({
-        where: { id },
-        data: {
-          itemName: item.itemName,
-          sku: item.sku,
-          barcode: item.barcode,
-          costPrice: item.costPrice,
-          sellingPrice: item.sellingPrice,
-          status: item.status as any,
-          description: item.description,
-          categoryId: item.categoryId || null,
-          uomId: item.uomId || null,
-          attributesJson: JSON.stringify(item.attributes),
-        },
-      });
-    } catch (e: any) {}
+    const updated = await updateItemMasterRecord(id, patch);
+    if (!updated) return NextResponse.json({ error: 'Item not found.' }, { status: 404 });
 
     await logAuditEvent({
       userId: user.id,
@@ -414,7 +415,7 @@ export async function PUT(req: Request) {
       targetId: id,
     }).catch(() => {});
 
-    return NextResponse.json({ success: true, item });
+    return NextResponse.json({ success: true, item: updated });
   } catch (error: any) {
     return NextResponse.json({ error: 'Failed to update item.' }, { status: 500 });
   }
@@ -424,7 +425,7 @@ export async function DELETE(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM')) {
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
     return NextResponse.json({ error: 'Unauthorized: Owner or MDM role required.' }, { status: 403 });
   }
 
@@ -435,15 +436,8 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Item ID required.' }, { status: 400 });
   }
 
-  const persistentProducts = loadPersistentProducts();
-  if (persistentProducts[id]) {
-    delete persistentProducts[id];
-    savePersistentProducts(persistentProducts);
-  }
-
-  try {
-    await prisma.itemMaster.delete({ where: { id } });
-  } catch (e: any) {}
+  const ok = await deleteItemMasterRecord(id);
+  if (!ok) return NextResponse.json({ error: 'Item not found.' }, { status: 404 });
 
   await logAuditEvent({
     userId: user.id,
@@ -453,5 +447,5 @@ export async function DELETE(req: Request) {
     targetId: id,
   }).catch(() => {});
 
-  return NextResponse.json({ success: true, message: 'Item master deleted successfully.' });
+  return NextResponse.json({ success: true });
 }

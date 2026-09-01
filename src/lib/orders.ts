@@ -1,5 +1,4 @@
-import fs from 'fs';
-
+import { prisma } from './prisma';
 import { calculateStockOnHand, addStockLedgerEntry } from './stock';
 
 export type OrderStatus = 'SUBMITTED' | 'IN_PICKING' | 'PICKED' | 'PACKED' | 'DISPATCHED' | 'CANCELLED';
@@ -55,96 +54,63 @@ export interface OutboundOrder {
   updatedAt: string;
 }
 
-import { ensureDataDir, dataFilePath } from './storage';
-const ORDERS_FILE = dataFilePath('persistent_orders.json');
+const OO_INCLUDE = { items: true, pickSteps: true } as const;
+type OutboundOrderRow = Awaited<ReturnType<typeof prisma.outboundOrder.findFirstOrThrow<{ include: typeof OO_INCLUDE }>>>;
 
-export function getSeededOrders(): OutboundOrder[] {
-  return [
-    {
-      id: 'ord_syd_901',
-      orderNumber: 'ORD-2026-901',
-      customerName: 'TechRetail Logistics Centre Sydney',
-      deliveryAddress: '44 Market Street, Sydney NSW 2000',
-      warehouseCode: 'WH-SYD-01',
-      warehouseName: 'Sydney Central Logistics Hub',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorName: 'Apex Hardware & Logistics Ltd',
-      status: 'SUBMITTED',
-      items: [
-        {
-          itemMasterId: 'item_01',
-          sku: 'LQ-SCN-00101',
-          itemName: 'Industrial Handheld Wireless Barcode Scanner 2D (HD-900)',
-          barcode: '9312345001015',
-          quantityRequested: 5,
-          quantityPicked: 0,
-          quantityPacked: 0,
-          unitPrice: 385.00,
-        },
-        {
-          itemMasterId: 'item_09_plt',
-          sku: 'LQ-PLT-00301',
-          itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
-          barcode: '9312345678903',
-          quantityRequested: 2,
-          quantityPicked: 0,
-          quantityPacked: 0,
-          unitPrice: 85.00,
-        },
-      ],
-      notes: 'Priority Outbound Dispatch for Client Store Launch',
-      createdAt: '2026-08-10T09:00:00.000Z',
-      updatedAt: '2026-08-10T09:00:00.000Z',
-    },
-    {
-      id: 'ord_mel_902',
-      orderNumber: 'ORD-2026-902',
-      customerName: 'Victorian Express Fulfillment Depot',
-      deliveryAddress: '100 Spencer St, Melbourne VIC 3000',
-      warehouseCode: 'WH-MEL-02',
-      warehouseName: 'Melbourne Fulfilment Facility',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorName: 'Apex Hardware & Logistics Ltd',
-      status: 'SUBMITTED',
-      items: [
-        {
-          itemMasterId: 'item_02',
-          sku: 'LQ-PRT-00102',
-          itemName: 'Thermal Transfer Desktop Label Printer 300DPI (LogiPrint-30)',
-          barcode: '9312345001022',
-          quantityRequested: 3,
-          quantityPicked: 0,
-          quantityPacked: 0,
-          unitPrice: 520.00,
-        },
-      ],
-      notes: 'Urgent Label Printer Replenishment',
-      createdAt: '2026-08-10T10:30:00.000Z',
-      updatedAt: '2026-08-10T10:30:00.000Z',
-    },
-  ];
+function toOrder(row: OutboundOrderRow): OutboundOrder {
+  return {
+    id: row.id,
+    orderNumber: row.orderNumber,
+    customerName: row.customerName,
+    deliveryAddress: row.deliveryAddress,
+    warehouseCode: row.warehouseCode,
+    warehouseName: row.warehouseName,
+    vendorId: row.vendorId,
+    vendorName: row.vendorName ?? undefined,
+    vendorEmail: row.vendorEmail ?? undefined,
+    status: row.status as OrderStatus,
+    items: (row.items || []).map((i) => ({
+      itemMasterId: i.itemMasterId,
+      sku: i.sku,
+      itemName: i.itemName,
+      barcode: i.barcode,
+      quantityRequested: i.quantityRequested,
+      quantityPicked: i.quantityPicked,
+      quantityPacked: i.quantityPacked,
+      unitPrice: i.unitPrice !== null ? Number(i.unitPrice) : undefined,
+    })),
+    pickSteps: (row.pickSteps || []).length
+      ? row.pickSteps.map((p) => ({
+          stepNumber: p.stepNumber,
+          itemMasterId: p.itemMasterId,
+          sku: p.sku,
+          itemName: p.itemName,
+          barcode: p.barcode,
+          binLocation: p.binLocation,
+          zone: p.zone,
+          quantityToPick: p.quantityToPick,
+          isPicked: p.isPicked,
+        }))
+      : undefined,
+    packageDetails: row.packageType
+      ? {
+          packageType: row.packageType,
+          grossWeightKg: row.grossWeightKg ? Number(row.grossWeightKg) : 0,
+          courierName: row.courierName || '',
+          trackingNumber: row.trackingNumber || '',
+          packedAt: row.packedAt?.toISOString(),
+          packedByEmail: row.packedByEmail ?? undefined,
+        }
+      : undefined,
+    notes: row.notes ?? undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
-export function loadPersistentOrders(): OutboundOrder[] {
-  ensureDataDir();
-  const seeds = getSeededOrders();
-  try {
-    if (fs.existsSync(ORDERS_FILE)) {
-      const data = fs.readFileSync(ORDERS_FILE, 'utf-8');
-      const parsed: OutboundOrder[] = JSON.parse(data);
-      const existingIds = new Set(parsed.map((o) => o.id));
-      const missingSeeds = seeds.filter((s) => !existingIds.has(s.id));
-      return [...missingSeeds, ...parsed];
-    }
-  } catch (e) {}
-  return seeds;
-}
-
-export function savePersistentOrders(orders: OutboundOrder[]) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), 'utf-8');
-  } catch (e) {}
+export async function loadPersistentOrders(): Promise<OutboundOrder[]> {
+  const rows = await prisma.outboundOrder.findMany({ include: OO_INCLUDE, orderBy: { createdAt: 'desc' } });
+  return rows.map(toOrder);
 }
 
 /**
@@ -152,12 +118,12 @@ export function savePersistentOrders(orders: OutboundOrder[]) {
  * Scans stock on hand and storage bin grids in the target warehouse.
  * Orders steps by warehouse zone (Zone A -> Zone B -> Zone C) for continuous pathing.
  */
-export function generatePickListForOrder(orderId: string): OutboundOrder | null {
-  const orders = loadPersistentOrders();
-  const order = orders.find((o) => o.id === orderId || o.orderNumber === orderId);
-  if (!order) return null;
+export async function generatePickListForOrder(orderId: string): Promise<OutboundOrder | null> {
+  const row = await prisma.outboundOrder.findFirst({ where: { OR: [{ id: orderId }, { orderNumber: orderId }] }, include: OO_INCLUDE });
+  if (!row) return null;
+  const order = toOrder(row);
 
-  const stockOnHand = calculateStockOnHand();
+  const stockOnHand = await calculateStockOnHand();
   const pickSteps: PickStep[] = [];
   let stepCounter = 1;
 
@@ -214,32 +180,24 @@ export function generatePickListForOrder(orderId: string): OutboundOrder | null 
   // Sort pick steps by Zone to optimize walking route
   pickSteps.sort((a, b) => a.zone.localeCompare(b.zone));
 
-  order.pickSteps = pickSteps;
-  if (order.status === 'SUBMITTED') {
-    order.status = 'IN_PICKING';
-  }
+  const nextStatus = order.status === 'SUBMITTED' ? 'IN_PICKING' : order.status;
 
-  const isFullyAllocated = order.items.every(i => {
-    const allocated = pickSteps.filter(p => p.itemMasterId === i.itemMasterId).reduce((sum, p) => sum + p.quantityToPick, 0);
-    return allocated >= i.quantityRequested;
+  await prisma.$transaction(async (tx) => {
+    await tx.outboundOrderPickStep.deleteMany({ where: { outboundOrderId: row.id } });
+    await tx.outboundOrderPickStep.createMany({
+      data: pickSteps.map((p) => ({ ...p, outboundOrderId: row.id })),
+    });
+    await tx.outboundOrder.update({ where: { id: row.id }, data: { status: nextStatus } });
   });
-  if (isFullyAllocated) {
-    (order as any).isFullyAllocated = true;
-  }
 
-  order.updatedAt = new Date().toISOString();
-
-  const idx = orders.findIndex((o) => o.id === order.id);
-  if (idx !== -1) orders[idx] = order;
-  savePersistentOrders(orders);
-
-  return order;
+  const updated = await prisma.outboundOrder.findUnique({ where: { id: row.id }, include: OO_INCLUDE });
+  return updated ? toOrder(updated) : null;
 }
 
 /**
  * CREATE NEW OUTBOUND DISPATCH ORDER
  */
-export function createOutboundOrder(data: {
+export async function createOutboundOrder(data: {
   customerName: string;
   deliveryAddress: string;
   warehouseCode: string;
@@ -256,8 +214,8 @@ export function createOutboundOrder(data: {
     unitPrice?: number;
   }>;
   notes?: string;
-}): OutboundOrder {
-  const stockOnHand = calculateStockOnHand();
+}): Promise<OutboundOrder> {
+  const stockOnHand = await calculateStockOnHand();
   const shortItems = [];
   for (const i of data.items) {
     const stockRec = stockOnHand.find(s => s.warehouseCode === data.warehouseCode && (s.itemMasterId === i.itemMasterId || s.sku.toLowerCase() === i.sku.toLowerCase()));
@@ -270,42 +228,46 @@ export function createOutboundOrder(data: {
     throw new Error(`Insufficient stock for items: ${shortItems.join(', ')}`);
   }
 
-  const orders = loadPersistentOrders();
+  const orderNumber = `ORD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
 
-  const newOrder: OutboundOrder = {
-    id: `ord_${Date.now()}`,
-    orderNumber: `ORD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
-    customerName: data.customerName,
-    deliveryAddress: data.deliveryAddress,
-    warehouseCode: data.warehouseCode,
-    warehouseName: data.warehouseName,
-    vendorId: data.vendorId || null,
-    vendorName: data.vendorName || 'Vendor Partner',
-    vendorEmail: data.vendorEmail || undefined,
-    status: 'SUBMITTED',
-    items: data.items.map((i) => ({
-      ...i,
-      quantityPicked: 0,
-      quantityPacked: 0,
-    })),
-    notes: data.notes || '',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const row = await prisma.outboundOrder.create({
+    data: {
+      orderNumber,
+      customerName: data.customerName,
+      deliveryAddress: data.deliveryAddress,
+      warehouseCode: data.warehouseCode,
+      warehouseName: data.warehouseName,
+      vendorId: data.vendorId || null,
+      vendorName: data.vendorName || 'Vendor Partner',
+      vendorEmail: data.vendorEmail || undefined,
+      status: 'SUBMITTED',
+      notes: data.notes || '',
+      items: {
+        create: data.items.map((i) => ({
+          itemMasterId: i.itemMasterId,
+          sku: i.sku,
+          itemName: i.itemName,
+          barcode: i.barcode,
+          quantityRequested: i.quantityRequested,
+          quantityPicked: 0,
+          quantityPacked: 0,
+          unitPrice: i.unitPrice,
+        })),
+      },
+    },
+    include: OO_INCLUDE,
+  });
 
-  orders.unshift(newOrder);
-  savePersistentOrders(orders);
-
-  return newOrder;
+  return toOrder(row);
 }
 
 /**
  * CONFIRM ORDER PACKING & TRIGGER PHYSICAL STOCK DECREMENT
  * 1. Sets order status to PACKED
  * 2. Writes package weight, carton type, tracking number
- * 3. Appends an ISSUE movement row to persistent_stock_ledger.json for every packed item
+ * 3. Appends an ISSUE movement row to the stock ledger for every packed item
  */
-export function confirmOrderPacking(
+export async function confirmOrderPacking(
   orderId: string,
   packageInfo: {
     packageType: string;
@@ -313,13 +275,12 @@ export function confirmOrderPacking(
     courierName?: string;
   },
   operatorEmail: string
-): { success: boolean; order?: OutboundOrder; message: string } {
-  const orders = loadPersistentOrders();
-  const order = orders.find((o) => o.id === orderId || o.orderNumber === orderId);
-
-  if (!order) {
+): Promise<{ success: boolean; order?: OutboundOrder; message: string }> {
+  const row = await prisma.outboundOrder.findFirst({ where: { OR: [{ id: orderId }, { orderNumber: orderId }] }, include: OO_INCLUDE });
+  if (!row) {
     return { success: false, message: 'Order not found' };
   }
+  const order = toOrder(row);
 
   if (order.status === 'PACKED' || order.status === 'DISPATCHED' || order.status === 'CANCELLED') {
     throw new Error('Order has already been packed/dispatched/cancelled');
@@ -331,31 +292,34 @@ export function confirmOrderPacking(
 
   const trackingNum = `TRK-${order.orderNumber}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  order.packageDetails = {
-    packageType: packageInfo.packageType,
-    grossWeightKg: packageInfo.grossWeightKg,
-    courierName: packageInfo.courierName || 'StarTrack Express',
-    trackingNumber: trackingNum,
-    packedAt: new Date().toISOString(),
-    packedByEmail: operatorEmail,
-  };
-
-  order.status = 'PACKED';
-  order.updatedAt = new Date().toISOString();
-
-  // Mark all line items as packed
-  for (const item of order.items) {
-    item.quantityPicked = item.quantityRequested;
-    item.quantityPacked = item.quantityRequested;
-  }
+  await prisma.$transaction(async (tx) => {
+    await tx.outboundOrder.update({
+      where: { id: row.id },
+      data: {
+        status: 'PACKED',
+        packageType: packageInfo.packageType,
+        grossWeightKg: packageInfo.grossWeightKg,
+        courierName: packageInfo.courierName || 'StarTrack Express',
+        trackingNumber: trackingNum,
+        packedAt: new Date(),
+        packedByEmail: operatorEmail,
+      },
+    });
+    for (const item of order.items) {
+      await tx.outboundOrderItem.updateMany({
+        where: { outboundOrderId: row.id, itemMasterId: item.itemMasterId },
+        data: { quantityPicked: item.quantityRequested, quantityPacked: item.quantityRequested },
+      });
+    }
+  });
 
   // PHYSICAL STOCK DECREMENT TRIGGER: Appends ISSUE movement row to stock ledger for each item
   for (const item of order.items) {
     const matchingSteps = order.pickSteps?.filter((p) => p.itemMasterId === item.itemMasterId) || [];
-    
+
     if (matchingSteps.length > 0) {
       for (const step of matchingSteps) {
-        addStockLedgerEntry({
+        await addStockLedgerEntry({
           warehouseId: order.warehouseCode.toLowerCase().replace(/-/g, '_'),
           warehouseCode: order.warehouseCode,
           warehouseName: order.warehouseName,
@@ -375,7 +339,7 @@ export function confirmOrderPacking(
         });
       }
     } else {
-      addStockLedgerEntry({
+      await addStockLedgerEntry({
         warehouseId: order.warehouseCode.toLowerCase().replace(/-/g, '_'),
         warehouseCode: order.warehouseCode,
         warehouseName: order.warehouseName,
@@ -396,16 +360,16 @@ export function confirmOrderPacking(
     }
   }
 
-  savePersistentOrders(orders);
+  const updated = await prisma.outboundOrder.findUnique({ where: { id: row.id }, include: OO_INCLUDE });
 
   return {
     success: true,
-    order,
+    order: updated ? toOrder(updated) : undefined,
     message: `Successfully packed ${order.orderNumber}. Physical stock decremented and immutable ISSUE movement rows logged.`,
   };
 }
 
-export function dispatchOutboundOrder(
+export async function dispatchOutboundOrder(
   orderId: string,
   manifestInfo: {
     manifestId?: string;
@@ -414,66 +378,61 @@ export function dispatchOutboundOrder(
     notes?: string;
   },
   operatorEmail: string
-): { success: boolean; order?: OutboundOrder; message: string } {
-  const orders = loadPersistentOrders();
-  const order = orders.find((o) => o.id === orderId || o.orderNumber === orderId);
-
-  if (!order) {
+): Promise<{ success: boolean; order?: OutboundOrder; message: string }> {
+  const row = await prisma.outboundOrder.findFirst({ where: { OR: [{ id: orderId }, { orderNumber: orderId }] }, include: OO_INCLUDE });
+  if (!row) {
     return { success: false, message: 'Order not found' };
   }
+  const order = toOrder(row);
 
   if (order.status !== 'PACKED') {
     return { success: false, message: `Order must be in PACKED status prior to dispatch release (Current: ${order.status}).` };
   }
 
-  order.status = 'DISPATCHED';
-  order.updatedAt = new Date().toISOString();
-
-  if (!order.packageDetails) {
-    order.packageDetails = {
-      packageType: 'Shipper Carton A1',
-      grossWeightKg: 3.5,
-      courierName: 'StarTrack Express',
-      trackingNumber: `TRK-${order.orderNumber}-7712`,
-    };
-  }
-
   const manifestRef = manifestInfo.manifestId || `MANIFEST-${order.warehouseCode}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
   const dispatchNote = `Dispatched via Carrier Manifest #${manifestRef}. Driver: ${manifestInfo.driverName || 'StarTrack Express Freight'} (${manifestInfo.vehicleReg || 'NSW-TRK-901'}). ${manifestInfo.notes || ''}`.trim();
-  order.notes = order.notes ? `${order.notes} | ${dispatchNote}` : dispatchNote;
+  const nextNotes = order.notes ? `${order.notes} | ${dispatchNote}` : dispatchNote;
 
-  savePersistentOrders(orders);
+  const data: any = { status: 'DISPATCHED', notes: nextNotes };
+  if (!order.packageDetails) {
+    data.packageType = 'Shipper Carton A1';
+    data.grossWeightKg = 3.5;
+    data.courierName = 'StarTrack Express';
+    data.trackingNumber = `TRK-${order.orderNumber}-7712`;
+  }
+
+  const updated = await prisma.outboundOrder.update({ where: { id: row.id }, data, include: OO_INCLUDE });
 
   return {
     success: true,
-    order,
+    order: toOrder(updated),
     message: `Order ${order.orderNumber} successfully DISPATCHED to carrier under Manifest #${manifestRef}!`,
   };
 }
 
-export function markOrderPicked(orderId: string): OutboundOrder | null {
-  const orders = loadPersistentOrders();
-  const order = orders.find((o) => o.id === orderId || o.orderNumber === orderId);
-  if (!order) return null;
-  if (order.status === 'IN_PICKING') {
-    order.status = 'PICKED';
-    order.updatedAt = new Date().toISOString();
-    savePersistentOrders(orders);
+export async function markOrderPicked(orderId: string): Promise<OutboundOrder | null> {
+  const row = await prisma.outboundOrder.findFirst({ where: { OR: [{ id: orderId }, { orderNumber: orderId }] } });
+  if (!row) return null;
+  if (row.status !== 'IN_PICKING') {
+    const full = await prisma.outboundOrder.findUnique({ where: { id: row.id }, include: OO_INCLUDE });
+    return full ? toOrder(full) : null;
   }
-  return order;
+  const updated = await prisma.outboundOrder.update({ where: { id: row.id }, data: { status: 'PICKED' }, include: OO_INCLUDE });
+  return toOrder(updated);
 }
 
-export function cancelOrder(orderId: string): OutboundOrder | null {
-  const orders = loadPersistentOrders();
-  const order = orders.find((o) => o.id === orderId || o.orderNumber === orderId);
-  if (!order) return null;
+export async function cancelOrder(orderId: string): Promise<OutboundOrder | null> {
+  const row = await prisma.outboundOrder.findFirst({ where: { OR: [{ id: orderId }, { orderNumber: orderId }] }, include: OO_INCLUDE });
+  if (!row) return null;
+  const order = toOrder(row);
+
   if (order.status !== 'DISPATCHED') {
     if (order.status === 'PACKED' && order.items) {
       for (const item of order.items) {
-        const qty = (item as any).quantityPacked || (item as any).quantityRequested || 0;
+        const qty = item.quantityPacked || item.quantityRequested || 0;
         if (qty > 0) {
-          const bin = order.pickSteps?.find((p: any) => p.itemMasterId === item.itemMasterId)?.binLocation || 'BIN-A1-01';
-          addStockLedgerEntry({
+          const bin = order.pickSteps?.find((p) => p.itemMasterId === item.itemMasterId)?.binLocation || 'BIN-A1-01';
+          await addStockLedgerEntry({
             warehouseId: order.warehouseCode.toLowerCase().replace(/-/g, '_'),
             warehouseCode: order.warehouseCode,
             warehouseName: order.warehouseCode,
@@ -492,9 +451,8 @@ export function cancelOrder(orderId: string): OutboundOrder | null {
         }
       }
     }
-    order.status = 'CANCELLED';
-    order.updatedAt = new Date().toISOString();
-    savePersistentOrders(orders);
+    const updated = await prisma.outboundOrder.update({ where: { id: row.id }, data: { status: 'CANCELLED' }, include: OO_INCLUDE });
+    return toOrder(updated);
   }
   return order;
 }

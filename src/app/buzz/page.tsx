@@ -29,7 +29,7 @@ const POSTS = [
     icon: "public",
     image: "/images/stitch/92d2a61c2543.png",
     date: "Nov 12, 2024",
-    cta: "Read Update",
+    cta: "Ask Us About This",
   },
   {
     num: "02",
@@ -39,7 +39,7 @@ const POSTS = [
     icon: "eco",
     image: "/images/stitch/ea517d840311.png",
     date: "Oct 28, 2024",
-    cta: "Read Roadmap",
+    cta: "Ask Us About This",
   },
   {
     num: "03",
@@ -49,7 +49,7 @@ const POSTS = [
     icon: "memory",
     image: "/images/stitch/2ffab7970a28.png",
     date: "Oct 14, 2024",
-    cta: "Read Article",
+    cta: "Ask Us About This",
   },
   {
     num: "04",
@@ -59,7 +59,7 @@ const POSTS = [
     icon: "insights",
     image: "/images/stitch/60af055db964.png",
     date: "Sep 30, 2024",
-    cta: "View Case Study",
+    cta: "Ask Us About This",
   },
 ];
 
@@ -150,7 +150,7 @@ export default function BuzzPage() {
               href="/contact"
               className="gsap-animate flex items-center gap-2 text-sm font-bold text-slate-950 hover:text-indigo-600 transition-colors"
             >
-              Get These By Email <span className="material-symbols-outlined text-base">arrow_outward</span>
+              Get in Touch <span className="material-symbols-outlined text-base">arrow_outward</span>
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

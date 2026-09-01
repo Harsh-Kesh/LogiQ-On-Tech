@@ -3,22 +3,30 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadPurchaseOrders, createPurchaseOrder } from '@/lib/purchase-orders';
 import { logAuditEvent } from '@/lib/audit';
-import { COMMERCIAL_ROLES, isRoleIn } from '@/lib/api-auth';
+import { guardPermission } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = session?.user as any;
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!guardPermission(user, 'PURCHASE_ORDERS', 'READ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
-  let records = loadPurchaseOrders();
+  let records = await loadPurchaseOrders();
   if (status && status !== 'ALL') records = records.filter((r) => r.status === status);
+  // VENDOR role: only see POs addressed to their company
+  if (user.role === 'VENDOR' && user.companyName) {
+    records = records.filter((r) => r.vendorName === user.companyName);
+  }
   return NextResponse.json({ purchaseOrders: records });
 }
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!isRoleIn(user, COMMERCIAL_ROLES)) {
+  if (!guardPermission(user, 'PURCHASE_ORDERS', 'CREATE')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -59,11 +67,10 @@ export async function POST(req: Request) {
     subtotal,
     taxTotal,
     totalValue,
-    moq: body.moq ? Number(body.moq) : undefined,
     leadTimeDays: body.leadTimeDays ? Number(body.leadTimeDays) : undefined,
     notes: body.notes,
     createdBy: user.email || 'owner@logiqon.com',
-    status: body.status,
+    status: 'DRAFT',
   });
 
   await logAuditEvent({

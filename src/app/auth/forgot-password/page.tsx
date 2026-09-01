@@ -137,7 +137,7 @@ export default function ForgotPasswordPage() {
         )}
 
         {success && (
-          <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+          <div className="mb-4 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
@@ -213,16 +213,16 @@ export default function ForgotPasswordPage() {
 
               {newPassword && (
                 <div className="mt-2 p-2 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono space-y-1">
-                  <div className={newPassword.length >= 8 ? 'text-emerald-400' : 'text-slate-500'}>
+                  <div className={newPassword.length >= 8 ? 'text-indigo-400' : 'text-slate-500'}>
                     ✓ Min 8 characters
                   </div>
-                  <div className={/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) ? 'text-emerald-400' : 'text-slate-500'}>
+                  <div className={/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) ? 'text-indigo-400' : 'text-slate-500'}>
                     ✓ Uppercase & Lowercase letter
                   </div>
-                  <div className={/[0-9]/.test(newPassword) ? 'text-emerald-400' : 'text-slate-500'}>
+                  <div className={/[0-9]/.test(newPassword) ? 'text-indigo-400' : 'text-slate-500'}>
                     ✓ At least one number (0-9)
                   </div>
-                  <div className={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword) ? 'text-emerald-400' : 'text-slate-500'}>
+                  <div className={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword) ? 'text-indigo-400' : 'text-slate-500'}>
                     ✓ At least one special character (!@#$)
                   </div>
                 </div>

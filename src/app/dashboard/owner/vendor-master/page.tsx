@@ -7,42 +7,48 @@ import { Toast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { ItemPicker } from '@/components/ui/ItemPicker';
 import { Plus, Search, Edit2, Trash2, RefreshCw, Building } from 'lucide-react';
 
 // FR-MD-004 — Vendor Master Data. Key fields per requirement:
-// Vendor Name, Item Code, Item Description, Purchase Price, Currency, MOQ, Lead Time, Payment Terms.
+// Vendor Name, Item Code, Item Description, Cost of Goods, Currency, MOQ, Lead Time, Payment Terms, Incoterms.
 
 interface VendorMasterRecord {
   id: string;
   vendorName: string;
   itemCode: string;
   itemDescription: string;
-  purchasePrice: number;
+  costOfGoods: number;
   currency: string;
   moq: number;
   leadTimeDays: number;
   paymentTerms: string;
+  incoterms: string;
   createdAt: string;
   updatedAt: string;
 }
 
 const CURRENCIES = ['AUD', 'USD', 'EUR', 'GBP', 'NZD', 'SGD'];
 const PAYMENT_TERMS = ['Net 7', 'Net 14', 'Net 30', 'Net 45', 'Net 60', 'Prepaid', 'CIA (Cash in Advance)', 'COD'];
+const INCOTERMS = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
 
 const emptyForm = {
   vendorName: '',
   itemCode: '',
   itemDescription: '',
-  purchasePrice: '',
+  costOfGoods: '',
   currency: 'AUD',
   moq: '',
   leadTimeDays: '',
   paymentTerms: 'Net 30',
+  incoterms: 'EXW',
 };
 
 export default function VendorMasterDataPage() {
   const [records, setRecords] = useState<VendorMasterRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<any[]>([]);
+  const [registeredVendors, setRegisteredVendors] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<VendorMasterRecord | null>(null);
@@ -52,9 +58,25 @@ export default function VendorMasterDataPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/mdm/vendor-master');
+      const [res, itemsRes, vendorsRes] = await Promise.all([
+        fetch('/api/mdm/vendor-master'),
+        fetch('/api/mdm/items'),
+        fetch('/api/admin/vendors'),
+      ]);
       const data = await res.json();
+      const itemsData = await itemsRes.json();
+      const vendorsData = vendorsRes.ok ? await vendorsRes.json() : { vendors: [] };
       setRecords(data.records || []);
+      setItems(itemsData.items || []);
+      setRegisteredVendors(
+        Array.from(
+          new Set(
+            (vendorsData.vendors || [])
+              .filter((v: any) => v.status === 'APPROVED' && v.companyName)
+              .map((v: any) => v.companyName as string)
+          )
+        )
+      );
     } catch (e) {
       setToast({ msg: 'Failed to load records.', type: 'error' });
     } finally {
@@ -74,7 +96,7 @@ export default function VendorMasterDataPage() {
 
   const openEdit = (r: VendorMasterRecord) => {
     setEditing(r);
-    setForm({ ...r, purchasePrice: String(r.purchasePrice), moq: String(r.moq), leadTimeDays: String(r.leadTimeDays) });
+    setForm({ ...r, costOfGoods: String(r.costOfGoods), moq: String(r.moq), leadTimeDays: String(r.leadTimeDays) });
     setIsOpen(true);
   };
 
@@ -117,11 +139,11 @@ export default function VendorMasterDataPage() {
     { header: 'Vendor Name', cell: (r) => <span className="font-bold text-slate-900">{r.vendorName}</span> },
     { header: 'Item Code', cell: (r) => <span className="font-mono text-xs text-indigo-700">{r.itemCode}</span> },
     { header: 'Item Description', accessorKey: 'itemDescription' },
-    { header: 'Purchase Price', cell: (r) => <span className="font-mono">{r.currency} {r.purchasePrice.toFixed(2)}</span> },
-    { header: 'Currency', accessorKey: 'currency' },
+    { header: 'Cost of Goods', cell: (r) => <span className="font-mono">{r.currency} {r.costOfGoods.toFixed(2)}</span> },
     { header: 'MOQ', cell: (r) => <span className="font-mono">{r.moq.toLocaleString()}</span> },
     { header: 'Lead Time', cell: (r) => <span className="font-mono">{r.leadTimeDays} days</span> },
     { header: 'Payment Terms', accessorKey: 'paymentTerms' },
+    { header: 'Incoterms', cell: (r) => <span className="font-mono font-bold text-slate-700">{r.incoterms}</span> },
   ];
 
   return (
@@ -129,10 +151,10 @@ export default function VendorMasterDataPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-            <Building className="w-6 h-6 text-indigo-600" /> Vendor Master Data
+            <Building className="w-6 h-6 text-indigo-600" /> Vendor Pricing &amp; Terms
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Controls procurement and Purchase Order creation. Key fields: Vendor Name, Item Code, Item Description, Purchase Price, Currency, MOQ, Lead Time, Payment Terms.
+            Per-item procurement pricing and terms used when creating Purchase Orders for each vendor.
           </p>
         </div>
         <Button onClick={openCreate} variant="primary" className="flex items-center gap-2">
@@ -178,23 +200,33 @@ export default function VendorMasterDataPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Vendor Name *</label>
-              <Input value={form.vendorName} onChange={(e) => setForm({ ...form, vendorName: e.target.value })} required />
+              <Select
+                value={form.vendorName}
+                onChange={(e) => setForm({ ...form, vendorName: e.target.value })}
+                options={[{ value: '', label: '-- Select registered vendor --' }, ...registeredVendors.map((v) => ({ value: v, label: v }))]}
+                required
+              />
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Item Code *</label>
-              <Input value={form.itemCode} onChange={(e) => setForm({ ...form, itemCode: e.target.value })} required placeholder="e.g. ITEM-001" />
-            </div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Item *</label>
+                <ItemPicker
+                  items={items}
+                  value={{ itemCode: form.itemCode, itemName: form.itemDescription }}
+                  onChange={(v) => setForm({ ...form, itemCode: v.itemCode, itemDescription: v.itemName, costOfGoods: v.unitCost || form.costOfGoods })}
+                  placeholder="Search global items..."
+                />
+              </div>
           </div>
 
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">Item Description *</label>
-            <Input value={form.itemDescription} onChange={(e) => setForm({ ...form, itemDescription: e.target.value })} required />
+            <Input value={form.itemDescription} readOnly className="bg-slate-50 cursor-not-allowed text-slate-500" required />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Purchase Price *</label>
-              <Input type="number" step="0.01" min="0" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} required />
+              <label className="text-xs font-bold text-slate-700 block mb-1">Cost of Goods *</label>
+              <Input type="number" step="0.01" min="0" value={form.costOfGoods} onChange={(e) => setForm({ ...form, costOfGoods: e.target.value })} required />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Currency *</label>
@@ -206,7 +238,7 @@ export default function VendorMasterDataPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Lead Time (days) *</label>
               <Input type="number" min="0" value={form.leadTimeDays} onChange={(e) => setForm({ ...form, leadTimeDays: e.target.value })} required />
@@ -214,6 +246,10 @@ export default function VendorMasterDataPage() {
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Payment Terms *</label>
               <Select value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} options={PAYMENT_TERMS.map((t) => ({ value: t, label: t }))} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Incoterms *</label>
+              <Select value={form.incoterms} onChange={(e) => setForm({ ...form, incoterms: e.target.value })} options={INCOTERMS.map((t) => ({ value: t, label: t }))} />
             </div>
           </div>
 

@@ -12,6 +12,9 @@ export default function MobileNav({ onNavigate }: { onNavigate: () => void }) {
         </Link>
       ))}
       <div className="mobile-actions">
+        <Link href="/products/shop/cart" className="btn btn-ghost btn-block" onClick={onNavigate}>
+          View Cart
+        </Link>
         <Link href="/auth/login" className="btn btn-primary btn-block" onClick={onNavigate}>
           Customer Login
         </Link>

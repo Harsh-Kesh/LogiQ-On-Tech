@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { loadPersistentWarehouses, savePersistentWarehouses, WarehouseLocation, loadPersistentStockLedger, savePersistentStockLedger, StockLedgerEntry } from '@/lib/stock';
-import { prisma } from '@/lib/prisma';
+import { loadPersistentWarehouses, createWarehouse, addStockLedgerEntry } from '@/lib/stock';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function GET(req: Request) {
@@ -13,53 +12,26 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
 
-  const persistentWarehouses = loadPersistentWarehouses();
-  let warehouseList = Object.values(persistentWarehouses);
-
-  try {
-    const dbWarehouses = await prisma.warehouse.findMany({
-      orderBy: { code: 'asc' },
-    });
-    if (dbWarehouses && dbWarehouses.length > 0) {
-      dbWarehouses.forEach((dbW) => {
-        if (!persistentWarehouses[dbW.code]) {
-          warehouseList.push({
-            id: dbW.id,
-            code: dbW.code,
-            name: dbW.name,
-            address: dbW.address,
-            contactPerson: 'Operations Desk',
-            contactEmail: 'warehouse@logiqon.com',
-            bins: [
-              { id: `bin_${dbW.id}_01`, code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacityUnits: 1000, isOccupied: false },
-              { id: `bin_${dbW.id}_02`, code: 'BIN-A1-02', zone: 'Zone A - Reserve', capacityUnits: 2000, isOccupied: false },
-            ],
-            createdAt: dbW.createdAt.toISOString(),
-          });
-        }
-      });
-    }
-  } catch (e: any) {}
-
-  return NextResponse.json({ warehouses: warehouseList });
+  const persistentWarehouses = await loadPersistentWarehouses();
+  return NextResponse.json({ warehouses: Object.values(persistentWarehouses) });
 }
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'WAREHOUSE')) {
-    return NextResponse.json({ error: 'Unauthorized: Admin or Warehouse operator role required.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Platform Owner or Vendor role required.' }, { status: 403 });
   }
 
-  const { code, name, address, contactPerson, contactEmail, managerName, managerEmail, binCode, binZone, binCapacity, initialBins, items } = await req.json();
+  const { code, name, address, contactPerson, contactEmail, managerName, managerEmail, items } = await req.json();
 
   if (!code) {
     return NextResponse.json({ error: 'Warehouse Code is required.' }, { status: 400 });
   }
 
   const cleanCode = code.trim().toUpperCase();
-  const persistentWarehouses = loadPersistentWarehouses();
+  const persistentWarehouses = await loadPersistentWarehouses();
   let targetWh = persistentWarehouses[cleanCode];
 
   if (!targetWh) {
@@ -67,86 +39,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Warehouse Name and Address are required for new location.' }, { status: 400 });
     }
 
-    // Build initial bins list
-    let parsedBins = [
-      { id: `bin_${Date.now()}_1`, code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacityUnits: 1000, isOccupied: false },
-    ];
-
-    if (binCode) {
-      const rawCodes = binCode.split(',').map((c: string) => c.trim().toUpperCase()).filter(Boolean);
-      const rawZones = binZone ? binZone.split(',').map((z: string) => z.trim()).filter(Boolean) : [];
-
-      if (rawCodes.length > 0) {
-        parsedBins = rawCodes.map((bc: string, idx: number) => {
-          const zoneForBin = rawZones.length === 1
-            ? rawZones[0]
-            : (rawZones[idx] || rawZones[0] || `Zone ${String.fromCharCode(65 + (idx % 4))}`);
-          return {
-            id: `bin_${Date.now()}_${idx}`,
-            code: bc,
-            zone: zoneForBin,
-            capacityUnits: parseInt(binCapacity, 10) || 1000,
-            isOccupied: false,
-          };
-        });
-      }
-    }
-
-    if (Array.isArray(initialBins) && initialBins.length > 0) {
-      parsedBins = initialBins.map((ib: any, idx: number) => ({
-        id: `bin_${Date.now()}_${idx}`,
-        code: (ib.code || `BIN-B${idx + 1}-01`).trim().toUpperCase(),
-        zone: ib.zone || 'Zone A',
-        capacityUnits: parseInt(ib.capacity, 10) || 1000,
-        isOccupied: false,
-      }));
-    }
-
     const assignedManagerName = managerName || contactPerson || 'Jack Taylor (Warehouse Lead)';
     const assignedManagerEmail = managerEmail || contactEmail || 'sydney.manager@logiqon.com';
 
-    targetWh = {
-      id: `wh_${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`,
+    targetWh = await createWarehouse({
       code: cleanCode,
       name: name.trim(),
       address: address.trim(),
       contactPerson: assignedManagerName,
       contactEmail: assignedManagerEmail,
-      bins: parsedBins,
-      createdAt: new Date().toISOString(),
-    };
-  } else {
-    // Adding a new bin location to an existing warehouse
-    if (binCode) {
-      const rawCodes = binCode.split(',').map((c: string) => c.trim().toUpperCase()).filter(Boolean);
-      rawCodes.forEach((bc: string, idx: number) => {
-        if (!targetWh.bins.some((b) => b.code === bc)) {
-          targetWh.bins.push({
-            id: `bin_${Date.now()}_${idx}`,
-            code: bc,
-            zone: binZone || 'Zone A',
-            capacityUnits: parseInt(binCapacity, 10) || 1000,
-            isOccupied: false,
-          });
-        }
-      });
-    }
+      managerEmail: assignedManagerEmail,
+    });
   }
-
-  persistentWarehouses[cleanCode] = targetWh;
-  savePersistentWarehouses(persistentWarehouses);
 
   // A1: seed initial stock ledger entries for items selected from Master Data
   let seededItems = 0;
   if (Array.isArray(items) && items.length > 0) {
-    const ledger = loadPersistentStockLedger();
     for (const it of items) {
       if (!it?.itemMasterId) continue;
       const qty = Math.max(0, parseInt(String(it.initialQty), 10) || 0);
-      const binLocation = (it.binLocation || targetWh.bins[0]?.code || 'BIN-A1-01').toString().toUpperCase();
+      const binLocation = targetWh.bins[0]?.code || 'MAIN';
       if (qty > 0) {
-        const entry: StockLedgerEntry = {
-          id: `ldg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        await addStockLedgerEntry({
           warehouseId: targetWh.id,
           warehouseCode: targetWh.code,
           warehouseName: targetWh.name,
@@ -161,22 +75,11 @@ export async function POST(req: Request) {
           reasonCode: 'Warehouse commissioning — initial stock from Master Data',
           createdById: user.id,
           createdByEmail: user.email || 'owner@logiqon.com',
-          createdAt: new Date().toISOString(),
-        };
-        ledger.push(entry);
+        });
       }
       seededItems++;
     }
-    savePersistentStockLedger(ledger);
   }
-
-  try {
-    await prisma.warehouse.upsert({
-      where: { code: cleanCode },
-      update: { name: targetWh.name, address: targetWh.address },
-      create: { code: cleanCode, name: targetWh.name, address: targetWh.address },
-    });
-  } catch (e: any) {}
 
   await logAuditEvent({
     userId: user.id,
@@ -184,12 +87,12 @@ export async function POST(req: Request) {
     action: 'WAREHOUSE_LOCATION_CONFIGURED',
     module: 'WAREHOUSE_OPERATIONS',
     targetId: targetWh.id,
-    payloadJson: { code: cleanCode, name: targetWh.name, binCount: targetWh.bins.length, itemCount: seededItems },
+    payloadJson: { code: cleanCode, name: targetWh.name, itemCount: seededItems },
   }).catch(() => {});
 
   return NextResponse.json({
     success: true,
-    message: `Warehouse '${cleanCode}' updated with ${targetWh.bins.length} bin locations and ${seededItems} items.`,
+    message: `Warehouse '${cleanCode}' configured with ${seededItems} items.`,
     warehouse: targetWh,
     seededItems,
   });

@@ -5,6 +5,7 @@ import { getAssetPath } from "@/lib/nav";
 import PageHero from "@/components/site/PageHero";
 import SectionIntro from "@/components/site/SectionIntro";
 import { TextAnimate } from "@/components/ui/text-animate";
+import { getPublishedCategories } from "@/lib/store-catalog";
 
 export const metadata: Metadata = {
   title: "Products & Solutions",
@@ -73,6 +74,16 @@ const INFRASTRUCTURE = [
   },
 ];
 
+// Which live Item Master category slugs are already represented by the 4 hand-crafted
+// cards above — so a published item under one of these shows up as a "Shop Now" badge
+// on the existing card instead of spawning a duplicate one.
+const STATIC_CATEGORY_SLUGS: Record<string, string[]> = {
+  "Barcode Scanners": ["barcode-scanners"],
+  "Label Printing": ["label-printing", "desktop-printers", "industrial-printers", "labels-ribbons"],
+  "Mobile Computers": ["mobile-computers"],
+  "RFID Solutions": ["rfid-tracking", "rfid-tags", "rfid-readers"],
+};
+
 const SOFTWARE = [
   {
     title: "Stock Taking AI",
@@ -91,7 +102,15 @@ const SOFTWARE = [
   },
 ];
 
-export default function ProductsPage() {
+export default async function ProductsPage() {
+  const publishedCategories = await getPublishedCategories();
+  const allStaticSlugs = new Set(Object.values(STATIC_CATEGORY_SLUGS).flat());
+  // Categories not already covered by one of the 4 hand-crafted cards below — e.g. a
+  // brand-new category the Owner just published an item under for the first time. Each
+  // one gets an auto-generated card in the same style, linking to the generic live
+  // catalogue route (since it has no bespoke marketing page of its own).
+  const extraCategories = publishedCategories.filter((c) => !allStaticSlugs.has(c.slug));
+
   return (
     <div>
       <PageHero
@@ -116,6 +135,14 @@ export default function ProductsPage() {
             lede="Industrial-grade instrumentation for the high-density supply chain — every category specified, supplied, installed, and supported by one team."
             ledeWidth="5xl"
           />
+          <Link
+            href="/products/shop"
+            className="gsap-animate inline-flex items-center gap-2 mt-2 text-sm font-bold text-slate-950 hover:text-indigo-600 transition-colors"
+          >
+            <span className="material-symbols-outlined text-lg">search</span>
+            Or search the full catalogue across every category
+            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+          </Link>
         </div>
       </GsapSection>
 
@@ -130,47 +157,95 @@ export default function ProductsPage() {
       >
         <div className="container mx-auto px-margin-desktop">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {CATEGORIES.map((cat) => (
-              <div
-                key={cat.title}
+            {CATEGORIES.map((cat) => {
+              return (
+                <div
+                  key={cat.title}
+                  className="gsap-animate group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full"
+                >
+                  <div>
+                    <div className="relative h-48 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        alt={cat.title}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        src={getAssetPath(cat.image)}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                      <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                        {cat.num}
+                      </span>
+                      <div className="absolute bottom-3 left-4 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-950 shadow-md border border-white">
+                        <span className="material-symbols-outlined text-base text-slate-950 font-bold">{cat.icon}</span>
+                      </div>
+                    </div>
+                    <div className="p-6 pb-2">
+                      <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">
+                        {cat.tag}
+                      </span>
+                      <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">{cat.title}</h3>
+                      <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">{cat.desc}</p>
+                    </div>
+                  </div>
+                  <div className="px-6 pb-6 pt-0">
+                    <Link
+                      href={cat.href}
+                      className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors"
+                    >
+                      Explore
+                      <span className="w-7 h-7 rounded-full bg-white text-slate-950 border border-slate-300 shadow-sm flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white group-hover:border-slate-950 transition-all">
+                        <span className="material-symbols-outlined text-xs font-bold">arrow_forward</span>
+                      </span>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+
+            {extraCategories.map((cat, idx) => (
+              <Link
+                key={cat.id}
+                href={`/products/shop/${cat.slug}`}
                 className="gsap-animate group relative flex flex-col justify-between rounded-3xl overflow-hidden border border-slate-200 bg-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full"
               >
                 <div>
-                  <div className="relative h-48 overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      alt={cat.title}
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                      src={getAssetPath(cat.image)}
-                    />
+                  <div className="relative h-48 overflow-hidden bg-slate-100">
+                    {cat.heroImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt={cat.name}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        src={cat.heroImage}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-5xl text-slate-300">inventory_2</span>
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
                     <span className="absolute top-4 left-4 text-[11px] font-bold text-white/90 tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                      {cat.num}
+                      {String(CATEGORIES.length + idx + 1).padStart(2, "0")}
                     </span>
-                    <div className="absolute bottom-3 left-4 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-950 shadow-md border border-white">
-                      <span className="material-symbols-outlined text-base text-slate-950 font-bold">{cat.icon}</span>
-                    </div>
                   </div>
                   <div className="p-6 pb-2">
                     <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">
-                      {cat.tag}
+                      New Online
                     </span>
-                    <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">{cat.title}</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">{cat.desc}</p>
+                    <h3 className="text-lg font-bold text-slate-950 leading-snug mb-2.5 min-h-[52px]">{cat.name}</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed mb-4 min-h-[44px]">
+                      {cat.description || `${cat.productCount} product${cat.productCount === 1 ? "" : "s"} available to order online.`}
+                    </p>
                   </div>
                 </div>
                 <div className="px-6 pb-6 pt-0">
-                  <Link
-                    href={cat.href}
-                    className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 hover:text-indigo-600 transition-colors"
-                  >
-                    Explore
+                  <span className="w-fit flex items-center gap-2 text-xs font-bold text-slate-950 group-hover:text-indigo-600 transition-colors">
+                    Shop Now
                     <span className="w-7 h-7 rounded-full bg-white text-slate-950 border border-slate-300 shadow-sm flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white group-hover:border-slate-950 transition-all">
                       <span className="material-symbols-outlined text-xs font-bold">arrow_forward</span>
                     </span>
-                  </Link>
+                  </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

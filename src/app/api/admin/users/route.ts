@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, loadPersistentUsers, savePersistentUsers } from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 import bcrypt from 'bcryptjs';
@@ -14,51 +14,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized: Admin access required.' }, { status: 403 });
   }
 
-  const combinedMap = new Map<string, any>();
-
-  const persistentMap = loadPersistentUsers();
-  Object.values(persistentMap).forEach((u) => {
-    combinedMap.set(u.email.toLowerCase(), {
-      id: u.id,
-      email: u.email,
-      fullName: u.fullName,
-      role: u.role,
-      isSuspended: u.isSuspended || false,
-      mfaEnabled: u.mfaEnabled,
-      createdAt: u.createdAt,
-    });
+  const dbUsers = await prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      role: true,
+      isSuspended: true,
+      mfaEnabled: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
   });
 
-  try {
-    const dbUsers = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        isSuspended: true,
-        mfaEnabled: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    dbUsers.forEach((u) => {
-      combinedMap.set(u.email.toLowerCase(), {
-        id: u.id,
-        email: u.email,
-        fullName: u.fullName,
-        role: u.role,
-        isSuspended: u.isSuspended,
-        mfaEnabled: u.mfaEnabled,
-        createdAt: u.createdAt,
-      });
-    });
-  } catch (e: any) {
-    console.warn('Prisma DB query warning in admin users API:', e.message);
-  }
-
-  return NextResponse.json({ users: Array.from(combinedMap.values()) });
+  return NextResponse.json({ users: dbUsers });
 }
 
 export async function POST(req: Request) {
@@ -79,64 +48,39 @@ export async function POST(req: Request) {
   const emailClean = email.toLowerCase().trim();
   const passwordHash = await bcrypt.hash(password, 10);
 
-  try {
-    const existing = await prisma.user.findUnique({ where: { email: emailClean } });
-    if (existing) {
-      return NextResponse.json({ error: 'User with this email already exists.' }, { status: 400 });
-    }
+  const existing = await prisma.user.findUnique({ where: { email: emailClean } });
+  if (existing) {
+    return NextResponse.json({ error: 'User with this email already exists.' }, { status: 400 });
+  }
 
-    const newUser = await prisma.user.create({
-      data: {
-        email: emailClean,
-        fullName,
-        role: role as UserRole,
-        passwordHash,
-      },
-    });
-
-    // Create vendor sub-record with PENDING status so vendor fills details in portal
-    if (role === 'VENDOR') {
-      await prisma.vendor.create({
-        data: {
-          userId: newUser.id,
-          companyName: `${fullName} Logistics`,
-          abnAcn: `51 ${Math.floor(10000000 + Math.random() * 90000000)}`,
-          status: 'PENDING',
-        },
-      }).catch(() => {});
-    }
-
-    await logAuditEvent({
-      userId: adminId,
-      role: adminRole,
-      action: 'USER_CREATED_BY_ADMIN',
-      module: 'GOVERNANCE',
-      payloadJson: { targetEmail: emailClean, targetRole: role, targetUserId: newUser.id },
-    }).catch(() => {});
-
-    return NextResponse.json({ success: true, user: newUser });
-  } catch (e: any) {
-    // Fallback to persistent storage
-    const persistentUsers = loadPersistentUsers();
-    if (persistentUsers[emailClean]) {
-      return NextResponse.json({ error: 'User with this email already exists.' }, { status: 400 });
-    }
-
-    const newId = `usr_adm_${Date.now()}`;
-    persistentUsers[emailClean] = {
-      id: newId,
+  const newUser = await prisma.user.create({
+    data: {
       email: emailClean,
       fullName,
       role: role as UserRole,
-      mfaEnabled: false,
       passwordHash,
-      createdAt: new Date().toISOString(),
-    };
-    savePersistentUsers(persistentUsers);
+    },
+  });
 
-    return NextResponse.json({
-      success: true,
-      user: { id: newId, email: emailClean, fullName, role, isSuspended: false, mfaEnabled: false },
-    });
+  // Create vendor sub-record with PENDING status so vendor fills details in portal
+  if (role === 'VENDOR') {
+    await prisma.vendor.create({
+      data: {
+        userId: newUser.id,
+        companyName: `${fullName} Logistics`,
+        abnAcn: `51 ${Math.floor(10000000 + Math.random() * 90000000)}`,
+        status: 'PENDING',
+      },
+    }).catch(() => {});
   }
+
+  await logAuditEvent({
+    userId: adminId,
+    role: adminRole,
+    action: 'USER_CREATED_BY_ADMIN',
+    module: 'GOVERNANCE',
+    payloadJson: { targetEmail: emailClean, targetRole: role, targetUserId: newUser.id },
+  }).catch(() => {});
+
+  return NextResponse.json({ success: true, user: newUser });
 }

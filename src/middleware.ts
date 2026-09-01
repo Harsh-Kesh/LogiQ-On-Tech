@@ -2,15 +2,17 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-type UserRole = 'PLATFORM_OWNER' | 'VENDOR' | 'WAREHOUSE' | 'MDM' | 'CUSTOMER';
+type UserRole = 'PLATFORM_OWNER' | 'VENDOR';
 
-function getDefaultDashboardForRole(role: UserRole): string {
+const OWNER_DASHBOARD_ROLES: string[] = ['PLATFORM_OWNER'];
+const WAREHOUSE_DASHBOARD_ROLES: string[] = ['PLATFORM_OWNER', 'VENDOR'];
+
+function getDefaultDashboardForRole(role: string): string {
   switch (role) {
     case 'PLATFORM_OWNER': return '/dashboard/owner';
-    case 'VENDOR': return '/dashboard/vendor';
-    case 'WAREHOUSE': return '/dashboard/warehouse';
-    case 'MDM': return '/dashboard/owner/items';
-    default: return '/dashboard/vendor';
+    case 'VENDOR':
+    default:
+      return '/dashboard/vendor';
   }
 }
 
@@ -26,9 +28,12 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Mandatory MFA Enrolment Guard: If account does not have a configured mfaSecret yet, force redirect to enrolment page
+    const role = (token.role as UserRole) || 'VENDOR';
     const hasMfaSecret = Boolean(token.mfaSecret);
-    if (!hasMfaSecret && pathname !== '/dashboard/mfa-enrol') {
+
+    // Mandatory MFA Enrolment Guard — only PLATFORM_OWNER is required to enrol.
+    // A VENDOR without a secret yet is not blocked; they can opt in from MFA Security.
+    if (role === 'PLATFORM_OWNER' && !hasMfaSecret && pathname !== '/dashboard/mfa-enrol') {
       return NextResponse.redirect(new URL('/dashboard/mfa-enrol', req.url));
     }
 
@@ -37,19 +42,14 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/auth/mfa-verify', req.url));
     }
 
-    const role = (token.role as UserRole) || 'VENDOR';
-
     // Route RBAC Enforcement
     if (pathname.startsWith('/dashboard/owner')) {
-      if (role !== 'PLATFORM_OWNER') {
-        // Allow WAREHOUSE managers access to facility-scoped inventory management
-        if (pathname === '/dashboard/owner/inventory' && role === 'WAREHOUSE') {
-          return NextResponse.next();
-        }
-        // Allow MDM users access to items and inventory pages
-        if (role === 'MDM' && (pathname === '/dashboard/owner/items' || pathname === '/dashboard/owner/inventory')) {
-          return NextResponse.next();
-        }
+      // Allow VENDOR access to the facility-scoped Stock Control Desk
+      if (pathname.startsWith('/dashboard/owner/inventory') && (role === 'VENDOR' || role === 'PLATFORM_OWNER')) {
+        return NextResponse.next();
+      }
+
+      if (!OWNER_DASHBOARD_ROLES.includes(role)) {
         const fallbackUrl = new URL(getDefaultDashboardForRole(role), req.url);
         return NextResponse.redirect(fallbackUrl);
       }
@@ -60,7 +60,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(fallbackUrl);
     }
 
-    if (pathname.startsWith('/dashboard/warehouse') && role !== 'WAREHOUSE' && role !== 'PLATFORM_OWNER') {
+    if (pathname.startsWith('/dashboard/warehouse') && !WAREHOUSE_DASHBOARD_ROLES.includes(role)) {
       const fallbackUrl = new URL(getDefaultDashboardForRole(role), req.url);
       return NextResponse.redirect(fallbackUrl);
     }

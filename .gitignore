@@ -41,3 +41,4 @@ next-env.d.ts
 # Local temp data & scratch
 .data/
 scratch/
+.backups/

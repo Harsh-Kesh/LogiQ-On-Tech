@@ -11,15 +11,14 @@ import { logAuditEvent } from '@/lib/audit';
 // FR-MD-004 Vendor Master pricing data
 
 import { MDM_ROLES, isRoleIn } from '@/lib/api-auth';
-const AUTH_ROLES = [...MDM_ROLES, 'SALES_OPS' as const, 'FINANCE' as const];
 function authorised(user: any) {
-  return isRoleIn(user, AUTH_ROLES);
+  return isRoleIn(user, MDM_ROLES);
 }
 
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  return NextResponse.json({ records: loadVendorMasterData() });
+  return NextResponse.json({ records: await loadVendorMasterData() });
 }
 
 export async function POST(req: Request) {
@@ -29,29 +28,30 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const required: Array<keyof VendorMasterRecord> = ['vendorName', 'itemCode', 'itemDescription', 'purchasePrice', 'currency', 'moq', 'leadTimeDays', 'paymentTerms'];
+    const required: Array<keyof VendorMasterRecord> = ['vendorName', 'itemCode', 'itemDescription', 'costOfGoods', 'currency', 'moq', 'leadTimeDays', 'paymentTerms', 'incoterms'];
     for (const k of required) {
       if (body[k] === undefined || body[k] === null || body[k] === '') {
         return NextResponse.json({ error: `Field '${String(k)}' is required.` }, { status: 400 });
       }
     }
 
-    const purchasePrice = Number(body.purchasePrice);
+    const costOfGoods = Number(body.costOfGoods);
     const moq = Number(body.moq);
     const leadTimeDays = Number(body.leadTimeDays);
-    if (Number.isNaN(purchasePrice) || purchasePrice < 0) return NextResponse.json({ error: 'purchasePrice must be a non-negative number.' }, { status: 400 });
+    if (Number.isNaN(costOfGoods) || costOfGoods < 0) return NextResponse.json({ error: 'costOfGoods must be a non-negative number.' }, { status: 400 });
     if (Number.isNaN(moq) || moq < 0) return NextResponse.json({ error: 'moq must be a non-negative number.' }, { status: 400 });
     if (Number.isNaN(leadTimeDays) || leadTimeDays < 0) return NextResponse.json({ error: 'leadTimeDays must be a non-negative number.' }, { status: 400 });
 
-    const rec = createVendorMasterRecord({
+    const rec = await createVendorMasterRecord({
       vendorName: String(body.vendorName).trim(),
       itemCode: String(body.itemCode).trim(),
       itemDescription: String(body.itemDescription).trim(),
-      purchasePrice,
+      costOfGoods,
       currency: String(body.currency).trim().toUpperCase(),
       moq,
       leadTimeDays,
       paymentTerms: String(body.paymentTerms).trim(),
+      incoterms: String(body.incoterms).trim(),
     });
 
     await logAuditEvent({

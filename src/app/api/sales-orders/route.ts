@@ -3,19 +3,19 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadSalesOrders, createSalesOrder } from '@/lib/sales-orders';
 import { logAuditEvent } from '@/lib/audit';
-import { COMMERCIAL_ROLES, isRoleIn } from '@/lib/api-auth';
-
-function ownerAuth(user: any) {
-  return isRoleIn(user, COMMERCIAL_ROLES);
-}
+import { guardPermission } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = session?.user as any;
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!guardPermission(user, 'SALES_ORDERS', 'READ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
-  let records = loadSalesOrders();
+  let records = await loadSalesOrders();
   if (status && status !== 'ALL') records = records.filter((r) => r.status === status);
   return NextResponse.json({ salesOrders: records });
 }
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!ownerAuth(user)) return NextResponse.json({ error: 'Unauthorized: Owner or Sales/Ops role required.' }, { status: 403 });
+  if (!guardPermission(user, 'SALES_ORDERS', 'CREATE')) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
   const body = await req.json();
   const required = ['customerName', 'deliveryLocation', 'paymentTerms', 'lines'];
@@ -35,15 +35,19 @@ export async function POST(req: Request) {
   }
 
   const lines = body.lines.map((l: any, i: number) => {
-    const quantity = Number(l.quantity);
-    const sellingPrice = Number(l.sellingPrice);
-    const taxPercent = Number(l.taxPercent || 10);
+    const itemCode = String(l.itemCode || '').trim();
+    const itemName = String(l.itemName || l.description || itemCode).trim();
+    const description = String(l.description || l.itemName || itemCode).trim();
+    const quantity = Number(l.quantity) || 1;
+    const sellingPrice = Number(l.sellingPrice) || 0;
+    const taxPercent = l.taxPercent !== undefined ? Number(l.taxPercent) : 10;
     const subtotal = quantity * sellingPrice;
     const lineTotal = Math.round(subtotal * (1 + taxPercent / 100) * 100) / 100;
     return {
       id: `sol_${Date.now()}_${i}`,
-      itemCode: String(l.itemCode || '').trim(),
-      itemName: String(l.itemName || '').trim(),
+      itemCode,
+      itemName,
+      description,
       quantity,
       sellingPrice,
       taxPercent,
@@ -57,17 +61,20 @@ export async function POST(req: Request) {
 
   const rec = await createSalesOrder({
     customerName: String(body.customerName).trim(),
-    customerPoReference: body.customerPoReference || undefined,
+    customerEmail: body.customerEmail ? String(body.customerEmail).trim() : undefined,
+    customerPoReference: body.customerPoReference ? String(body.customerPoReference).trim() : undefined,
     deliveryLocation: String(body.deliveryLocation).trim(),
-    requestedDeliveryDate: body.requestedDeliveryDate,
-    paymentTerms: body.paymentTerms,
+    requestedDeliveryDate: body.requestedDeliveryDate ? String(body.requestedDeliveryDate).trim() : undefined,
+    paymentTerms: String(body.paymentTerms).trim(),
+    incoterms: body.incoterms ? String(body.incoterms).trim() : undefined,
     currency: (body.currency || 'AUD').toUpperCase(),
     lines,
     subtotal,
     taxTotal,
     totalValue,
+    internalNotes: body.internalNotes ? String(body.internalNotes).trim() : undefined,
     createdBy: user.email || 'owner@logiqon.com',
-    status: body.status,
+    status: 'DRAFT',
   });
 
   await logAuditEvent({
@@ -76,7 +83,16 @@ export async function POST(req: Request) {
     action: 'SALES_ORDER_CREATED',
     module: 'GOVERNANCE',
     targetId: rec.id,
-    payloadJson: { salesOrderNumber: rec.salesOrderNumber, totalValue: rec.totalValue },
+    payloadJson: {
+      salesOrderNumber: rec.salesOrderNumber,
+      customerName: rec.customerName,
+      customerPoReference: rec.customerPoReference,
+      deliveryLocation: rec.deliveryLocation,
+      requestedDeliveryDate: rec.requestedDeliveryDate,
+      paymentTerms: rec.paymentTerms,
+      totalValue: rec.totalValue,
+      lineCount: rec.lines.length,
+    },
   }).catch(() => {});
 
   return NextResponse.json({ success: true, salesOrder: rec });

@@ -52,8 +52,8 @@ export default function AuditLogsPage() {
             <FileText className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Security Audit Logs Engine</h1>
-            <p className="text-xs text-slate-500 font-mono">Security Audit Stream &amp; Forensic Logging</p>
+            <h1 className="text-2xl font-extrabold text-slate-900">Audit Logs</h1>
+            <p className="text-xs text-slate-500 font-mono">Track security events and account activity</p>
           </div>
         </div>
 
@@ -90,14 +90,14 @@ export default function AuditLogsPage() {
               onChange={(e) => setModuleFilter(e.target.value)}
               className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-mono font-bold bg-white text-slate-700 focus:ring-2 focus:ring-sky-500 focus:outline-none"
             >
-              <option value="ALL">All Modules Fleet</option>
+              <option value="ALL">All Modules</option>
               <option value="GOVERNANCE">Governance &amp; RBAC</option>
               <option value="VENDOR_MANAGEMENT">Vendor Directory</option>
               <option value="WAREHOUSE_OPERATIONS">Warehouse &amp; Stock</option>
               <option value="MASTER_DATA_MDM">Master Data (MDM)</option>
             </select>
 
-            <span className="text-xs font-mono text-emerald-700 flex items-center gap-1 font-bold">
+            <span className="text-xs font-mono text-indigo-700 flex items-center gap-1 font-bold">
               <CheckCircle2 className="w-3.5 h-3.5" /> {filteredLogs.length} / {logs.length} Filtered
             </span>
           </div>
@@ -141,7 +141,7 @@ export default function AuditLogsPage() {
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : isLogin
                               ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                           }`}
                         >
                           {log.action}
@@ -184,7 +184,7 @@ export default function AuditLogsPage() {
               </button>
             </div>
 
-            <div className="bg-slate-900 text-emerald-400 font-mono text-xs p-4 rounded-2xl overflow-x-auto max-h-80 border border-slate-800">
+            <div className="bg-slate-900 text-indigo-400 font-mono text-xs p-4 rounded-2xl overflow-x-auto max-h-80 border border-slate-800">
               <pre>
                 {(() => {
                   try {

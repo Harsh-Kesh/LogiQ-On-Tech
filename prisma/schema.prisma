@@ -7,20 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// SRS §7.1 FR-AU-002 — expanded role model.
-// Kept existing labels (VENDOR, WAREHOUSE, MDM, CUSTOMER) for backwards compat
-// with seeded users; added the SRS-mandated roles alongside.
+// Strictly 2-Role System: PLATFORM_OWNER and VENDOR.
 enum UserRole {
   PLATFORM_OWNER
-  SALES_OPS
-  FINANCE
-  WAREHOUSE_MANAGER
-  WAREHOUSE_OPERATOR
-  AUDITOR
   VENDOR
-  WAREHOUSE
-  MDM
-  CUSTOMER
 }
 
 enum VendorStatus {
@@ -70,6 +60,8 @@ model Vendor {
   abnAcn              String       @unique
   status              VendorStatus @default(PENDING)
   rejectionReason     String?
+  businessRegisteredAddress String?
+  businessLocation    String?
   userId              String       @unique
   user                User         @relation(fields: [userId], references: [id])
   approvedAt          DateTime?
@@ -115,12 +107,13 @@ model ComplianceDoc {
 }
 
 model Category {
-  id       String     @id @default(uuid())
-  name     String
-  slug     String     @unique
-  parentId String?
-  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryHierarchy")
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  description String?
 
   items    ItemMaster[]
 
@@ -139,23 +132,34 @@ model UnitOfMeasure {
 }
 
 model ItemMaster {
-  id             String        @id @default(uuid())
-  sku            String        @unique
-  barcode        String        @unique
-  itemName       String
-  description    String?
-  categoryId     String?
-  category       Category?     @relation(fields: [categoryId], references: [id])
-  uomId          String?
-  uom            UnitOfMeasure? @relation(fields: [uomId], references: [id])
-  costPrice      Decimal       @db.Decimal(12, 2)
-  sellingPrice   Decimal       @db.Decimal(12, 2)
-  status         ItemStatus    @default(DRAFT)
-  attributesJson String?       @db.Text
-  vendorId       String?
-  vendor         Vendor?       @relation(fields: [vendorId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                String        @id @default(uuid())
+  sku               String        @unique
+  barcode           String        @unique
+  itemName          String
+  description       String?
+  categoryId        String?
+  category          Category?     @relation(fields: [categoryId], references: [id])
+  uomId             String?
+  uom               UnitOfMeasure? @relation(fields: [uomId], references: [id])
+  costPrice         Decimal       @db.Decimal(12, 2)
+  sellingPrice      Decimal       @db.Decimal(12, 2)
+  moq               Int           @default(1)
+  status            ItemStatus    @default(DRAFT)
+  attributesJson    String?       @db.Text
+  vendorId          String?
+  vendor            Vendor?       @relation(fields: [vendorId], references: [id])
+  lowStockThreshold Int?
+  reorderQuantity   Int?
+  imageUrl          String?
+  // Public storefront listing (opt-in, FR-STORE-001). An item can only be published
+  // once it has a vendor allocated, a public description, and at least one image —
+  // enforced server-side, not just in the form.
+  publishToStore    Boolean       @default(false)
+  storeDescription  String?
+  storeImages       String[]      @default([])
+  statusHistoryJson String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   stockItems     WarehouseStock[]
   ledgerEntries  StockLedger[]
@@ -170,6 +174,9 @@ model Warehouse {
   code      String   @unique
   name      String
   address   String
+  contactPerson String?
+  contactEmail  String?
+  managerEmail  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -208,8 +215,14 @@ model StockLedger {
   quantityDelta   Int
   referenceNumber String
   reasonCode      String?
-  createdById     String
-  createdBy       User               @relation("LedgerCreatedBy", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User?              @relation("LedgerCreatedBy", fields: [createdById], references: [id])
+  createdByEmail  String?
+  vendorId        String?
+  vendorName      String?
+  sku             String?
+  barcode         String?
+  itemName        String?
   createdAt       DateTime           @default(now())
 
   @@index([warehouseId])
@@ -244,18 +257,18 @@ model AuditLog {
 enum SalesOrderStatus {
   DRAFT
   CONFIRMED
-  STOCK_CHECK_PENDING
+  STOCK_CHECK
   PARTIALLY_ALLOCATED
   ALLOCATED
-  DISPATCH_REQUESTED
+  READY_FOR_DISPATCH
   PARTIALLY_DISPATCHED
   DISPATCHED
   DELIVERED
   INVOICED
   PARTIALLY_PAID
   PAID
+  COMPLETED
   CANCELLED
-  CLOSED
 }
 
 enum AllocationStatus {
@@ -267,17 +280,24 @@ enum AllocationStatus {
   CANCELLED
 }
 
+// Vocabulary matches src/lib/dispatch-notes.ts's DispatchStatus exactly — the
+// original SRS-drafted enum (DRAFT/ISSUED/ACKNOWLEDGED/...) never matched the
+// app's real warehouse-ops workflow and was replaced wholesale.
 enum DispatchStatus {
-  DRAFT
-  ISSUED
-  ACKNOWLEDGED
+  PENDING
+  ALLOCATED
   PICKING
   PICKED
-  PARTIALLY_DISPATCHED
+  PACKING
+  PACKED
+  READY_FOR_DISPATCH
   DISPATCHED
+  IN_TRANSIT
   PARTIALLY_DELIVERED
   DELIVERED
   DELIVERY_EXCEPTION
+  ON_HOLD
+  RETURNED
   CANCELLED
 }
 
@@ -285,27 +305,36 @@ enum CustomerInvoiceStatus {
   DRAFT
   APPROVED
   SENT
+  VIEWED
   PARTIALLY_PAID
   PAID
   OVERDUE
   VOID
 }
 
+// Vocabulary matches src/lib/customer-payments.ts's CustomerPaymentStatus —
+// the original SRS-drafted enum modeled a general ledger posting/allocation
+// flow the app never implemented.
 enum CustomerPaymentStatus {
-  DRAFT
-  POSTED
-  PARTIALLY_ALLOCATED
-  ALLOCATED
+  PENDING
+  CONFIRMED
   REVERSED
 }
 
+// Vocabulary matches src/lib/purchase-orders.ts's PurchaseOrderStatus exactly
+// — the original SRS-drafted enum never matched the app's real vendor-supply
+// workflow and was replaced wholesale.
 enum PurchaseOrderStatus {
   DRAFT
   APPROVED
-  ISSUED
-  ACKNOWLEDGED
-  PARTIALLY_INVOICED
-  INVOICED
+  SENT_TO_VENDOR
+  VENDOR_CONFIRMED
+  PARTIALLY_SUPPLIED
+  FULLY_SUPPLIED
+  VENDOR_INVOICE_RECEIVED
+  PAYMENT_PENDING
+  PARTIALLY_PAID
+  PAID
   CLOSED
   CANCELLED
 }
@@ -314,6 +343,7 @@ enum SupplierInvoiceStatus {
   SUBMITTED
   UNDER_REVIEW
   ON_HOLD
+  DISPUTED
   APPROVED
   REJECTED
   PARTIALLY_PAID
@@ -454,23 +484,31 @@ model Customer {
 }
 
 // FR-MD-004 — customer-specific pricing (Customer Master Data screen).
+// Matched by customerName (case/whitespace-insensitive at the app layer), the
+// same identity model the Customer Master UI has always used — the customerId
+// relation is an optional enrichment, not a required identity, since nothing
+// in the app resolves an incoming customer name to a Customer row today.
 model CustomerPricing {
-  id             String   @id @default(uuid())
-  customerId     String
-  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  itemMasterId   String?
-  itemCode       String
+  id              String    @id @default(uuid())
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  customerName    String
+  itemMasterId    String?
+  itemCode        String
+  customerItemCode String?
   itemDescription String
-  sellingPrice   Decimal  @db.Decimal(18, 4)
-  currency       String   @default("AUD")
-  moq            Int      @default(1)
-  paymentTerms   String
-  effectiveFrom  DateTime @default(now())
-  effectiveTo    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  sellingPrice    Decimal   @db.Decimal(18, 4)
+  currency        String    @default("AUD")
+  moq             Int       @default(1)
+  incoterms       String    @default("EXW")
+  paymentTerms    String
+  leadTimeDays    Int       @default(7)
+  effectiveFrom   DateTime  @default(now())
+  effectiveTo     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  @@index([customerId])
+  @@index([customerName])
   @@index([itemCode])
   @@map("customer_pricing")
 }
@@ -486,6 +524,7 @@ model VendorPricing {
   purchasePrice  Decimal  @db.Decimal(18, 4)
   currency       String   @default("AUD")
   moq            Int      @default(1)
+  incoterms      String   @default("EXW")
   leadTimeDays   Int      @default(0)
   paymentTerms   String
   effectiveFrom  DateTime @default(now())
@@ -494,6 +533,7 @@ model VendorPricing {
   updatedAt      DateTime @updatedAt
 
   @@index([vendorId])
+  @@index([vendorName])
   @@index([itemCode])
   @@map("vendor_pricing")
 }
@@ -524,10 +564,14 @@ model SalesOrder {
   customerId       String?
   customer         Customer? @relation(fields: [customerId], references: [id])
   customerName     String
+  customerEmail    String?
+  customerPhone    String?
   customerPoReference String?
+  source           String?  @default("MANUAL") // MANUAL | ONLINE_STORE
   deliveryLocation String
   requestedDeliveryDate DateTime?
   paymentTerms     String
+  incoterms        String?
   currency         String   @default("AUD")
   status           SalesOrderStatus @default(DRAFT)
   subtotal         Decimal  @db.Decimal(18, 4) @default(0)
@@ -558,6 +602,7 @@ model SalesOrderLine {
   itemMasterId   String?
   itemCode       String
   itemName       String
+  description    String?
   quantity       Int
   sellingPrice   Decimal  @db.Decimal(18, 4)
   taxCodeId      String?
@@ -605,13 +650,20 @@ model DispatchNote {
   customerAddress String
   warehouseCode  String
   warehouseName  String?
-  status         DispatchStatus @default(DRAFT)
+  status         DispatchStatus @default(ALLOCATED)
   dispatchDate   DateTime?
   carrier        String?
   trackingNumber String?
   expectedDeliveryDate DateTime?
   actualDeliveryDate   DateTime?
   comments       String?
+  receiverName   String?
+  podReference   String?
+  rejectionReason String?
+  attachmentFileName String?
+  attachmentFileData String? @db.Text
+  attachmentFileType String?
+  attachmentUploadedAt DateTime?
   createdBy      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -636,6 +688,7 @@ model DispatchNoteLine {
   pickedQty      Int      @default(0)
   dispatchQty    Int      @default(0)
   deliveredQty   Int      @default(0)
+  damagedQty     Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -751,6 +804,9 @@ model CustomerPayment {
   paymentNumber  String   @unique
   customerId     String?
   customer       Customer? @relation(fields: [customerId], references: [id])
+  customerInvoiceId String?
+  invoiceNumber  String?
+  customerName   String?
   paymentDate    DateTime
   amount         Decimal  @db.Decimal(18, 4)
   currency       String   @default("AUD")
@@ -758,7 +814,11 @@ model CustomerPayment {
   bankReference  String?
   evidenceUrl    String?
   notes          String?
-  status         CustomerPaymentStatus @default(DRAFT)
+  receiptFileName    String?
+  receiptFileData    String? @db.Text
+  receiptFileType    String?
+  receiptFileSize    Int?
+  status         CustomerPaymentStatus @default(PENDING)
   createdBy      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -803,6 +863,7 @@ model PurchaseOrder {
   moq            Int?
   leadTimeDays   Int?
   notes          String?
+  transportCost  Decimal? @db.Decimal(18, 4)
   createdBy      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -992,5 +1053,171 @@ model DocumentSnapshot {
 
   @@index([entityType, entityId])
   @@map("document_snapshots")
+}
+
+enum RmaReturnCondition {
+  RESTOCKABLE
+  DAMAGED_WRITE_OFF
+}
+
+model RmaReturn {
+  id               String   @id @default(uuid())
+  rmaNumber        String   @unique
+  orderId          String?
+  orderNumber      String?
+  customerName     String
+  itemMasterId     String
+  sku              String
+  itemName         String
+  barcode          String
+  warehouseCode    String
+  warehouseName    String
+  binLocation      String
+  quantityReturned Int
+  condition        RmaReturnCondition
+  reasonCode       String
+  notes            String?
+  createdById      String?
+  createdByEmail   String?
+  createdAt        DateTime @default(now())
+
+  @@map("rma_returns")
+}
+
+// Freight cost claims raised against one or more Purchase Orders, allocated
+// either equally or proportionally to each PO's share of the shipment.
+// Matches src/lib/transport-costs.ts's TransportCost/TransportCostAllocation.
+enum TransportCostStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+model TransportCost {
+  id                  String   @id @default(uuid())
+  transportCostNumber String   @unique
+  trackingNumber      String
+  warehouseCode       String
+  warehouseName       String?
+  totalCost           Decimal  @db.Decimal(18, 4)
+  currency            String   @default("AUD")
+  vendorName          String
+  vendorId            String?
+  relatedDnNumbers    String[]
+  status              TransportCostStatus @default(PENDING_APPROVAL)
+  rejectionReason     String?
+  notes               String?
+  createdBy           String?
+  approvedBy          String?
+  approvedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  allocations         TransportCostAllocation[]
+
+  @@index([warehouseCode])
+  @@index([status])
+  @@map("transport_costs")
+}
+
+model TransportCostAllocation {
+  id                  String   @id @default(uuid())
+  transportCostId     String
+  transportCost       TransportCost @relation(fields: [transportCostId], references: [id], onDelete: Cascade)
+  poNumber            String
+  poTotalValueAtClaim Decimal  @db.Decimal(18, 4)
+  allocatedAmount     Decimal  @db.Decimal(18, 4)
+  createdAt           DateTime @default(now())
+
+  @@index([transportCostId])
+  @@index([poNumber])
+  @@map("transport_cost_allocations")
+}
+
+// Password-reset OTP — one row per email; a new request replaces the
+// previous one (matches src/lib/auth.ts's upsert-by-email JSON behavior).
+model PasswordResetOtp {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_otps")
+}
+
+// Warehouse pick/pack/dispatch workflow for the Stock Control Desk's outbound
+// order flow (src/lib/orders.ts). Distinct from SalesOrder/DispatchNote —
+// this models the physical warehouse-floor picking process, not the
+// commercial order lifecycle.
+enum OutboundOrderStatus {
+  SUBMITTED
+  IN_PICKING
+  PICKED
+  PACKED
+  DISPATCHED
+  CANCELLED
+}
+
+model OutboundOrder {
+  id               String   @id @default(uuid())
+  orderNumber      String   @unique
+  customerName     String
+  deliveryAddress  String
+  warehouseCode    String
+  warehouseName    String
+  vendorId         String?
+  vendorName       String?
+  vendorEmail      String?
+  status           OutboundOrderStatus @default(SUBMITTED)
+  notes            String?
+  packageType      String?
+  grossWeightKg    Decimal? @db.Decimal(10, 3)
+  courierName      String?
+  trackingNumber   String?
+  packedAt         DateTime?
+  packedByEmail    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items            OutboundOrderItem[]
+  pickSteps        OutboundOrderPickStep[]
+
+  @@map("outbound_orders")
+}
+
+model OutboundOrderItem {
+  id                String   @id @default(uuid())
+  outboundOrderId   String
+  outboundOrder     OutboundOrder @relation(fields: [outboundOrderId], references: [id], onDelete: Cascade)
+  itemMasterId      String
+  sku               String
+  itemName          String
+  barcode           String
+  quantityRequested Int
+  quantityPicked    Int      @default(0)
+  quantityPacked    Int      @default(0)
+  unitPrice         Decimal? @db.Decimal(18, 4)
+
+  @@index([outboundOrderId])
+  @@map("outbound_order_items")
+}
+
+model OutboundOrderPickStep {
+  id                String   @id @default(uuid())
+  outboundOrderId   String
+  outboundOrder     OutboundOrder @relation(fields: [outboundOrderId], references: [id], onDelete: Cascade)
+  stepNumber        Int
+  itemMasterId      String
+  sku               String
+  itemName          String
+  barcode           String
+  binLocation       String
+  zone              String
+  quantityToPick    Int
+  isPicked          Boolean  @default(false)
+
+  @@index([outboundOrderId])
+  @@map("outbound_order_pick_steps")
 }
 

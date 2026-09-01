@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import ProductGrid from "@/components/products/ProductGrid";
-import { BARCODE_SCANNERS } from "@/lib/data/barcode-scanners";
 import { getAssetPath } from "@/lib/nav";
+import { getPublishedProducts } from "@/lib/store-catalog";
 
 export const metadata: Metadata = {
   title: "Barcode Scanners",
@@ -11,7 +11,9 @@ export const metadata: Metadata = {
     "General purpose, rugged, fixed-mount, and portable barcode scanners from Zebra, CipherLab, and Denso — specified for Australian retail, warehouse, and logistics operations.",
 };
 
-export default function BarcodeScannersPage() {
+export default async function BarcodeScannersPage() {
+  const products = await getPublishedProducts("barcode-scanners");
+
   return (
     <div>
       <section className="relative min-h-screen flex items-center overflow-hidden bg-slate-950 pt-36 pb-16 w-full">
@@ -57,7 +59,7 @@ export default function BarcodeScannersPage() {
             <Link href="/products" className="hover:text-primary">Products</Link> <span className="mx-1">&rsaquo;</span>
             <span className="text-on-background font-bold">Barcode Scanners</span>
           </nav>
-          <ProductGrid products={BARCODE_SCANNERS} />
+          <ProductGrid products={products} />
         </div>
       </section>
     </div>

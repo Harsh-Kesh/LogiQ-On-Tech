@@ -26,8 +26,8 @@ interface DemoAccount {
 const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     id: "owner",
-    role: "Executive / Admin",
-    badge: "Owner Portal",
+    role: "Platform Owner",
+    badge: "Owner Console",
     email: "owner@logiqon.com",
     password: "Password123!",
     portalName: "Platform Owner Console",
@@ -36,41 +36,54 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     bgColor: "#eff6ff",
     borderColor: "#bfdbfe",
     icon: "👑",
-    description: "Executive analytics, system oversight & user directory",
+    description: "Executive analytics, commercial order management & user directory",
   },
   {
-    id: "vendor",
-    role: "Vendor / Supplier",
+    id: "vendor_apex",
+    role: "Vendor: Apex Hardware",
     badge: "Vendor Portal",
-    email: "vendor@logiqon.com",
+    email: "vendor@logiqon.tech",
     password: "Password123!",
-    portalName: "Vendor Dashboard",
+    portalName: "Vendor Portal",
     portalUrl: "/dashboard/vendor",
     color: "#d97706",
     bgColor: "#fffbeb",
     borderColor: "#fef3c7",
     icon: "🏭",
-    description: "Statutory ATO compliance, product catalog & 3PL allocations",
+    description: "Hardware catalog (Scanners, RFID) & warehouse stock fulfillment",
   },
   {
-    id: "warehouse",
-    role: "Warehouse Manager",
-    badge: "Warehouse Portal",
-    email: "warehouse@logiqon.com",
+    id: "vendor_smith",
+    role: "Vendor: Smith Logistics",
+    badge: "Vendor Portal",
+    email: "john@smithlogistics.com",
     password: "Password123!",
-    portalName: "Warehouse Dashboard",
-    portalUrl: "/dashboard/warehouse",
-    color: "#0284c7",
-    bgColor: "#f0f9ff",
-    borderColor: "#bae6fd",
+    portalName: "Vendor Portal",
+    portalUrl: "/dashboard/vendor",
+    color: "#059669",
+    bgColor: "#ecfdf5",
+    borderColor: "#a7f3d0",
     icon: "📦",
-    description: "Stock ledger, bin management & 3PL order fulfillment",
+    description: "Freight & logistics catalog & warehouse stock fulfillment",
+  },
+  {
+    id: "vendor_jonathan",
+    role: "Vendor: Jonathan Logistics Hub",
+    badge: "Vendor Portal",
+    email: "jon.doe@vendor.logiqon.com",
+    password: "Password123!",
+    portalName: "Vendor Portal",
+    portalUrl: "/dashboard/vendor",
+    color: "#7c3aed",
+    bgColor: "#f5f3ff",
+    borderColor: "#ddd6fe",
+    icon: "🚚",
+    description: "Logistics catalog & warehouse stock fulfillment",
   },
 ];
 
 export default function LoginView() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"signin" | "register">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -285,7 +298,7 @@ export default function LoginView() {
                 margin: 0,
               }}
             >
-              Access logistics telemetry, order tracking, verified vendor services, and enterprise analytics instantly.
+              Access order tracking, dispatch &amp; inventory visibility, verified vendor services, and enterprise analytics instantly.
             </p>
           </div>
 
@@ -305,53 +318,13 @@ export default function LoginView() {
           }}
         >
           <div>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
-              <div>
-                <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em", margin: 0 }}>
-                  Welcome back
-                </h1>
-              </div>
-
-              <div style={{ display: "inline-flex", background: "#f1f5f9", padding: 4, borderRadius: 20 }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("signin")}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: 16,
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    border: "none",
-                    background: activeTab === "signin" ? "#0f172a" : "transparent",
-                    color: activeTab === "signin" ? "#ffffff" : "#64748b",
-                    boxShadow: activeTab === "signin" ? "0 2px 5px rgba(15,23,42,0.15)" : "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  Sign In
-                </button>
-                <Link
-                  href="/auth/register"
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: 16,
-                    fontSize: 12.5,
-                    fontWeight: 600,
-                    border: "none",
-                    background: "transparent",
-                    color: "#64748b",
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                  }}
-                >
-                  Register
-                </Link>
-              </div>
+            <div style={{ marginBottom: 6 }}>
+              <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em", margin: 0 }}>
+                Sign In to LogiQ-On
+              </h1>
             </div>
-
             <p style={{ fontSize: 13.5, color: "#64748b", margin: "0 0 20px 0" }}>
-              Enter your details to sign in to your unified profile.
+              Enter your details to sign in to your account.
             </p>
 
             {errorMsg && (
@@ -539,7 +512,7 @@ export default function LoginView() {
           </div>
 
           <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", borderTop: "1px solid #f1f5f9", paddingTop: 16, marginTop: 24 }}>
-            LogiQ-On Platform Governance • Multi-tenant RBAC &amp; ATO Compliance
+            Secure Access for Owners, Vendors &amp; Warehouse Teams • ATO Compliant
           </div>
         </div>
       </div>

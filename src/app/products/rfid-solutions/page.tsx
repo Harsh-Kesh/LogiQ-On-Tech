@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import ProductGrid from "@/components/products/ProductGrid";
-import { RFID_PRODUCTS } from "@/lib/data/rfid-products";
+import ProductGrid, { SupplementaryCard } from "@/components/products/ProductGrid";
 import { getAssetPath } from "@/lib/nav";
+import { getPublishedProducts } from "@/lib/store-catalog";
 
 export const metadata: Metadata = {
   title: "RFID Solutions",
@@ -10,7 +10,25 @@ export const metadata: Metadata = {
     "Fixed and mobile RFID readers, RFID printers, and tags from Zebra and Honeywell for item-level inventory visibility across Australian retail and warehouse operations.",
 };
 
-export default function RfidSolutionsPage() {
+// gStore isn't an Item Master SKU — it's a SaaS platform that routes to a dedicated
+// solutions page, so it's kept as a non-transactional supplementary card rather than
+// migrated into the orderable catalogue.
+const SUPPLEMENTARY: SupplementaryCard[] = [
+  {
+    id: "gstore-greyorange",
+    brand: "GreyOrange",
+    title: "gStore",
+    description:
+      "Unified retail SaaS platform pairing hybrid overhead and handheld RFID with real-time inventory intelligence and guided store workflows.",
+    image: "/images/gstore/feature-hybrid-rfid.webp",
+    href: "/solutions/retail-rfid-solutions/gstore-greyorange",
+    ctaLabel: "View gStore Platform",
+  },
+];
+
+export default async function RfidSolutionsPage() {
+  const products = await getPublishedProducts("rfid-tracking");
+
   return (
     <div>
       <section className="relative min-h-screen flex items-center overflow-hidden bg-slate-950 pt-36 pb-16 w-full">
@@ -41,7 +59,7 @@ export default function RfidSolutionsPage() {
             <Link href="/products" className="hover:text-primary">Products</Link> <span className="mx-1">&rsaquo;</span>
             <span className="text-on-background font-bold">RFID Solutions</span>
           </nav>
-          <ProductGrid products={RFID_PRODUCTS} />
+          <ProductGrid products={products} supplementary={SUPPLEMENTARY} />
         </div>
       </section>
     </div>

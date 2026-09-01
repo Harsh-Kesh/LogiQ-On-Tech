@@ -168,10 +168,7 @@ export default function UserManagementPage() {
       header: 'Role Assignment',
       accessorKey: 'role',
       cell: (row) => {
-        let variant: 'indigo' | 'amber' | 'emerald' | 'sky' | 'slate' = 'indigo';
-        if (row.role === 'VENDOR') variant = 'amber';
-        if (row.role === 'WAREHOUSE') variant = 'emerald';
-        if (row.role === 'MDM') variant = 'sky';
+        const variant: 'indigo' | 'amber' = row.role === 'VENDOR' ? 'amber' : 'indigo';
         return <Badge variant={variant}>{row.role}</Badge>;
       },
     },
@@ -185,12 +182,12 @@ export default function UserManagementPage() {
       ),
     },
     {
-      header: '2FA Security',
+      header: 'Two-Factor Auth',
       accessorKey: 'mfaEnabled',
       cell: (row) => (
-        <span className="text-xs font-mono font-semibold text-slate-600">
-          {row.mfaEnabled ? '🔒 TOTP Enabled' : '🔓 Pending'}
-        </span>
+        <Badge variant={row.mfaEnabled ? 'success' : 'slate'}>
+          {row.mfaEnabled ? 'Enabled' : 'Not Enabled'}
+        </Badge>
       ),
     },
     {
@@ -206,7 +203,7 @@ export default function UserManagementPage() {
               setIsRoleModalOpen(true);
             }}
           >
-            Role
+            Change Role
           </Button>
 
           <Button
@@ -278,8 +275,6 @@ export default function UserManagementPage() {
                 { value: '', label: 'All Roles' },
                 { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
                 { value: 'VENDOR', label: 'Vendor' },
-                { value: 'WAREHOUSE', label: 'Warehouse Manager' },
-                { value: 'MDM', label: 'Master Data Manager' },
               ]}
             />
           </div>
@@ -330,8 +325,6 @@ export default function UserManagementPage() {
             options={[
               { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
               { value: 'VENDOR', label: 'Vendor' },
-              { value: 'WAREHOUSE', label: 'Warehouse Manager' },
-              { value: 'MDM', label: 'Master Data Specialist (MDM)' },
             ]}
           />
           <Input label="Initial Password" type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
@@ -355,8 +348,6 @@ export default function UserManagementPage() {
             options={[
               { value: 'PLATFORM_OWNER', label: 'Platform Owner' },
               { value: 'VENDOR', label: 'Vendor' },
-              { value: 'WAREHOUSE', label: 'Warehouse Manager' },
-              { value: 'MDM', label: 'Master Data Specialist (MDM)' },
             ]}
           />
           <div className="flex justify-end gap-3 pt-2">

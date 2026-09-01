@@ -1,5 +1,4 @@
-import fs from 'fs';
-
+import { prisma } from './prisma';
 
 export interface PersistentProduct {
   id: string;
@@ -9,7 +8,6 @@ export interface PersistentProduct {
   description?: string;
   costPrice: number;
   sellingPrice: number;
-  wholesalePrice?: number;
   marginPercent?: number;
   markupPercent?: number;
   moq?: number;
@@ -25,6 +23,12 @@ export interface PersistentProduct {
   lowStockThreshold?: number;
   reorderQuantity?: number;
   imageUrl?: string;
+  // Public storefront listing (opt-in, FR-STORE-001). An item can only be published
+  // once it has a vendor allocated, a public description, and at least one image —
+  // enforced server-side in /api/mdm/items, not just in the form.
+  publishToStore?: boolean;
+  storeDescription?: string;
+  storeImages?: string[];
   attributes?: Record<string, string>;
   statusHistory?: Array<{
     from: string;
@@ -37,31 +41,68 @@ export interface PersistentProduct {
   updatedAt: string;
 }
 
-import { ensureDataDir, dataFilePath } from './storage';
-const PRODUCTS_FILE = dataFilePath('vendor_products.json');
+const ITEM_INCLUDE = {
+  vendor: { include: { user: true } },
+  category: true,
+  uom: true,
+} as const;
 
-export function loadPersistentProducts(): Record<string, PersistentProduct> {
-  ensureDataDir();
-  const seedProducts = getSeedDemoProducts();
-  try {
-    if (fs.existsSync(PRODUCTS_FILE)) {
-      const parsed = JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf-8'));
-      // Auto-migrate legacy item_09 key if it belonged to RFID reader
-      if (parsed['item_09'] && parsed['item_09'].sku === 'LQ-RFD-00109') {
-        parsed['item_09_rfid'] = { ...parsed['item_09'], id: 'item_09_rfid' };
-        delete parsed['item_09'];
-      }
-      return { ...seedProducts, ...parsed };
-    }
-  } catch (e) {}
-  return seedProducts;
+type ItemMasterWithRelations = Awaited<ReturnType<typeof prisma.itemMaster.findFirstOrThrow<{ include: typeof ITEM_INCLUDE }>>>;
+
+function toRecord(row: ItemMasterWithRelations): PersistentProduct {
+  const { marginPercent, markupPercent } = calculateMarginAndMarkup(Number(row.costPrice), Number(row.sellingPrice));
+  return {
+    id: row.id,
+    sku: row.sku,
+    barcode: row.barcode,
+    itemName: row.itemName,
+    description: row.description ?? undefined,
+    costPrice: Number(row.costPrice),
+    sellingPrice: Number(row.sellingPrice),
+    marginPercent,
+    markupPercent,
+    moq: row.moq,
+    status: row.status as PersistentProduct['status'],
+    vendorId: row.vendorId,
+    vendorEmail: row.vendor?.user?.email,
+    vendorName: row.vendor?.companyName,
+    categoryId: row.categoryId ?? undefined,
+    categoryName: row.category?.name,
+    uomId: row.uomId ?? undefined,
+    uomCode: row.uom?.code,
+    uomName: row.uom?.name,
+    lowStockThreshold: row.lowStockThreshold ?? undefined,
+    reorderQuantity: row.reorderQuantity ?? undefined,
+    imageUrl: row.imageUrl ?? undefined,
+    publishToStore: row.publishToStore,
+    storeDescription: row.storeDescription ?? undefined,
+    storeImages: row.storeImages,
+    attributes: row.attributesJson ? JSON.parse(row.attributesJson) : undefined,
+    statusHistory: row.statusHistoryJson ? JSON.parse(row.statusHistoryJson) : undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
-export function savePersistentProducts(products: Record<string, PersistentProduct>) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf-8');
-  } catch (e) {}
+// FR-STORE-001 — an item can only be opted into the public storefront once it has
+// everything a public listing needs: an allocated vendor (so a store order can flow
+// into the normal fulfilment pipeline), a public-facing description, at least one
+// image, and a real selling price. Shared by create + update so neither path can
+// publish a half-filled listing.
+export function validateStorePublish(item: Pick<PersistentProduct, 'vendorId' | 'sellingPrice' | 'storeDescription' | 'storeImages'>): string | null {
+  if (!item.vendorId) {
+    return 'A vendor must be allocated to this item before it can be listed on the public store.';
+  }
+  if (!item.storeDescription || !item.storeDescription.trim()) {
+    return 'A public-facing store description is required to list this item on the public store.';
+  }
+  if (!Array.isArray(item.storeImages) || item.storeImages.length === 0) {
+    return 'At least one product image is required to list this item on the public store.';
+  }
+  if (!item.sellingPrice || item.sellingPrice <= 0) {
+    return 'A selling price greater than zero is required to list this item on the public store.';
+  }
+  return null;
 }
 
 export function calculateMarginAndMarkup(cost: number, selling: number) {
@@ -73,721 +114,124 @@ export function calculateMarginAndMarkup(cost: number, selling: number) {
   };
 }
 
-export function getSeedDemoProducts(): Record<string, PersistentProduct> {
-  const now = new Date().toISOString();
-  return {
-    'item_01': {
-      id: 'item_01',
-      sku: 'LQ-SCN-00101',
-      barcode: '9312345001015',
-      itemName: 'Industrial Handheld Wireless Barcode Scanner 2D (HD-900)',
-      description: 'Heavy-duty IP65 Bluetooth 2D barcode scanner for warehouse receiving and bin picking.',
-      costPrice: 120.00,
-      sellingPrice: 249.99,
-      wholesalePrice: 185.00,
-      marginPercent: 52.00,
-      markupPercent: 108.33,
-      moq: 5,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_hw_scn',
-      categoryName: 'Barcode Scanners',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'IP Rating': 'IP65',
-        'Connectivity': 'Bluetooth 5.0 / USB-C',
-        'Operating Temp': '-20C to 50C',
-        'Weight': '320g',
-        'Battery Life': '16 Hours Continuous',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_02': {
-      id: 'item_02',
-      sku: 'LQ-PRT-00102',
-      barcode: '9312345001022',
-      itemName: 'Thermal Transfer Desktop Label Printer 300DPI (LogiPrint-30)',
-      description: 'High-speed industrial thermal label printer with Ethernet, USB & Wi-Fi module.',
-      costPrice: 310.00,
-      sellingPrice: 599.00,
-      wholesalePrice: 450.00,
-      marginPercent: 48.25,
-      markupPercent: 93.23,
-      moq: 2,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_prt_dsk',
-      categoryName: 'Desktop Printers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Print Resolution': '300 DPI',
-        'Max Speed': '152 mm/sec',
-        'Interface': 'Ethernet / USB / Wi-Fi',
-        'Max Ribbon Length': '300 Meters',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_03': {
-      id: 'item_03',
-      sku: 'LQ-MOB-00103',
-      barcode: '9312345001039',
-      itemName: 'Rugged Touch Mobile Computer Android 13 (LogiPDA-X5)',
-      description: 'Enterprise 5.5-inch rugged mobile terminal with 2D zebra scan engine & 4G SIM.',
-      costPrice: 450.00,
-      sellingPrice: 899.00,
-      wholesalePrice: 680.00,
-      marginPercent: 49.94,
-      markupPercent: 99.78,
-      moq: 3,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_hw_mob',
-      categoryName: 'Mobile Computers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'OS': 'Android 13 Enterprise',
-        'Screen': '5.5 inch HD Touchscreen',
-        'IP Rating': 'IP67 Waterproof',
-        'Scan Engine': 'Zebra SE4710 2D',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_04': {
-      id: 'item_04',
-      sku: 'LQ-RFD-00104',
-      barcode: '9312345001046',
-      itemName: 'UHF RFID Smart Asset Labels (Pack of 100 Tags)',
-      description: 'High-durability printable UHF RFID adhesive tags for pallet and container tracking.',
-      costPrice: 45.00,
-      sellingPrice: 89.00,
-      wholesalePrice: 65.00,
-      marginPercent: 49.44,
-      markupPercent: 97.78,
-      moq: 10,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_rfid_tags',
-      categoryName: 'RFID Smart Labels & Tags',
-      uomId: 'uom_pk',
-      uomCode: 'PK',
-      uomName: 'Pack of 100',
-      attributes: {
-        'Frequency': 'UHF 860-960 MHz',
-        'Protocol': 'EPC Class 1 Gen 2 (ISO 18000-6C)',
-        'Read Range': 'Up to 6 Meters',
-        'Adhesive': '3M Permanent Acrylic',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_05': {
-      id: 'item_05',
-      sku: 'LQ-LBL-00105',
-      barcode: '9312345001053',
-      itemName: 'Direct Thermal Shipping Labels 100mm x 150mm (Roll of 500)',
-      description: 'Premium permanent adhesive direct thermal freight labels for parcel dispatch.',
-      costPrice: 12.50,
-      sellingPrice: 24.90,
-      wholesalePrice: 18.00,
-      marginPercent: 49.80,
-      markupPercent: 99.20,
-      moq: 20,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_prt_lbl',
-      categoryName: 'Barcode Labels & Ribbons',
-      uomId: 'uom_box',
-      uomCode: 'BOX',
-      uomName: 'Box of 10',
-      attributes: {
-        'Dimensions': '100mm x 150mm',
-        'Labels per Roll': '500 Labels',
-        'Type': 'Direct Thermal Premium',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_06': {
-      id: 'item_06',
-      sku: 'LQ-RBN-00106',
-      barcode: '9312345001060',
-      itemName: 'Thermal Transfer Resin Ribbon 110mm x 300m Black',
-      description: 'Smudge-resistant black resin ribbon for outdoor chemical and asset tags.',
-      costPrice: 18.00,
-      sellingPrice: 38.50,
-      wholesalePrice: 28.00,
-      marginPercent: 53.25,
-      markupPercent: 113.89,
-      moq: 10,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_prt_lbl',
-      categoryName: 'Barcode Labels & Ribbons',
-      uomId: 'uom_box',
-      uomCode: 'BOX',
-      uomName: 'Box of 10',
-      attributes: {
-        'Ribbon Type': 'Full Resin',
-        'Size': '110mm x 300m',
-        'Color': 'Black',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_07': {
-      id: 'item_07',
-      sku: 'LQ-PLT-00107',
-      barcode: '9312345001077',
-      itemName: 'Heavy-Duty Rackable Plastic Pallet 1165mm x 1165mm Standard',
-      description: 'Australian standard rackable plastic pallet with 1500kg dynamic rating.',
-      costPrice: 85.00,
-      sellingPrice: 149.00,
-      wholesalePrice: 115.00,
-      marginPercent: 42.95,
-      markupPercent: 75.29,
-      moq: 10,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_wh_plt',
-      categoryName: 'Pallets & Storage',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Dynamic Load': '1500 kg',
-        'Static Load': '5000 kg',
-        'Material': 'High Density Polyethylene (HDPE)',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_08': {
-      id: 'item_08',
-      sku: 'LQ-BIN-00108',
-      barcode: '9312345001084',
-      itemName: 'Retro-Reflective Aisle Location Barcode Sign Plate',
-      description: 'Long-range retro-reflective barcode sign for overhead warehouse racking aisles.',
-      costPrice: 15.00,
-      sellingPrice: 29.00,
-      wholesalePrice: 22.00,
-      marginPercent: 48.28,
-      markupPercent: 93.33,
-      moq: 5,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_wh_bin',
-      categoryName: 'Location & Bin Markers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Scan Range': 'Up to 15 Meters',
-        'Material': 'Reflective Aluminum Composite',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_09_plt': {
-      id: 'item_09_plt',
-      sku: 'LQ-PLT-00301',
-      barcode: '9312345678903',
-      itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
-      description: 'Standard hardwood 4-way entry logistics pallet for internal warehouse storage.',
-      costPrice: 25.00,
-      sellingPrice: 49.00,
-      wholesalePrice: 35.00,
-      marginPercent: 48.98,
-      markupPercent: 96.00,
-      moq: 10,
-      status: 'ACTIVE',
-      vendorId: null,
-      vendorEmail: 'admin@logiqon.com',
-      vendorName: 'LogiQ-On Internal Stock',
-      categoryId: 'cat_wh_plt',
-      categoryName: 'Pallets & Storage',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Dimensions': '1165mm x 1165mm',
-        'Material': 'Hardwood Timber',
-        'Entry': '4-Way Forklift Entry',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_09_rfid': {
-      id: 'item_09_rfid',
-      sku: 'LQ-RFD-00109',
-      barcode: '9312345001091',
-      itemName: 'Fixed 4-Port Overhead Portal RFID Reader (LogiGate-400)',
-      description: 'Industrial 4-port UHF RFID reader for automatic dock door pallet scanning.',
-      costPrice: 950.00,
-      sellingPrice: 1850.00,
-      wholesalePrice: 1450.00,
-      marginPercent: 48.65,
-      markupPercent: 94.74,
-      moq: 1,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_rfid_rdr',
-      categoryName: 'RFID Fixed Readers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Ports': '4 Antenna Ports (RP-TNC)',
-        'IP Rating': 'IP67 Waterproof',
-        'Power': 'PoE+ (Power over Ethernet)',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_10_b': {
-      id: 'item_10_b',
-      sku: 'LQ-SCN-00110',
-      barcode: '9312345001107',
-      itemName: 'Fixed-Mount Industrial Barcode Scanner (LogiScan-FM200)',
-      description: 'Conveyor belt high-speed barcode reader for automated package sortation.',
-      costPrice: 620.00,
-      sellingPrice: 1190.00,
-      wholesalePrice: 920.00,
-      marginPercent: 47.90,
-      markupPercent: 91.94,
-      moq: 1,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_hw_scn',
-      categoryName: 'Barcode Scanners',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Scan Speed': '60 Scans/sec',
-        'Interface': 'EtherNet/IP & RS-232',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_11': {
-      id: 'item_11',
-      sku: 'LQ-PRT-00111',
-      barcode: '9312345001114',
-      itemName: '24/7 Industrial Heavy-Duty Thermal Printer (LogiPrint-HD6)',
-      description: 'Heavy metal casing 6-inch wide industrial barcode label printer for manufacturing lines.',
-      costPrice: 1250.00,
-      sellingPrice: 2399.00,
-      wholesalePrice: 1850.00,
-      marginPercent: 47.89,
-      markupPercent: 91.92,
-      moq: 1,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_prt_ind',
-      categoryName: 'Industrial Printers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Print Width': '6.6 Inches (168mm)',
-        'Duty Cycle': '24/7 Continuous Operation',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_12': {
-      id: 'item_12',
-      sku: 'LQ-CAB-00112',
-      barcode: '9312345001121',
-      itemName: 'Shielded CAT6A Industrial Ethernet Patch Cable 5m',
-      description: 'Heavy-duty PUR jacketed Ethernet cable for dock door readers and IP cameras.',
-      costPrice: 9.50,
-      sellingPrice: 19.90,
-      wholesalePrice: 14.00,
-      marginPercent: 52.26,
-      markupPercent: 109.47,
-      moq: 10,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_hw',
-      categoryName: 'Industrial Hardware',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Cable Length': '5 Meters',
-        'Jacket Material': 'Industrial PUR Flame Retardant',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_13': {
-      id: 'item_13',
-      sku: 'LQ-TAG-00113',
-      barcode: '9312345001138',
-      itemName: 'On-Metal Anti-Interference UHF RFID Hard Tag',
-      description: 'Encapsulated IP68 rugged RFID tag for metallic container and forklift tracking.',
-      costPrice: 3.50,
-      sellingPrice: 7.90,
-      wholesalePrice: 5.50,
-      marginPercent: 55.70,
-      markupPercent: 125.71,
-      moq: 50,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_rfid_tags',
-      categoryName: 'RFID Smart Labels & Tags',
-      uomId: 'uom_box',
-      uomCode: 'BOX',
-      uomName: 'Box of 10',
-      attributes: {
-        'IP Rating': 'IP68 Submersible',
-        'Mounting': 'Rivet / Screws / 3M VHB Tape',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_14': {
-      id: 'item_14',
-      sku: 'LQ-BIN-00114',
-      barcode: '9312345001145',
-      itemName: 'Self-Adhesive Vinyl Bin Location Labels (Roll of 1000)',
-      description: 'Yellow high-contrast 2D Datamatrix bin barcodes for shelf edge marking.',
-      costPrice: 22.00,
-      sellingPrice: 45.00,
-      wholesalePrice: 32.00,
-      marginPercent: 51.11,
-      markupPercent: 104.55,
-      moq: 5,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_wh_bin',
-      categoryName: 'Location & Bin Markers',
-      uomId: 'uom_pk',
-      uomCode: 'PK',
-      uomName: 'Pack of 100',
-      attributes: {
-        'Material': 'Laminated Tough Vinyl',
-        'Color': 'Yellow High Contrast',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_15': {
-      id: 'item_15',
-      sku: 'LQ-MOB-00115',
-      barcode: '9312345001152',
-      itemName: 'Forklift-Mounted Vehicle Computer Terminal 10-inch (LogiTab-V10)',
-      description: 'Vibration-resistant touchscreen vehicle computer with integrated power regulator.',
-      costPrice: 1100.00,
-      sellingPrice: 2150.00,
-      wholesalePrice: 1650.00,
-      marginPercent: 48.84,
-      markupPercent: 95.45,
-      moq: 1,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_hw_mob',
-      categoryName: 'Mobile Computers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Vibration Rating': 'MIL-STD-810G Vehicle Mount',
-        'Power Input': '9-60V DC Direct Vehicle Ignition',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_16': {
-      id: 'item_16',
-      sku: 'LQ-SCN-00116',
-      barcode: '9312345001169',
-      itemName: 'Long-Range DPM Direct Part Mark Barcode Scanner (HD-950)',
-      description: 'Specialized laser DPM scanner for etched serial numbers on automotive parts.',
-      costPrice: 580.00,
-      sellingPrice: 1120.00,
-      wholesalePrice: 850.00,
-      marginPercent: 48.21,
-      markupPercent: 93.10,
-      moq: 2,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_hw_scn',
-      categoryName: 'Barcode Scanners',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'DPM Capability': 'Laser Etched / Dot Peen Barcodes',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_17': {
-      id: 'item_17',
-      sku: 'LQ-PRT-00117',
-      barcode: '9312345001176',
-      itemName: 'Mobile Belt-Clip Wireless Receipt & Label Printer (LogiGo-2)',
-      description: 'Compact 2-inch Bluetooth mobile printer for cross-docking and markdown labelling.',
-      costPrice: 190.00,
-      sellingPrice: 380.00,
-      wholesalePrice: 280.00,
-      marginPercent: 50.00,
-      markupPercent: 100.00,
-      moq: 2,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_prt_dsk',
-      categoryName: 'Desktop Printers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Connectivity': 'Bluetooth 4.2 / NFC Pairing',
-        'Drop Rating': '1.8m Concrete Drop Resistant',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_18': {
-      id: 'item_18',
-      sku: 'LQ-PLT-00118',
-      barcode: '9312345001183',
-      itemName: 'Clear Stretch Wrap Pallet Film 500mm x 450m (Carton of 4)',
-      description: 'High-clarity cast stretch film for unitizing pallet loads for freight.',
-      costPrice: 42.00,
-      sellingPrice: 79.00,
-      wholesalePrice: 58.00,
-      marginPercent: 46.84,
-      markupPercent: 88.10,
-      moq: 5,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_wh_plt',
-      categoryName: 'Pallets & Storage',
-      uomId: 'uom_ctn',
-      uomCode: 'CTN',
-      uomName: 'Carton of 50',
-      attributes: {
-        'Gauge': '20 Micron Cast Stretch',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_19': {
-      id: 'item_19',
-      sku: 'LQ-RFD-00119',
-      barcode: '9312345001190',
-      itemName: 'High-Gain Circular Polarized RFID Antenna (9dBi)',
-      description: 'Outdoor weatherproof RFID antenna for gate portals and warehouse conveyor belts.',
-      costPrice: 180.00,
-      sellingPrice: 340.00,
-      wholesalePrice: 250.00,
-      marginPercent: 47.06,
-      markupPercent: 88.89,
-      moq: 2,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_rfid_rdr',
-      categoryName: 'RFID Fixed Readers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Gain': '9 dBi Circular Polarized',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_20': {
-      id: 'item_20',
-      sku: 'LQ-LBL-00120',
-      barcode: '9312345001206',
-      itemName: 'Polyester Synthetic Asset Tags 50mm x 25mm (Roll of 2000)',
-      description: 'Tear-proof silver polyester barcodes resistant to oil, water, and solvents.',
-      costPrice: 35.00,
-      sellingPrice: 69.00,
-      wholesalePrice: 48.00,
-      marginPercent: 49.28,
-      markupPercent: 97.14,
-      moq: 5,
-      status: 'ACTIVE',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_prt_lbl',
-      categoryName: 'Barcode Labels & Ribbons',
-      uomId: 'uom_pk',
-      uomCode: 'PK',
-      uomName: 'Pack of 100',
-      attributes: {
-        'Material': 'Silver Matte Polyester',
-      },
-      statusHistory: [
-        { from: 'DRAFT', to: 'ACTIVE', changedBy: 'System Seed', changedAt: now, reason: 'Initial catalog onboarding' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_21': {
-      id: 'item_21',
-      sku: 'LQ-SCN-00121',
-      barcode: '9312345001213',
-      itemName: 'Hands-Free Presentation Barcode Scanner 2D (Desktop Omnidirectional)',
-      description: 'Hands-free presentation scanner for high-throughput retail checkout and packing stations.',
-      costPrice: 140.00,
-      sellingPrice: 289.00,
-      wholesalePrice: 210.00,
-      marginPercent: 51.56,
-      markupPercent: 106.43,
-      moq: 2,
-      status: 'DRAFT',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_hw_scn',
-      categoryName: 'Barcode Scanners',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Scan Pattern': 'Omnidirectional 2D Imaging',
-      },
-      statusHistory: [
-        { from: 'NEW', to: 'DRAFT', changedBy: 'System Seed', changedAt: now, reason: 'Specification review pending' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-    'item_22': {
-      id: 'item_22',
-      sku: 'LQ-PRT-00122',
-      barcode: '9312345001220',
-      itemName: 'Printhead Replacement Kit 300DPI for Industrial Printer',
-      description: 'Genuine thermal printhead replacement module for 300DPI LogiPrint industrial models.',
-      costPrice: 280.00,
-      sellingPrice: 490.00,
-      wholesalePrice: 380.00,
-      marginPercent: 42.86,
-      markupPercent: 75.00,
-      moq: 1,
-      status: 'DISCONTINUED',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorEmail: 'vendor@logiqon.com',
-      categoryId: 'cat_prt_ind',
-      categoryName: 'Industrial Printers',
-      uomId: 'uom_pcs',
-      uomCode: 'PCS',
-      uomName: 'Pieces',
-      attributes: {
-        'Compatibility': 'LogiPrint-HD6 Series',
-      },
-      statusHistory: [
-        { from: 'ACTIVE', to: 'DISCONTINUED', changedBy: 'System Seed', changedAt: now, reason: 'Model replaced by 600DPI series' },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    },
-  };
+export async function loadPersistentProducts(): Promise<Record<string, PersistentProduct>> {
+  const rows = await prisma.itemMaster.findMany({ include: ITEM_INCLUDE, orderBy: { createdAt: 'asc' } });
+  const result: Record<string, PersistentProduct> = {};
+  for (const row of rows) result[row.id] = toRecord(row as ItemMasterWithRelations);
+  return result;
 }
 
-export function updateItemThreshold(productId: string, threshold: number, reorderQty: number = 50): PersistentProduct | null {
-  const products = loadPersistentProducts();
-  const product = products[productId] || Object.values(products).find((p) => p.id === productId || p.sku === productId);
-  if (!product) return null;
+export interface CreateItemMasterInput {
+  id: string;
+  sku: string;
+  barcode: string;
+  itemName: string;
+  description?: string;
+  costPrice: number;
+  sellingPrice: number;
+  moq: number;
+  status: 'ACTIVE' | 'DRAFT' | 'DISCONTINUED';
+  vendorId?: string | null;
+  categoryId?: string | null;
+  uomId?: string | null;
+  imageUrl?: string;
+  publishToStore?: boolean;
+  storeDescription?: string;
+  storeImages?: string[];
+  attributes?: Record<string, string>;
+  statusHistory?: PersistentProduct['statusHistory'];
+}
 
-  product.lowStockThreshold = threshold;
-  product.reorderQuantity = reorderQty;
-  product.updatedAt = new Date().toISOString();
-  products[product.id] = product;
+export async function createItemMasterRecord(input: CreateItemMasterInput): Promise<PersistentProduct> {
+  const row = await prisma.itemMaster.create({
+    data: {
+      id: input.id,
+      sku: input.sku,
+      barcode: input.barcode,
+      itemName: input.itemName,
+      description: input.description || null,
+      costPrice: input.costPrice,
+      sellingPrice: input.sellingPrice,
+      moq: input.moq,
+      status: input.status,
+      vendorId: input.vendorId || null,
+      categoryId: input.categoryId || null,
+      uomId: input.uomId || null,
+      imageUrl: input.imageUrl || null,
+      publishToStore: input.publishToStore === true,
+      storeDescription: input.storeDescription || null,
+      storeImages: input.storeImages || [],
+      attributesJson: input.attributes ? JSON.stringify(input.attributes) : null,
+      statusHistoryJson: input.statusHistory ? JSON.stringify(input.statusHistory) : null,
+    },
+    include: ITEM_INCLUDE,
+  });
+  return toRecord(row as ItemMasterWithRelations);
+}
 
-  savePersistentProducts(products);
-  return product;
+export interface UpdateItemMasterInput {
+  itemName?: string;
+  sku?: string;
+  barcode?: string;
+  costPrice?: number;
+  sellingPrice?: number;
+  moq?: number;
+  status?: 'ACTIVE' | 'DRAFT' | 'DISCONTINUED';
+  description?: string;
+  vendorId?: string | null;
+  categoryId?: string | null;
+  uomId?: string | null;
+  imageUrl?: string;
+  publishToStore?: boolean;
+  storeDescription?: string;
+  storeImages?: string[];
+  attributes?: Record<string, string>;
+  statusHistory?: PersistentProduct['statusHistory'];
+  lowStockThreshold?: number;
+  reorderQuantity?: number;
+}
+
+export async function updateItemMasterRecord(id: string, patch: UpdateItemMasterInput): Promise<PersistentProduct | null> {
+  const data: any = {};
+  if (patch.itemName !== undefined) data.itemName = patch.itemName;
+  if (patch.sku !== undefined) data.sku = patch.sku;
+  if (patch.barcode !== undefined) data.barcode = patch.barcode;
+  if (patch.costPrice !== undefined) data.costPrice = patch.costPrice;
+  if (patch.sellingPrice !== undefined) data.sellingPrice = patch.sellingPrice;
+  if (patch.moq !== undefined) data.moq = patch.moq;
+  if (patch.status !== undefined) data.status = patch.status;
+  if (patch.description !== undefined) data.description = patch.description;
+  if (patch.vendorId !== undefined) data.vendorId = patch.vendorId;
+  if (patch.categoryId !== undefined) data.categoryId = patch.categoryId;
+  if (patch.uomId !== undefined) data.uomId = patch.uomId;
+  if (patch.imageUrl !== undefined) data.imageUrl = patch.imageUrl;
+  if (patch.publishToStore !== undefined) data.publishToStore = patch.publishToStore;
+  if (patch.storeDescription !== undefined) data.storeDescription = patch.storeDescription;
+  if (patch.storeImages !== undefined) data.storeImages = patch.storeImages;
+  if (patch.attributes !== undefined) data.attributesJson = JSON.stringify(patch.attributes);
+  if (patch.statusHistory !== undefined) data.statusHistoryJson = JSON.stringify(patch.statusHistory);
+  if (patch.lowStockThreshold !== undefined) data.lowStockThreshold = patch.lowStockThreshold;
+  if (patch.reorderQuantity !== undefined) data.reorderQuantity = patch.reorderQuantity;
+
+  try {
+    const row = await prisma.itemMaster.update({ where: { id }, data, include: ITEM_INCLUDE });
+    return toRecord(row as ItemMasterWithRelations);
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteItemMasterRecord(id: string): Promise<boolean> {
+  try {
+    await prisma.itemMaster.delete({ where: { id } });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function updateItemThreshold(productId: string, threshold: number, reorderQty: number = 50): Promise<PersistentProduct | null> {
+  const existing = await prisma.itemMaster.findFirst({ where: { OR: [{ id: productId }, { sku: productId }] } });
+  if (!existing) return null;
+  return updateItemMasterRecord(existing.id, { lowStockThreshold: threshold, reorderQuantity: reorderQty });
 }

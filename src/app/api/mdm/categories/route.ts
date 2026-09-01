@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { loadCategories, saveCategories, CategoryItem } from '@/lib/categories';
-import { prisma } from '@/lib/prisma';
+import { loadCategories, createCategory, updateCategory, deleteCategory, hasChildCategories } from '@/lib/categories';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function GET() {
@@ -10,7 +9,7 @@ export async function GET() {
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const categories = loadCategories();
+  const categories = await loadCategories();
   return NextResponse.json({ categories });
 }
 
@@ -18,8 +17,8 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM')) {
-    return NextResponse.json({ error: 'Unauthorized: MDM or Owner role required.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Platform Owner or Vendor role required.' }, { status: 403 });
   }
 
   try {
@@ -29,37 +28,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Category Name is required.' }, { status: 400 });
     }
 
-    const slug = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
-    const id = `cat_${Date.now()}`;
-    const newCategory: CategoryItem = {
-      id,
-      name: name.trim(),
-      slug,
-      parentId: parentId || null,
-      description: description || '',
-    };
-
-    const categories = loadCategories();
-    categories.push(newCategory);
-    saveCategories(categories);
-
-    try {
-      await prisma.category.create({
-        data: {
-          id,
-          name: newCategory.name,
-          slug,
-          parentId: parentId || null,
-        },
-      });
-    } catch (e: any) {}
+    const newCategory = await createCategory({ name, parentId, description });
 
     await logAuditEvent({
       userId: user.id,
       role: user.role,
       action: 'CATEGORY_CREATED',
       module: 'MASTER_DATA_MDM',
-      targetId: id,
+      targetId: newCategory.id,
       payloadJson: { name: newCategory.name, parentId },
     }).catch(() => {});
 
@@ -73,8 +49,8 @@ export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM')) {
-    return NextResponse.json({ error: 'Unauthorized: MDM or Owner role required.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Platform Owner or Vendor role required.' }, { status: 403 });
   }
 
   try {
@@ -88,25 +64,13 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Category Name is required.' }, { status: 400 });
     }
 
-    const categories = loadCategories();
-    const idx = categories.findIndex((c) => c.id === id);
-
-    if (idx === -1) {
+    const categories = await loadCategories();
+    const existing = categories.find((c) => c.id === id);
+    if (!existing) {
       return NextResponse.json({ error: 'Category not found.' }, { status: 404 });
     }
 
-    const oldName = categories[idx].name;
-    categories[idx].name = name.trim();
-    categories[idx].slug = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
-    if (description !== undefined) categories[idx].description = description;
-    saveCategories(categories);
-
-    try {
-      await prisma.category.update({
-        where: { id },
-        data: { name: name.trim(), slug: categories[idx].slug },
-      });
-    } catch (e: any) {}
+    const updated = await updateCategory(id, { name, description });
 
     await logAuditEvent({
       userId: user.id,
@@ -114,10 +78,10 @@ export async function PUT(req: Request) {
       action: 'CATEGORY_UPDATED',
       module: 'MASTER_DATA_MDM',
       targetId: id,
-      payloadJson: { oldName, newName: name.trim() },
+      payloadJson: { oldName: existing.name, newName: updated.name },
     }).catch(() => {});
 
-    return NextResponse.json({ success: true, category: categories[idx] });
+    return NextResponse.json({ success: true, category: updated });
   } catch (error: any) {
     return NextResponse.json({ error: 'Failed to update category.' }, { status: 500 });
   }
@@ -127,8 +91,8 @@ export async function DELETE(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM')) {
-    return NextResponse.json({ error: 'Unauthorized: MDM or Owner role required.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Platform Owner or Vendor role required.' }, { status: 403 });
   }
 
   try {
@@ -139,7 +103,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Category ID is required.' }, { status: 400 });
     }
 
-    const categories = loadCategories();
+    const categories = await loadCategories();
     const target = categories.find((c) => c.id === id);
 
     if (!target) {
@@ -147,20 +111,14 @@ export async function DELETE(req: Request) {
     }
 
     // Prevent deletion if category has children
-    const hasChildren = categories.some((c) => c.parentId === id);
-    if (hasChildren) {
+    if (await hasChildCategories(id)) {
       return NextResponse.json(
         { error: 'Cannot delete a category that has subcategories. Remove all children first.' },
         { status: 400 }
       );
     }
 
-    const filtered = categories.filter((c) => c.id !== id);
-    saveCategories(filtered);
-
-    try {
-      await prisma.category.delete({ where: { id } });
-    } catch (e: any) {}
+    await deleteCategory(id);
 
     await logAuditEvent({
       userId: user.id,

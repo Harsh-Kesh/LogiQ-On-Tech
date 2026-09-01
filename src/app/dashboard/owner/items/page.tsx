@@ -33,6 +33,10 @@ import {
   DollarSign,
   Layers,
   Sparkles,
+  Store,
+  Building2,
+  Shield,
+  X,
 } from 'lucide-react';
 
 interface StatusHistoryItem {
@@ -50,9 +54,11 @@ interface ItemMaster {
   itemName: string;
   description?: string;
   imageUrl?: string;
+  publishToStore?: boolean;
+  storeDescription?: string;
+  storeImages?: string[];
   costPrice: number;
   sellingPrice: number;
-  wholesalePrice?: number;
   marginPercent?: number;
   markupPercent?: number;
   moq?: number;
@@ -106,13 +112,19 @@ export default function MasterDataItemsPage() {
   const [barcode, setBarcode] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
-  const [wholesalePrice, setWholesalePrice] = useState('');
   const [moq, setMoq] = useState('1');
   const [status, setStatus] = useState<'ACTIVE' | 'DRAFT' | 'DISCONTINUED'>('ACTIVE');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [publishToStore, setPublishToStore] = useState(false);
+  const [storeDescription, setStoreDescription] = useState('');
+  const [storeImages, setStoreImages] = useState<string[]>([]);
+  const [storeImageError, setStoreImageError] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [uomId, setUomId] = useState('');
+  const [registeredVendors, setRegisteredVendors] = useState<string[]>([]);
+  const [primaryVendorName, setPrimaryVendorName] = useState('');
+  const [additionalVendors, setAdditionalVendors] = useState<Array<{ vendorName: string; costPrice: string }>>([]);
   const [attrPairs, setAttrPairs] = useState<Array<{ key: string; value: string }>>([
     { key: 'IP Rating', value: 'IP65' },
   ]);
@@ -158,10 +170,20 @@ export default function MasterDataItemsPage() {
       const itemsData = await itemsRes.json();
       const catData = await catRes.json();
       const uomData = await uomRes.json();
+      const vndData = vndRes.ok ? await vndRes.json() : { vendors: [] };
 
       setItems(itemsData.items || []);
       setCategories(catData.categories || []);
       setUoms(uomData.uoms || []);
+      setRegisteredVendors(
+        Array.from(
+          new Set(
+            (vndData.vendors || [])
+              .filter((v: any) => v.status === 'APPROVED' && v.companyName)
+              .map((v: any) => v.companyName as string)
+          )
+        )
+      );
     } catch (e) {
       setToast({ message: 'Failed to load Master Data.', type: 'error' });
     } finally {
@@ -176,13 +198,18 @@ export default function MasterDataItemsPage() {
     setBarcode('');
     setCostPrice('');
     setSellingPrice('');
-    setWholesalePrice('');
     setMoq('1');
     setStatus('ACTIVE');
     setDescription('');
     setImageUrl('');
+    setPublishToStore(false);
+    setStoreDescription('');
+    setStoreImages([]);
+    setStoreImageError('');
     setCategoryId('');
     setUomId('');
+    setPrimaryVendorName('');
+    setAdditionalVendors([]);
     setAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
     setGovernanceError('');
     setIsItemModalOpen(true);
@@ -195,13 +222,18 @@ export default function MasterDataItemsPage() {
     setBarcode(item.barcode);
     setCostPrice(item.costPrice.toString());
     setSellingPrice(item.sellingPrice.toString());
-    setWholesalePrice((item.wholesalePrice !== null && item.wholesalePrice !== undefined) ? item.wholesalePrice.toString() : item.sellingPrice.toString());
     setMoq(item.moq ? item.moq.toString() : '1');
     setStatus(item.status);
     setDescription(item.description || '');
     setImageUrl(item.imageUrl || '');
+    setPublishToStore(item.publishToStore || false);
+    setStoreDescription(item.storeDescription || '');
+    setStoreImages(item.storeImages || []);
+    setStoreImageError('');
     setCategoryId(item.categoryId || '');
     setUomId(item.uomId || '');
+    setPrimaryVendorName(item.vendorName || '');
+    setAdditionalVendors([]);
 
     if (item.attributes && typeof item.attributes === 'object' && Object.keys(item.attributes).length > 0) {
       setAttrPairs(Object.entries(item.attributes).map(([key, value]) => ({ key, value: String(value) })));
@@ -213,9 +245,50 @@ export default function MasterDataItemsPage() {
     setIsItemModalOpen(true);
   };
 
+  const MAX_STORE_IMAGE_MB = 3;
+  const handleStoreImageSelect = (file: File | null) => {
+    setStoreImageError('');
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setStoreImageError('Only image files (PNG, JPG, WEBP) are accepted.');
+      return;
+    }
+    if (file.size > MAX_STORE_IMAGE_MB * 1024 * 1024) {
+      setStoreImageError(`Image exceeds the ${MAX_STORE_IMAGE_MB}MB limit.`);
+      return;
+    }
+    if (storeImages.length >= 4) {
+      setStoreImageError('A maximum of 4 store images is supported per item.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setStoreImages((prev) => [...prev, reader.result as string]);
+    };
+    reader.onerror = () => setStoreImageError('Failed to read the selected image.');
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setGovernanceError('');
+
+    if (!primaryVendorName.trim()) {
+      setGovernanceError('Data Governance Lock: Every item must be allocated to a Primary Vendor.');
+      return;
+    }
+
+    if (publishToStore) {
+      if (!storeDescription.trim()) {
+        setGovernanceError('A public store description is required to list this item on the public store.');
+        return;
+      }
+      if (storeImages.length === 0) {
+        setGovernanceError('At least one product image is required to list this item on the public store.');
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     const attributesObj: Record<string, string> = {};
@@ -232,14 +305,20 @@ export default function MasterDataItemsPage() {
       barcode,
       costPrice,
       sellingPrice,
-      wholesalePrice: wholesalePrice || sellingPrice,
       moq: moq || '1',
       status,
       description,
       imageUrl,
+      publishToStore,
+      storeDescription,
+      storeImages,
       categoryId,
       uomId,
       attributes: attributesObj,
+      primaryVendorName,
+      additionalVendors: additionalVendors
+        .filter((v) => v.vendorName.trim() && v.costPrice.trim())
+        .map((v) => ({ vendorName: v.vendorName, costPrice: v.costPrice })),
     };
 
     try {
@@ -451,20 +530,25 @@ export default function MasterDataItemsPage() {
   // Clean, High-Readability Table Columns Setup
   const itemColumns: Column<ItemMaster>[] = [
     {
-      header: 'Item Master Name & Ownership',
+      header: 'Item',
       accessorKey: 'itemName',
       cell: (item) => (
         <div className="space-y-1.5 py-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-extrabold text-slate-900 text-sm">{item.itemName}</span>
             {item.vendorId ? (
-              <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg text-xs shrink-0">
-                🏢 Vendor Partner
-              </span>
+              <Badge variant="indigo" className="normal-case tracking-normal font-semibold">
+                <Building2 className="w-3 h-3" /> {item.vendorName || 'Vendor Partner'}
+              </Badge>
             ) : (
-              <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-lg text-xs shrink-0">
-                🛡️ LogiQ-On Internal
-              </span>
+              <Badge variant="purple" className="normal-case tracking-normal font-semibold">
+                <Shield className="w-3 h-3" /> LogiQ-On Internal
+              </Badge>
+            )}
+            {item.publishToStore && (
+              <Badge variant="teal" className="normal-case tracking-normal font-semibold">
+                <Store className="w-3 h-3" /> Online Store
+              </Badge>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -477,7 +561,7 @@ export default function MasterDataItemsPage() {
       ),
     },
     {
-      header: 'Category Taxonomy',
+      header: 'Category',
       accessorKey: 'categoryName',
       cell: (item) => (
         <span className="inline-block max-w-[180px] truncate align-middle whitespace-nowrap text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
@@ -563,7 +647,7 @@ export default function MasterDataItemsPage() {
   ];
 
   return (
-    <div className="p-6 md:p-10 space-y-8 font-sans max-w-[1600px] mx-auto">
+    <div className="space-y-8 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Light Header Banner (Matching Vendor & User Directory UI Style) */}
@@ -575,13 +659,13 @@ export default function MasterDataItemsPage() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
               <Layers className="w-3.5 h-3.5 text-indigo-600" />
-              MASTER DATA MANAGEMENT (MDM) HUB
+              ITEM CATALOG
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Item Master &amp; Product Governance Catalog
+              Item Master Data
             </h1>
             <p className="text-xs text-slate-500 font-mono">
-              Centralized SKU/Barcode Registry • Multi-Tier Pricing • Dynamic Technical Attributes
+              SKU and barcode registry with pricing and specifications
             </p>
           </div>
         </div>
@@ -597,10 +681,10 @@ export default function MasterDataItemsPage() {
       </div>
 
       {/* TOP NAVIGATION TABS */}
-      <div className="flex items-center gap-2 border-b border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto">
         <button
           onClick={() => setActiveTab('ITEMS')}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 shrink-0 whitespace-nowrap ${
             activeTab === 'ITEMS'
               ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
               : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
@@ -612,19 +696,19 @@ export default function MasterDataItemsPage() {
 
         <button
           onClick={() => setActiveTab('CATEGORIES')}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 shrink-0 whitespace-nowrap ${
             activeTab === 'CATEGORIES'
               ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
               : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <FolderTree className="w-4 h-4" />
-          Category Taxonomy Tree ({categories.length})
+          Categories ({categories.length})
         </button>
 
         <button
           onClick={() => setActiveTab('UOM')}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 shrink-0 whitespace-nowrap ${
             activeTab === 'UOM'
               ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
               : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
@@ -784,8 +868,8 @@ export default function MasterDataItemsPage() {
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Parent-Child Category Taxonomy Tree</h2>
-              <p className="text-xs text-slate-500 font-mono">Hierarchical Category Management for MDM Catalog</p>
+              <h2 className="text-lg font-bold text-slate-900">Categories</h2>
+              <p className="text-xs text-slate-500 font-mono">Manage category hierarchy for the item catalog</p>
             </div>
             <Button onClick={() => setIsCatModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30" leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
               Add New Category
@@ -914,11 +998,12 @@ export default function MasterDataItemsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="SKU Code (Leave blank to auto-generate)"
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                  placeholder="e.g. LQ-SCN-00101"
-                  helperText="Must be unique across entire system"
+                  label="SKU Code (System-Generated)"
+                  value={formId ? sku : 'Will be assigned automatically on save'}
+                  readOnly
+                  disabled
+                  className="bg-slate-50 cursor-not-allowed text-slate-500"
+                  helperText="Always auto-generated — cannot be entered manually"
                 />
                 <Input
                   label="Barcode EAN-13 (Leave blank to auto-generate)"
@@ -974,14 +1059,27 @@ export default function MasterDataItemsPage() {
               </div>
             </div>
 
-            {/* SECTION 3: PRICING ENGINE & MARGIN METRICS */}
+            {/* SECTION 3: VENDOR ALLOCATION & PRICING ENGINE */}
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-indigo-600" />
-                <span>3. Pricing Engine & Margin Calculations</span>
+                <span>3. Vendor Allocation & Pricing Engine</span>
               </div>
+              <p className="text-[11px] text-slate-500 -mt-2">
+                Every item must be supplied by a registered vendor — the primary vendor's cost is the Cost Price entered here. Additional vendors can supply the same item at their own cost.
+              </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select
+                  label="Primary Vendor *"
+                  value={primaryVendorName}
+                  onChange={(e) => setPrimaryVendorName(e.target.value)}
+                  options={[
+                    { value: '', label: '-- Select registered vendor --' },
+                    ...registeredVendors.map((v) => ({ value: v, label: v })),
+                  ]}
+                  required
+                />
                 <Input
                   label="Cost Price ($ AUD)"
                   type="number"
@@ -990,7 +1088,66 @@ export default function MasterDataItemsPage() {
                   value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value)}
                   placeholder="120.00"
+                  helperText="This is the Primary Vendor's cost for this item"
                 />
+              </div>
+
+              {additionalVendors.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700">Additional Vendors</label>
+                  {additionalVendors.map((row, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-white border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <Select
+                            value={row.vendorName}
+                            onChange={(e) => {
+                              const updated = [...additionalVendors];
+                              updated[idx] = { ...updated[idx], vendorName: e.target.value };
+                              setAdditionalVendors(updated);
+                            }}
+                            options={[
+                              { value: '', label: '-- Select vendor --' },
+                              ...registeredVendors.filter((v) => v !== primaryVendorName).map((v) => ({ value: v, label: v })),
+                            ]}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAdditionalVendors(additionalVendors.filter((_, i) => i !== idx))}
+                          className="shrink-0 p-2 text-rose-400 hover:text-rose-600"
+                          aria-label="Remove vendor"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <Input
+                        label="Cost Price ($ AUD) for this vendor"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={row.costPrice}
+                        onChange={(e) => {
+                          const updated = [...additionalVendors];
+                          updated[idx] = { ...updated[idx], costPrice: e.target.value };
+                          setAdditionalVendors(updated);
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setAdditionalVendors([...additionalVendors, { vendorName: '', costPrice: '' }])}
+                className="text-[11px] font-bold text-indigo-600 hover:underline"
+              >
+                + Add Another Vendor
+              </button>
+
+              <div className="pt-2 border-t border-slate-200">
                 <Input
                   label="Retail Selling Price ($ AUD)"
                   type="number"
@@ -1002,16 +1159,7 @@ export default function MasterDataItemsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Input
-                  label="Wholesale Tier Price ($)"
-                  type="number"
-                  step="0.01"
-                  value={wholesalePrice}
-                  onChange={(e) => setWholesalePrice(e.target.value)}
-                  placeholder="185.00"
-                  helperText="Must be <= Retail Selling Price"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Minimum Order Qty (MOQ)"
                   type="number"
@@ -1116,6 +1264,77 @@ export default function MasterDataItemsPage() {
               />
             </div>
 
+            {/* SECTION 6: PUBLIC STOREFRONT LISTING */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Store className="w-4 h-4 text-indigo-600" />
+                  <span>6. Public Storefront Listing</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={publishToStore}
+                  onClick={() => setPublishToStore((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                    publishToStore ? 'bg-indigo-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${publishToStore ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 -mt-2">
+                List this item for customers to browse and order on the public storefront (/products/shop). Requires a Primary Vendor, a public description, and at least one image.
+              </p>
+
+              {publishToStore && (
+                <div className="space-y-4 pt-2 border-t border-slate-200">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-600 font-mono uppercase tracking-wider">Public Store Description *</label>
+                    <textarea
+                      value={storeDescription}
+                      onChange={(e) => setStoreDescription(e.target.value)}
+                      rows={3}
+                      className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
+                      placeholder="Customer-facing description shown on the storefront — features, use cases, what's in the box..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-600 font-mono uppercase tracking-wider">Store Images * (up to 4)</label>
+                    {storeImages.length > 0 && (
+                      <div className="flex flex-wrap gap-3 mb-2">
+                        {storeImages.map((img, idx) => (
+                          <div key={idx} className="relative w-20 h-20 rounded-xl border border-slate-200 overflow-hidden bg-white">
+                            <img src={img} alt={`Store image ${idx + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setStoreImages((prev) => prev.filter((_, i) => i !== idx))}
+                              className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white hover:bg-rose-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {storeImages.length < 4 && (
+                      <FileUpload
+                        key={storeImages.length}
+                        accept=".png,.jpg,.jpeg,.webp"
+                        maxSizeMB={MAX_STORE_IMAGE_MB}
+                        onFileSelect={handleStoreImageSelect}
+                        helperText="PNG, JPG, or WEBP — used on the public storefront product grid"
+                      />
+                    )}
+                    {storeImageError && (
+                      <p className="text-[11px] text-rose-600 font-medium">{storeImageError}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
               <Button type="button" variant="secondary" onClick={() => setIsItemModalOpen(false)}>
                 Cancel
@@ -1175,23 +1394,19 @@ export default function MasterDataItemsPage() {
                   <span className="font-bold text-slate-900">${Number(selectedItem.sellingPrice).toFixed(2)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-sans">Wholesale Tier Price:</span>
-                  <span className="font-bold text-indigo-700">${Number(selectedItem.wholesalePrice || selectedItem.sellingPrice).toFixed(2)}</span>
-                </div>
-                <div>
                   <span className="text-slate-400 block font-sans">Cost Price:</span>
                   <span className="font-bold text-slate-700">${Number(selectedItem.costPrice).toFixed(2)}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block font-sans font-medium">Product Ownership:</span>
                   {selectedItem.vendorId ? (
-                    <span className="font-bold text-indigo-700 inline-flex items-center gap-1">
-                      🏢 {selectedItem.vendorName || 'Vendor Partner'}
-                    </span>
+                    <Badge variant="indigo" className="normal-case tracking-normal font-semibold">
+                      <Building2 className="w-3 h-3" /> {selectedItem.vendorName || 'Vendor Partner'}
+                    </Badge>
                   ) : (
-                    <span className="font-bold text-purple-700 inline-flex items-center gap-1">
-                      🛡️ LogiQ-On Internal Stock
-                    </span>
+                    <Badge variant="purple" className="normal-case tracking-normal font-semibold">
+                      <Shield className="w-3 h-3" /> LogiQ-On Internal Stock
+                    </Badge>
                   )}
                 </div>
                 <div>

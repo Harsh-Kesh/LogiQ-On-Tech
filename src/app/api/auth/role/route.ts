@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'targetUserId and newRole are required' }, { status: 400 });
   }
 
-  const VALID_ROLES: string[] = ['PLATFORM_OWNER', 'VENDOR', 'WAREHOUSE', 'MDM'];
+  const VALID_ROLES: string[] = ['PLATFORM_OWNER', 'VENDOR'];
   if (!VALID_ROLES.includes(newRole)) {
     return NextResponse.json({ error: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}` }, { status: 400 });
   }

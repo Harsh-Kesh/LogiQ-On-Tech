@@ -1,15 +1,15 @@
-import fs from 'fs';
-
+import { prisma } from './prisma';
 import { loadPersistentOrders } from './orders';
+import { loadSalesOrders } from './sales-orders';
 
 export type MovementType = 'RECEIPT' | 'ISSUE' | 'ADJUSTMENT' | 'RETURN' | 'TRANSFER';
 
+// Warehouse capacity is not modeled — this app tracks vendor stock quantities per
+// warehouse, not physical storage layout. Every warehouse has exactly one implicit bin.
 export interface StorageBin {
   id: string;
-  code: string; // e.g. BIN-A1-01
-  zone: string; // e.g. Zone A - Fast Pick
-  capacityUnits: number;
-  isOccupied: boolean;
+  code: string;
+  zone: string;
 }
 
 export interface WarehouseLocation {
@@ -88,254 +88,141 @@ export interface ReconciliationReport {
   }>;
 }
 
-import { ensureDataDir, dataFilePath } from './storage';
-const LEDGER_FILE = dataFilePath('persistent_stock_ledger.json');
-const WAREHOUSE_FILE = dataFilePath('persistent_warehouses.json');
+const DEFAULT_BIN: StorageBin = { id: 'bin_main', code: 'MAIN', zone: 'General Storage' };
 
-export function getSeededWarehouses(): Record<string, WarehouseLocation> {
+export function getSeededWarehouses(): Record<string, { code: string; name: string; address: string; contactPerson: string; contactEmail: string }> {
   return {
-    'WH-SYD-01': {
-      id: 'wh_syd_01',
-      code: 'WH-SYD-01',
-      name: 'Sydney Central Logistics Hub',
-      address: '12 Logistics Way, Chullora NSW 2190',
-      contactPerson: 'Sydney Operations Desk',
-      contactEmail: 'warehouse.syd@logiqon.com',
-      bins: [
-        { id: 'bin_syd_a1_01', code: 'BIN-A1-01', zone: 'Zone A - Fast Pick', capacityUnits: 1000, isOccupied: true },
-        { id: 'bin_syd_a1_02', code: 'BIN-A1-02', zone: 'Zone A - Fast Pick', capacityUnits: 1000, isOccupied: false },
-        { id: 'bin_syd_b2_01', code: 'BIN-B2-01', zone: 'Zone B - Bulk Storage', capacityUnits: 5000, isOccupied: true },
-        { id: 'bin_syd_c3_05', code: 'BIN-C3-05', zone: 'Zone C - High Bay Overstock', capacityUnits: 10000, isOccupied: false },
-      ],
-      createdAt: '2026-08-01T00:00:00.000Z',
-    },
-    'WH-MEL-02': {
-      id: 'wh_mel_02',
-      code: 'WH-MEL-02',
-      name: 'Melbourne Fulfilment Facility',
-      address: '88 Freight Drive, Truganina VIC 3029',
-      contactPerson: 'Melbourne Dispatch Desk',
-      contactEmail: 'warehouse.mel@logiqon.com',
-      bins: [
-        { id: 'bin_mel_a1_01', code: 'BIN-A1-01', zone: 'Zone A - Pick Face', capacityUnits: 1200, isOccupied: true },
-        { id: 'bin_mel_b1_04', code: 'BIN-B1-04', zone: 'Zone B - Pallet Racking', capacityUnits: 4000, isOccupied: false },
-      ],
-      createdAt: '2026-08-01T00:00:00.000Z',
-    },
-    'WH-BNE-03': {
-      id: 'wh_bne_03',
-      code: 'WH-BNE-03',
-      name: 'Brisbane Regional Depot',
-      address: '45 Gateway Motorway, Acacia Ridge QLD 4110',
-      contactPerson: 'Brisbane Depot Operator',
-      contactEmail: 'warehouse.bne@logiqon.com',
-      bins: [
-        { id: 'bin_bne_a1_01', code: 'BIN-A1-01', zone: 'Zone A - Standard Shelf', capacityUnits: 800, isOccupied: false },
-      ],
-      createdAt: '2026-08-01T00:00:00.000Z',
-    },
+    'WH-SYD-01': { code: 'WH-SYD-01', name: 'Sydney Central Logistics Hub', address: '12 Logistics Way, Chullora NSW 2190', contactPerson: 'Sydney Operations Desk', contactEmail: 'warehouse.syd@logiqon.com' },
+    'WH-MEL-02': { code: 'WH-MEL-02', name: 'Melbourne Fulfilment Facility', address: '88 Freight Drive, Truganina VIC 3029', contactPerson: 'Melbourne Dispatch Desk', contactEmail: 'warehouse.mel@logiqon.com' },
+    'WH-BNE-03': { code: 'WH-BNE-03', name: 'Brisbane Regional Depot', address: '45 Gateway Motorway, Acacia Ridge QLD 4110', contactPerson: 'Brisbane Depot Operator', contactEmail: 'warehouse.bne@logiqon.com' },
   };
 }
 
-export function loadPersistentWarehouses(): Record<string, WarehouseLocation> {
-  ensureDataDir();
+async function ensureWarehousesSeeded() {
   const seeds = getSeededWarehouses();
-  try {
-    if (fs.existsSync(WAREHOUSE_FILE)) {
-      const data = fs.readFileSync(WAREHOUSE_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      return { ...seeds, ...parsed };
-    }
-  } catch (e) {}
-  return seeds;
+  const existing = await prisma.warehouse.findMany({ where: { code: { in: Object.keys(seeds) } }, select: { code: true } });
+  const existingCodes = new Set(existing.map((w) => w.code));
+  const missing = Object.values(seeds).filter((w) => !existingCodes.has(w.code));
+  if (missing.length === 0) return;
+  await prisma.warehouse.createMany({ data: missing });
 }
 
-export function savePersistentWarehouses(warehouses: Record<string, WarehouseLocation>) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(WAREHOUSE_FILE, JSON.stringify(warehouses, null, 2), 'utf-8');
-  } catch (e) {}
+function toWarehouseLocation(row: { id: string; code: string; name: string; address: string; contactPerson: string | null; contactEmail: string | null; managerEmail: string | null; createdAt: Date }): WarehouseLocation {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    address: row.address,
+    contactPerson: row.contactPerson || '',
+    contactEmail: row.contactEmail || '',
+    managerEmail: row.managerEmail ?? undefined,
+    bins: [DEFAULT_BIN],
+    createdAt: row.createdAt.toISOString(),
+  };
 }
 
-export function getSeededStockLedger(): StockLedgerEntry[] {
-  return [
-    {
-      id: 'ldg_001',
-      warehouseId: 'wh_syd_01',
-      warehouseCode: 'WH-SYD-01',
-      warehouseName: 'Sydney Central Logistics Hub',
-      itemMasterId: 'item_01',
-      sku: 'LQ-SCN-00101',
-      barcode: '9312345001015',
-      itemName: 'Industrial Handheld Wireless Barcode Scanner 2D (HD-900)',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorName: 'Apex Hardware & Logistics Ltd',
-      binLocation: 'BIN-A1-01',
-      movementType: 'RECEIPT',
-      quantityDelta: 100,
-      referenceNumber: 'GRN-20260803-001',
-      reasonCode: 'Initial Inbound Vendor Delivery',
-      createdById: 'usr_wh_01',
-      createdByEmail: 'warehouse@logiqon.tech',
-      createdAt: '2026-08-03T10:00:00.000Z',
-    },
-    {
-      id: 'ldg_002',
-      warehouseId: 'wh_syd_01',
-      warehouseCode: 'WH-SYD-01',
-      warehouseName: 'Sydney Central Logistics Hub',
-      itemMasterId: 'item_01',
-      sku: 'LQ-SCN-00101',
-      barcode: '9312345001015',
-      itemName: 'Industrial Handheld Wireless Barcode Scanner 2D (HD-900)',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorName: 'Apex Hardware & Logistics Ltd',
-      binLocation: 'BIN-A1-01',
-      movementType: 'ISSUE',
-      quantityDelta: -15,
-      referenceNumber: 'ORD-20260804-881',
-      reasonCode: 'Outbound Client Order Dispatch',
-      createdById: 'usr_wh_01',
-      createdByEmail: 'warehouse@logiqon.tech',
-      createdAt: '2026-08-04T14:30:00.000Z',
-    },
-    {
-      id: 'ldg_003',
-      warehouseId: 'wh_mel_02',
-      warehouseCode: 'WH-MEL-02',
-      warehouseName: 'Melbourne Fulfilment Facility',
-      itemMasterId: 'item_02',
-      sku: 'LQ-PRT-00102',
-      barcode: '9312345001022',
-      itemName: 'Thermal Transfer Desktop Label Printer 300DPI (LogiPrint-30)',
-      vendorId: 'vnd_usr_vendor_01',
-      vendorName: 'Apex Hardware & Logistics Ltd',
-      binLocation: 'BIN-A1-01',
-      movementType: 'RECEIPT',
-      quantityDelta: 50,
-      referenceNumber: 'GRN-20260805-002',
-      reasonCode: 'Vendor Direct Shipment',
-      createdById: 'usr_wh_01',
-      createdByEmail: 'warehouse@logiqon.tech',
-      createdAt: '2026-08-05T09:15:00.000Z',
-    },
-    {
-      id: 'ldg_004',
-      warehouseId: 'wh_syd_01',
-      warehouseCode: 'WH-SYD-01',
-      warehouseName: 'Sydney Central Logistics Hub',
-      itemMasterId: 'item_09_plt',
-      sku: 'LQ-PLT-00301',
-      barcode: '9312345678903',
-      itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
-      vendorId: null,
-      vendorName: 'LogiQ-On Internal Stock',
-      binLocation: 'BIN-B2-01',
-      movementType: 'RECEIPT',
-      quantityDelta: 200,
-      referenceNumber: 'PO-INT-20260806-01',
-      reasonCode: 'Direct Platform Purchase / Internal Stock',
-      createdById: 'usr_admin_01',
-      createdByEmail: 'admin@logiqon.tech',
-      createdAt: '2026-08-06T11:00:00.000Z',
-    },
-  ];
+export async function loadPersistentWarehouses(): Promise<Record<string, WarehouseLocation>> {
+  await ensureWarehousesSeeded();
+  const rows = await prisma.warehouse.findMany({ orderBy: { code: 'asc' } });
+  const result: Record<string, WarehouseLocation> = {};
+  for (const row of rows) result[row.code] = toWarehouseLocation(row);
+  return result;
 }
 
-export function loadPersistentStockLedger(): StockLedgerEntry[] {
-  ensureDataDir();
-  const seeds = getSeededStockLedger();
-  try {
-    if (fs.existsSync(LEDGER_FILE)) {
-      const data = fs.readFileSync(LEDGER_FILE, 'utf-8');
-      let parsed: StockLedgerEntry[] = JSON.parse(data);
-
-      // Auto-normalize legacy IDs and item names
-      parsed = parsed.map((entry) => {
-        if (entry.itemMasterId === 'prod_seed_01' || entry.sku === 'LQ-SCN-00101') {
-          return {
-            ...entry,
-            itemMasterId: 'item_01',
-            sku: 'LQ-SCN-00101',
-            barcode: '9312345001015',
-            itemName: 'Industrial Handheld Wireless Barcode Scanner 2D (HD-900)',
-          };
-        }
-        if (entry.itemMasterId === 'prod_seed_02' || entry.sku === 'LQ-PRN-00201' || entry.sku === 'LQ-PRT-00102') {
-          return {
-            ...entry,
-            itemMasterId: 'item_02',
-            sku: 'LQ-PRT-00102',
-            barcode: '9312345001022',
-            itemName: 'Thermal Transfer Desktop Label Printer 300DPI (LogiPrint-30)',
-          };
-        }
-        if (entry.itemMasterId === 'prod_seed_03' || entry.sku === 'LQ-PLT-00301' || entry.itemMasterId === 'item_09') {
-          return {
-            ...entry,
-            itemMasterId: 'item_09_plt',
-            sku: 'LQ-PLT-00301',
-            barcode: '9312345678903',
-            itemName: 'LogiQ-On Standard Wooden Pallet (Internal)',
-          };
-        }
-        return entry;
-      });
-
-      // Merge seeded records if missing
-      const existingIds = new Set(parsed.map((l) => l.id));
-      const missingSeeds = seeds.filter((s) => !existingIds.has(s.id));
-      return [...missingSeeds, ...parsed];
-    }
-  } catch (e) {}
-  return seeds;
+export async function createWarehouse(input: { code: string; name: string; address: string; contactPerson?: string; contactEmail?: string; managerEmail?: string }): Promise<WarehouseLocation> {
+  const row = await prisma.warehouse.create({
+    data: {
+      code: input.code,
+      name: input.name,
+      address: input.address,
+      contactPerson: input.contactPerson,
+      contactEmail: input.contactEmail,
+      managerEmail: input.managerEmail,
+    },
+  });
+  return toWarehouseLocation(row);
 }
 
-export function savePersistentStockLedger(ledger: StockLedgerEntry[]) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(LEDGER_FILE, JSON.stringify(ledger, null, 2), 'utf-8');
-  } catch (e) {}
+function toLedgerEntry(row: any): StockLedgerEntry {
+  return {
+    id: row.id,
+    warehouseId: row.warehouse?.code || row.warehouseId,
+    warehouseCode: row.warehouse?.code || row.warehouseId,
+    warehouseName: row.warehouse?.name || '',
+    itemMasterId: row.itemMasterId,
+    sku: row.sku || row.itemMaster?.sku || '',
+    barcode: row.barcode || row.itemMaster?.barcode || '',
+    itemName: row.itemName || row.itemMaster?.itemName || '',
+    vendorId: row.vendorId,
+    vendorName: row.vendorName ?? undefined,
+    binLocation: row.binLocation,
+    movementType: row.movementType as MovementType,
+    quantityDelta: row.quantityDelta,
+    referenceNumber: row.referenceNumber,
+    reasonCode: row.reasonCode ?? undefined,
+    createdById: row.createdById || '',
+    createdByEmail: row.createdByEmail || row.createdBy?.email || '',
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+const LEDGER_INCLUDE = { warehouse: true, itemMaster: true, createdBy: true } as const;
+
+export async function loadPersistentStockLedger(): Promise<StockLedgerEntry[]> {
+  const rows = await prisma.stockLedger.findMany({ include: LEDGER_INCLUDE, orderBy: { createdAt: 'asc' } });
+  return rows.map(toLedgerEntry);
 }
 
 /**
  * IMMUTABLE LEDGER APPEND WRITER
  * Appends a new movement row to the ledger. Rows can NEVER be edited or deleted.
  */
-export function addStockLedgerEntry(entry: Omit<StockLedgerEntry, 'id' | 'createdAt'>): StockLedgerEntry {
-  const ledger = loadPersistentStockLedger();
+export async function addStockLedgerEntry(entry: Omit<StockLedgerEntry, 'id' | 'createdAt'>): Promise<StockLedgerEntry> {
+  // Resolve the warehouse by code (creating it isn't this function's job — every caller
+  // works off an already-registered warehouse). Falls back gracefully if not found so a
+  // stock movement is never silently lost over a warehouse lookup mismatch.
+  const warehouse = await prisma.warehouse.findFirst({ where: { code: entry.warehouseCode } });
 
-  const newRecord: StockLedgerEntry = {
-    ...entry,
-    id: `ldg_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-    createdAt: new Date().toISOString(),
-  };
-
-  ledger.push(newRecord);
-  savePersistentStockLedger(ledger);
-
-  // Update bin occupied state if needed
-  const warehouses = loadPersistentWarehouses();
-  const wh = Object.values(warehouses).find((w) => w.id === entry.warehouseId || w.code === entry.warehouseCode);
-  if (wh) {
-    const bin = wh.bins.find((b) => b.code === entry.binLocation);
-    if (bin) {
-      bin.isOccupied = true;
-      savePersistentWarehouses(warehouses);
-    }
+  // createdById must reference a real User row if set at all — several call sites still
+  // pass placeholder ids ('usr_wh_operator', 'system') from before every actor was a
+  // real Prisma user; verify first rather than letting the FK constraint reject the
+  // whole stock movement over an unresolvable audit-trail id.
+  let createdById: string | null = null;
+  if (entry.createdById) {
+    const user = await prisma.user.findUnique({ where: { id: entry.createdById } });
+    if (user) createdById = user.id;
   }
 
-  return newRecord;
+  const row = await prisma.stockLedger.create({
+    data: {
+      warehouseId: warehouse?.id || entry.warehouseId,
+      itemMasterId: entry.itemMasterId,
+      sku: entry.sku,
+      barcode: entry.barcode,
+      itemName: entry.itemName,
+      vendorId: entry.vendorId || null,
+      vendorName: entry.vendorName,
+      binLocation: entry.binLocation,
+      movementType: entry.movementType,
+      quantityDelta: entry.quantityDelta,
+      referenceNumber: entry.referenceNumber,
+      reasonCode: entry.reasonCode,
+      createdById,
+      createdByEmail: entry.createdByEmail,
+    },
+    include: LEDGER_INCLUDE,
+  });
+  return toLedgerEntry(row);
 }
 
 /**
  * DERIVED STOCK ON HAND CALCULATOR
  * Evaluates sum(quantityDelta) for every item, warehouse, and bin location.
  */
-export function calculateStockOnHand(): StockOnHandItem[] {
-  const ledger = loadPersistentStockLedger();
+export async function calculateStockOnHand(): Promise<StockOnHandItem[]> {
+  const ledger = await loadPersistentStockLedger();
   const stockMap = new Map<string, StockOnHandItem>();
-  const orders = loadPersistentOrders();
+  const orders = await loadPersistentOrders();
   const reservedMap = new Map<string, number>();
 
   for (const order of orders) {
@@ -344,6 +231,26 @@ export function calculateStockOnHand(): StockOnHandItem[] {
         for (const step of order.pickSteps) {
           const key = `${order.warehouseCode}___${step.binLocation}___${step.itemMasterId}`;
           reservedMap.set(key, (reservedMap.get(key) || 0) + step.quantityToPick);
+        }
+      }
+    }
+  }
+
+  // Also reserve from ALLOCATED or PARTIALLY_ALLOCATED Sales Orders at the warehouse level.
+  // PARTIALLY_DISPATCHED belongs here too — a line's allocation can span multiple
+  // warehouses on separate dispatch notes, so an order sitting there still has at least
+  // one warehouse's undispatched share that must stay reserved (not up for grabs by
+  // another order's allocation) until every warehouse has actually shipped.
+  const soReservations = new Map<string, number>(); // key: warehouseCode___sku
+  const salesOrders = await loadSalesOrders();
+  for (const so of salesOrders) {
+    if (['PARTIALLY_ALLOCATED', 'ALLOCATED', 'PARTIALLY_DISPATCHED', 'READY_FOR_DISPATCH'].includes(so.status)) {
+      for (const line of so.lines) {
+        if (line.allocatedWarehouses) {
+          for (const aw of line.allocatedWarehouses) {
+            const k = `${aw.warehouseCode}___${line.itemCode}`;
+            soReservations.set(k, (soReservations.get(k) || 0) + aw.qty);
+          }
         }
       }
     }
@@ -385,16 +292,42 @@ export function calculateStockOnHand(): StockOnHandItem[] {
     stockMap.set(key, existing);
   }
 
-  return Array.from(stockMap.values());
+  // Deduct warehouse-level Sales Order reservations dynamically from the bins
+  const stockItems = Array.from(stockMap.values());
+  for (const [key, reservedQty] of soReservations.entries()) {
+    const [whCode, sku] = key.split('___');
+    let remainingToReserve = reservedQty;
+
+    const matchingBins = stockItems.filter(s => s.warehouseCode === whCode && s.sku === sku);
+
+    // Pass 1: Try to deduct from bins with available qty
+    for (const bin of matchingBins) {
+      if (remainingToReserve <= 0) break;
+      const canTake = Math.min(bin.quantityAvailable, remainingToReserve);
+      if (canTake > 0) {
+        bin.quantityReserved += canTake;
+        bin.quantityAvailable -= canTake;
+        remainingToReserve -= canTake;
+      }
+    }
+
+    // Pass 2: If somehow we oversold (ATP negative), force deduct from the first bin to keep math honest
+    if (remainingToReserve > 0 && matchingBins.length > 0) {
+      matchingBins[0].quantityReserved += remainingToReserve;
+      matchingBins[0].quantityAvailable -= remainingToReserve;
+    }
+  }
+
+  return stockItems;
 }
 
 /**
  * MATHEMATICAL AUDIT RECONCILIATION SOLVER
  * Compares current stock on hand against sum of ledger movements.
  */
-export function reconcileStockLedger(): ReconciliationReport {
-  const ledger = loadPersistentStockLedger();
-  const calculatedStock = calculateStockOnHand();
+export async function reconcileStockLedger(): Promise<ReconciliationReport> {
+  const ledger = await loadPersistentStockLedger();
+  const calculatedStock = await calculateStockOnHand();
 
   let totalReceipts = 0;
   let totalIssues = 0;
@@ -454,59 +387,40 @@ export function reconcileStockLedger(): ReconciliationReport {
 }
 
 /**
- * INTELLIGENT STORAGE LOCATION ASSIGNMENT SOLVER
- * Evaluates storage bin grid capacity and category taxonomy to suggest optimal bin assignment.
+ * Per-warehouse totals computed from the FULL, unfiltered ledger — used anywhere a
+ * warehouse's overall stock/capacity needs to be shown correctly regardless of which
+ * vendor is viewing. Item-level views are vendor-scoped (see /api/inventory/stock), but
+ * "how much stock is physically in this warehouse" is a shared, warehouse-wide fact and
+ * must not be understated by only counting one vendor's slice of it.
  */
-export function suggestOptimalStorageBin(
-  warehouseCode: string,
-  categoryName?: string,
-  requiredQty: number = 1
-): { suggestedBin: StorageBin; reason: string } | null {
-  const warehouses = loadPersistentWarehouses();
-  const wh = warehouses[warehouseCode] || Object.values(warehouses).find((w) => w.code === warehouseCode);
-  if (!wh || !wh.bins || wh.bins.length === 0) return null;
+export async function getWarehouseStockSummary(): Promise<Record<string, { totalQty: number; itemCount: number }>> {
+  const stock = await calculateStockOnHand();
+  const summary: Record<string, { totalQty: number; itemCount: number }> = {};
+  const itemSets: Record<string, Set<string>> = {};
 
-  const stockOnHand = calculateStockOnHand();
-
-  // Calculate current stock in each bin
-  const binStockMap = new Map<string, number>();
-  for (const item of stockOnHand) {
-    if (item.warehouseCode === warehouseCode) {
-      const cur = binStockMap.get(item.binLocation) || 0;
-      binStockMap.set(item.binLocation, cur + item.quantityOnHand);
+  for (const row of stock) {
+    if (!summary[row.warehouseCode]) {
+      summary[row.warehouseCode] = { totalQty: 0, itemCount: 0 };
+      itemSets[row.warehouseCode] = new Set();
     }
+    summary[row.warehouseCode].totalQty += row.quantityOnHand;
+    itemSets[row.warehouseCode].add(row.itemMasterId);
   }
 
-  // Filter available bins with sufficient capacity
-  const eligibleBins = wh.bins.filter((b) => {
-    const curQty = binStockMap.get(b.code) || 0;
-    const capacity = b.capacityUnits || 1000;
-    return capacity - curQty >= requiredQty;
-  });
-
-  if (eligibleBins.length === 0) {
-    return {
-      suggestedBin: wh.bins[0],
-      reason: `Default Assignment: All bins near capacity (${wh.bins[0].code})`,
-    };
+  for (const code of Object.keys(summary)) {
+    summary[code].itemCount = itemSets[code].size;
   }
 
-  const catLower = (categoryName || '').toLowerCase();
-  const isBulk = catLower.includes('pallet') || catLower.includes('heavy') || catLower.includes('bulk') || catLower.includes('rack');
+  return summary;
+}
 
-  // Match optimal zone
-  let targetBin: StorageBin | undefined;
-  if (isBulk) {
-    targetBin = eligibleBins.find((b) => b.zone.toLowerCase().includes('bulk') || b.code.startsWith('BIN-B')) || eligibleBins[0];
-  } else {
-    targetBin = eligibleBins.find((b) => b.zone.toLowerCase().includes('fast') || b.zone.toLowerCase().includes('pick') || b.code.startsWith('BIN-A')) || eligibleBins[0];
-  }
-
-  const curQty = binStockMap.get(targetBin.code) || 0;
-  const capacity = targetBin.capacityUnits || 1000;
-
-  return {
-    suggestedBin: targetBin,
-    reason: `Optimal Assignment: ${targetBin.zone} (${curQty + requiredQty}/${capacity} units capacity available)`,
-  };
+/**
+ * Returns the single implicit storage bin for a warehouse. Warehouse capacity is not
+ * modeled in this app, so there is nothing to optimize against — every warehouse has
+ * exactly one bin that all of its stock lives in.
+ */
+export async function getDefaultBinForWarehouse(warehouseCode: string): Promise<StorageBin | null> {
+  const warehouse = await prisma.warehouse.findFirst({ where: { code: warehouseCode } });
+  if (!warehouse) return null;
+  return DEFAULT_BIN;
 }

@@ -10,7 +10,9 @@ import { logAuditEvent } from '@/lib/audit';
 // approved; this fallback path (FR-HLP-004) opens the configured sign-in URL
 // with only non-sensitive context — never credentials or tokens.
 
-const HELPDESK_PERMITTED_ROLES = ['PLATFORM_OWNER', 'MDM', 'WAREHOUSE', 'VENDOR'];
+// Owner-only — vendors raise issues with the Platform Owner, not directly with
+// MyHitch, so this stays out of their access entirely (not just hidden client-side).
+const HELPDESK_PERMITTED_ROLES = ['PLATFORM_OWNER'];
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);

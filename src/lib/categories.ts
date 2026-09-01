@@ -1,4 +1,4 @@
-import fs from 'fs';
+import { prisma } from './prisma';
 
 export interface CategoryItem {
   id: string;
@@ -6,26 +6,6 @@ export interface CategoryItem {
   slug: string;
   parentId?: string | null;
   description?: string;
-}
-
-import { ensureDataDir, dataFilePath } from './storage';
-const CATEGORIES_FILE = dataFilePath('categories.json');
-
-export function loadCategories(): CategoryItem[] {
-  ensureDataDir();
-  try {
-    if (fs.existsSync(CATEGORIES_FILE)) {
-      return JSON.parse(fs.readFileSync(CATEGORIES_FILE, 'utf-8'));
-    }
-  } catch (e) {}
-  return getDefaultCategoryTree();
-}
-
-export function saveCategories(categories: CategoryItem[]) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(CATEGORIES_FILE, JSON.stringify(categories, null, 2), 'utf-8');
-  } catch (e) {}
 }
 
 export function getDefaultCategoryTree(): CategoryItem[] {
@@ -51,4 +31,52 @@ export function getDefaultCategoryTree(): CategoryItem[] {
     { id: 'cat_wh_bin', name: 'Location & Bin Markers', slug: 'bin-location-markers', parentId: 'cat_wh', description: 'Retro-reflective aisle and bin location barcode signs' },
     { id: 'cat_wh_plt', name: 'Pallets & Storage', slug: 'pallets-storage', parentId: 'cat_wh', description: 'Heavy-duty plastic pallets and storage containers' },
   ];
+}
+
+/** Bootstraps the default category tree by slug (the actual unique key), without disturbing any categories added since. */
+async function ensureSeeded() {
+  const defaults = getDefaultCategoryTree();
+  const existing = await prisma.category.findMany({ where: { slug: { in: defaults.map((c) => c.slug) } }, select: { slug: true } });
+  const existingSlugs = new Set(existing.map((r) => r.slug));
+  const missing = defaults.filter((c) => !existingSlugs.has(c.slug));
+  if (missing.length === 0) return;
+  // Parents must be created before children reference them via parentId FK.
+  const parents = missing.filter((c) => !c.parentId);
+  const children = missing.filter((c) => c.parentId);
+  if (parents.length) await prisma.category.createMany({ data: parents.map(({ id, name, slug, description }) => ({ id, name, slug, description, parentId: null })) });
+  if (children.length) await prisma.category.createMany({ data: children.map(({ id, name, slug, description, parentId }) => ({ id, name, slug, description, parentId })) });
+}
+
+export async function loadCategories(): Promise<CategoryItem[]> {
+  await ensureSeeded();
+  const rows = await prisma.category.findMany({ orderBy: { name: 'asc' } });
+  return rows.map((r) => ({ id: r.id, name: r.name, slug: r.slug, parentId: r.parentId, description: r.description ?? undefined }));
+}
+
+function slugify(name: string): string {
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+}
+
+export async function createCategory(input: { name: string; parentId?: string | null; description?: string }): Promise<CategoryItem> {
+  const id = `cat_${Date.now()}`;
+  const row = await prisma.category.create({
+    data: { id, name: input.name.trim(), slug: slugify(input.name), parentId: input.parentId || null, description: input.description || '' },
+  });
+  return { id: row.id, name: row.name, slug: row.slug, parentId: row.parentId, description: row.description ?? undefined };
+}
+
+export async function updateCategory(id: string, input: { name: string; description?: string }): Promise<CategoryItem> {
+  const data: any = { name: input.name.trim(), slug: slugify(input.name) };
+  if (input.description !== undefined) data.description = input.description;
+  const row = await prisma.category.update({ where: { id }, data });
+  return { id: row.id, name: row.name, slug: row.slug, parentId: row.parentId, description: row.description ?? undefined };
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  await prisma.category.delete({ where: { id } });
+}
+
+export async function hasChildCategories(id: string): Promise<boolean> {
+  const count = await prisma.category.count({ where: { parentId: id } });
+  return count > 0;
 }

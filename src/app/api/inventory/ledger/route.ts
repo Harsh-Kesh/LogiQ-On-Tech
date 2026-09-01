@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadPersistentStockLedger } from '@/lib/stock';
+import { resolveVendorIdForUser } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -16,11 +17,22 @@ export async function GET(req: Request) {
   const type = searchParams.get('type');
   const search = searchParams.get('search')?.toLowerCase() || '';
 
-  let ledger = loadPersistentStockLedger();
+  let ledger = await loadPersistentStockLedger();
 
   // If vendor role, filter strictly to items owned by that vendor
   if (user.role === 'VENDOR') {
-    ledger = ledger.filter((l) => l.vendorId === user.id || (l.vendorName && l.vendorName.toLowerCase().includes(user.name?.toLowerCase() || '')));
+    const sessionVendorId = await resolveVendorIdForUser(user);
+    const userComp = (user.companyName || '').toLowerCase();
+    const userName = (user.name || '').toLowerCase();
+    ledger = ledger.filter((l) => {
+      const vName = (l.vendorName || '').toLowerCase();
+      return (
+        (sessionVendorId && l.vendorId === sessionVendorId) ||
+        l.vendorId === user.id ||
+        (userComp && vName && (vName.includes(userComp) || userComp.includes(vName))) ||
+        (userName && vName && vName.includes(userName))
+      );
+    });
   }
 
   if (warehouse && warehouse !== 'ALL') {

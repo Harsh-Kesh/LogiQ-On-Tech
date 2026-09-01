@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Lock, CheckCircle2, AlertCircle, ShieldCheck, ArrowRight, Building, Package, Warehouse, ExternalLink } from 'lucide-react';
+import { Lock, CheckCircle2, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
@@ -12,7 +12,7 @@ export default function MfaEnrolPage() {
   const { data: session, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  // FR-AU-006 — Owner + Finance land here with ?mandatory=1 and cannot skip.
+  // Platform Owner accounts land here with ?mandatory=1 and cannot skip.
   const isMandatory = searchParams?.get('mandatory') === '1';
 
   const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -24,21 +24,9 @@ export default function MfaEnrolPage() {
 
   const userRole = (session?.user as any)?.role || 'VENDOR';
 
-  const targetDashboard = userRole === 'VENDOR'
-    ? '/dashboard/vendor'
-    : userRole === 'WAREHOUSE'
-    ? '/dashboard/warehouse'
-    : userRole === 'MDM'
-    ? '/dashboard/owner/items'
-    : '/dashboard/owner';
+  const targetDashboard = userRole === 'VENDOR' ? '/dashboard/vendor' : '/dashboard/owner';
 
-  const portalName = userRole === 'VENDOR'
-    ? 'Vendor Portal'
-    : userRole === 'WAREHOUSE'
-    ? 'Warehouse Dashboard'
-    : userRole === 'MDM'
-    ? 'MDM Item Master'
-    : 'Platform Owner Console';
+  const portalName = userRole === 'VENDOR' ? 'Vendor Portal' : 'Platform Owner Console';
 
   const handleStartSetup = async () => {
     setLoading(true);
@@ -81,7 +69,7 @@ export default function MfaEnrolPage() {
       } else {
         // Update NextAuth session state
         await update({ mfaEnabled: true, mfaVerified: true, mfaSecret: secret });
-        setSuccess(`🎉 MFA Enrolment Successful! Your 2FA security is active.`);
+        setSuccess(`Two-factor authentication is now active.`);
         setLoading(false);
 
         // Seamless auto-redirect to role dashboard after 1.5s
@@ -90,7 +78,7 @@ export default function MfaEnrolPage() {
         }, 1500);
       }
     } catch (e: any) {
-      setError('Error verifying OTP token.');
+      setError('Error verifying your code.');
       setLoading(false);
     }
   };
@@ -114,8 +102,8 @@ export default function MfaEnrolPage() {
             <Lock className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Staff &amp; Vendor Multi-Factor Security (MFA)</h1>
-            <p className="text-xs text-slate-500 font-mono">TOTP 2FA Enrolment Engine &amp; Device Pairing</p>
+            <h1 className="text-2xl font-extrabold text-slate-900">Two-Factor Authentication Setup</h1>
+            <p className="text-xs text-slate-500 font-mono">Secure your account with an authenticator app</p>
           </div>
         </div>
 
@@ -132,7 +120,7 @@ export default function MfaEnrolPage() {
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
             <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Account Security Status
+              <ShieldCheck className="w-4 h-4 text-indigo-600" /> Account Security Status
             </div>
             <div className="text-xs text-slate-500 mt-0.5 font-mono">Account: {session?.user?.email}</div>
           </div>
@@ -158,16 +146,16 @@ export default function MfaEnrolPage() {
         )}
 
         {success && (
-          <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold space-y-3">
-            <div className="flex items-center gap-2 font-bold text-sm text-emerald-900">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div className="p-5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-semibold space-y-3">
+            <div className="flex items-center gap-2 font-bold text-sm text-indigo-900">
+              <CheckCircle2 className="w-5 h-5 text-indigo-600 shrink-0" />
               <span>{success}</span>
             </div>
-            <p className="text-xs text-emerald-700">Redirecting to {portalName} in a moment...</p>
+            <p className="text-xs text-indigo-700">Redirecting to {portalName} in a moment...</p>
             <div className="pt-1">
               <Link
                 href={targetDashboard}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all"
               >
                 <span>Launch {portalName} Now</span>
                 <ArrowRight className="w-4 h-4" />
@@ -177,18 +165,18 @@ export default function MfaEnrolPage() {
         )}
 
         {(session?.user as any)?.mfaEnabled && !success ? (
-          <div className="text-center py-8 space-y-5 bg-emerald-50/50 rounded-2xl border border-emerald-200 p-6">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center mx-auto">
+          <div className="text-center py-8 space-y-5 bg-indigo-50/50 rounded-2xl border border-indigo-200 p-6">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center mx-auto">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">MFA / 2FA is Active &amp; Account Secured</h2>
+              <h2 className="text-base font-bold text-slate-900">Two-Factor Authentication is Active</h2>
               <p className="text-xs text-slate-600 max-w-md mx-auto mt-1">
                 Your account is protected with Two-Factor Authentication. Re-configuration is locked to prevent unauthorized tampering.
               </p>
             </div>
-            <div className="inline-block px-3.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-              Status: 2FA Enrolment Locked &amp; Operational
+            <div className="inline-block px-3.5 py-1 rounded-full text-[11px] font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+              Status: Enrollment Locked
             </div>
 
             <div className="pt-3">
@@ -231,7 +219,7 @@ export default function MfaEnrolPage() {
 
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <Input
-                label="Step 2: Enter 6-Digit OTP Token from App"
+                label="Step 2: Enter the 6-digit code from your app"
                 maxLength={6}
                 required
                 value={token}
@@ -240,7 +228,7 @@ export default function MfaEnrolPage() {
               />
 
               <Button type="submit" variant="success" className="w-full" isLoading={loading}>
-                Verify OTP &amp; Complete MFA Enrolment
+                Verify &amp; Complete Setup
               </Button>
             </form>
           </div>

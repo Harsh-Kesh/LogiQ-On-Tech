@@ -4,254 +4,132 @@ import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
 import { UserRole } from '@prisma/client';
 import { logAuditEvent } from './audit';
-import fs from 'fs';
 
-export interface PersistentUser {
-  id: string;
-  email: string;
-  fullName: string;
-  role: UserRole;
-  mfaEnabled: boolean;
-  mfaVerified?: boolean;
-  mfaSecret?: string;
-  passwordHash: string;
-  createdAt: string;
-  companyName?: string;
-  abnAcn?: string;
-  status?: string;
-  rejectionReason?: string;
-  isSuspended?: boolean;
-  docs?: any[];
-  assignedWarehouseCode?: string;
+export async function isUserRegistered(email: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  return !!user;
 }
 
-import { ensureDataDir, dataFilePath } from './storage';
-const STORAGE_FILE = dataFilePath('registered_users.json');
-const OTP_FILE = dataFilePath('reset_otps.json');
-
-
-function getSeededDemoAccounts(): Record<string, PersistentUser> {
-  const defaultPasswordHash = bcrypt.hashSync('Password123!', 10);
-  return {
-    'admin@logiqon.tech': { id: 'usr_admin_01', email: 'admin@logiqon.tech', fullName: 'System Admin (Owner)', role: 'PLATFORM_OWNER', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPTEST', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'owner@logiqon.com': { id: 'usr_owner_01', email: 'owner@logiqon.com', fullName: 'Platform Owner', role: 'PLATFORM_OWNER', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPOWNR', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString() },
-    'vendor@logiqon.tech': { id: 'usr_vendor_01', email: 'vendor@logiqon.tech', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPVND1', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 556', status: 'APPROVED' },
-    'vendor@logiqon.com': { id: 'usr_vendor_02', email: 'vendor@logiqon.com', fullName: 'Apex Hardware Manager', role: 'VENDOR', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPVND2', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), companyName: 'Apex Hardware & Logistics Ltd', abnAcn: '51 824 753 556', status: 'APPROVED' },
-    'sydney.manager@logiqon.com': { id: 'usr_wh_syd', email: 'sydney.manager@logiqon.com', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHS1', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
-    'melbourne.manager@logiqon.com': { id: 'usr_wh_mel', email: 'melbourne.manager@logiqon.com', fullName: 'Sarah Jenkins', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHM2', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-MEL-02' },
-    'brisbane.manager@logiqon.com': { id: 'usr_wh_bne', email: 'brisbane.manager@logiqon.com', fullName: 'Michael Chang', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHB3', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-BNE-03' },
-    'perth.manager@logiqon.com': { id: 'usr_wh_per', email: 'perth.manager@logiqon.com', fullName: 'David Wilson', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHP4', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-PER-04' },
-    'warehouse@logiqon.tech': { id: 'usr_wh_01', email: 'warehouse@logiqon.tech', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHT1', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
-    'warehouse@logiqon.com': { id: 'usr_wh_02', email: 'warehouse@logiqon.com', fullName: 'Jack Taylor', role: 'WAREHOUSE', mfaEnabled: false, mfaSecret: 'JBSWY3DPEHPK3PXPWHC2', passwordHash: defaultPasswordHash, createdAt: new Date().toISOString(), assignedWarehouseCode: 'WH-SYD-01' },
-  };
+export async function updateRuntimeUserPassword(email: string, newPasswordHash: string): Promise<void> {
+  await prisma.user.update({ where: { email: email.toLowerCase().trim() }, data: { passwordHash: newPasswordHash } }).catch(() => {});
 }
 
-export function loadPersistentUsers(): Record<string, PersistentUser> {
-  ensureDataDir();
-  const seeds = getSeededDemoAccounts();
-  try {
-    if (fs.existsSync(STORAGE_FILE)) {
-      const data = fs.readFileSync(STORAGE_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      const merged = { ...seeds, ...parsed };
-
-      // Ensure default demo vendor accounts maintain APPROVED status unless explicitly changed
-      if (merged['vendor@logiqon.com'] && (!merged['vendor@logiqon.com'].status || merged['vendor@logiqon.com'].status === 'PENDING')) {
-        merged['vendor@logiqon.com'].status = 'APPROVED';
-        merged['vendor@logiqon.com'].companyName = 'Apex Hardware & Logistics Ltd';
-        merged['vendor@logiqon.com'].abnAcn = '51 824 753 556';
-      }
-      if (merged['vendor@logiqon.tech'] && (!merged['vendor@logiqon.tech'].status || merged['vendor@logiqon.tech'].status === 'PENDING')) {
-        merged['vendor@logiqon.tech'].status = 'APPROVED';
-        merged['vendor@logiqon.tech'].companyName = 'Apex Hardware & Logistics Ltd';
-        merged['vendor@logiqon.tech'].abnAcn = '51 824 753 556';
-      }
-
-      // Auto-normalize: accounts without mfaSecret should not enforce MFA challenge on login
-      for (const key in merged) {
-        if (merged[key].mfaEnabled && !merged[key].mfaSecret) {
-          merged[key].mfaEnabled = false;
-        }
-      }
-
-      return merged;
-    }
-  } catch (e) {}
-  return seeds;
+/** One row per email — a new OTP request replaces any previous one for that email. */
+export async function generatePasswordResetOtp(email: string): Promise<string> {
+  const emailClean = email.toLowerCase().trim();
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  await prisma.passwordResetOtp.upsert({
+    where: { email: emailClean },
+    update: { code, expiresAt },
+    create: { email: emailClean, code, expiresAt },
+  });
+  return code;
 }
 
-export function savePersistentUsers(users: Record<string, PersistentUser>) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(STORAGE_FILE, JSON.stringify(users, null, 2), 'utf-8');
-  } catch (e) {}
+export async function verifyPasswordResetOtp(email: string, inputCode: string): Promise<boolean> {
+  const emailClean = email.toLowerCase().trim();
+  const record = await prisma.passwordResetOtp.findUnique({ where: { email: emailClean } });
+  if (!record) return false;
+  if (Date.now() > record.expiresAt.getTime()) {
+    await prisma.passwordResetOtp.delete({ where: { email: emailClean } }).catch(() => {});
+    return false;
+  }
+  if (record.code === inputCode.trim()) {
+    await prisma.passwordResetOtp.delete({ where: { email: emailClean } }).catch(() => {});
+    return true;
+  }
+  return false;
 }
 
-export function updateRuntimeVendorProfile(
+/**
+ * Resolves a vendor by any of the id shapes callers historically pass around: a real
+ * Vendor.id, a `vnd_`-prefixed User.id, a raw User.id, or an email — so existing routes
+ * that grew up around the old JSON-store's fuzzy key matching keep working unchanged.
+ */
+async function findVendorByKey(userEmailOrId: string) {
+  const key = (userEmailOrId || '').toLowerCase().trim();
+  const rawId = key.replace(/^vnd_/, '');
+  return prisma.vendor.findFirst({
+    where: {
+      OR: [
+        { id: key },
+        { id: rawId },
+        { userId: key },
+        { userId: rawId },
+        { user: { email: key } },
+      ],
+    },
+    include: { user: true },
+  });
+}
+
+/** Finds the vendor for this key, or creates the underlying User+Vendor if this is a
+ * brand-new self-registering vendor (key looks like an email with no existing account). */
+async function findOrCreateVendorByKey(userEmailOrId: string, defaults?: { companyName?: string; abnAcn?: string; status?: string }) {
+  const vendor = await findVendorByKey(userEmailOrId);
+  if (vendor) return vendor;
+
+  const key = (userEmailOrId || '').toLowerCase().trim();
+  if (!key.includes('@')) return null;
+
+  let user = await prisma.user.findUnique({ where: { email: key } });
+  if (!user) {
+    user = await prisma.user.create({ data: { email: key, fullName: 'Vendor Partner', role: 'VENDOR', passwordHash: '' } });
+  }
+  return prisma.vendor.create({
+    data: {
+      userId: user.id,
+      companyName: defaults?.companyName || '',
+      abnAcn: defaults?.abnAcn || `PENDING-${Date.now().toString().slice(-8)}`,
+      status: (defaults?.status as any) || 'UNDER_REVIEW',
+    },
+    include: { user: true },
+  });
+}
+
+export async function updateRuntimeVendorProfile(
   userEmailOrId: string,
   companyName?: string,
   abnAcn?: string,
   status?: string,
-  rejectionReason?: string
+  rejectionReason?: string,
+  businessRegisteredAddress?: string,
+  businessLocation?: string
 ) {
-  const users = loadPersistentUsers();
-  const searchKey = (userEmailOrId || '').toLowerCase().trim();
-  const rawId = searchKey.replace('vnd_', '');
+  const vendor = await findOrCreateVendorByKey(userEmailOrId, { companyName, abnAcn, status });
+  if (!vendor) return null;
 
-  let entry = users[searchKey] || Object.values(users).find(
-    (u) => u.email.toLowerCase() === searchKey || u.id === searchKey || u.id === rawId || `vnd_${u.id}` === searchKey
-  );
+  const data: any = {};
+  if (companyName !== undefined && companyName !== '') data.companyName = companyName;
+  if (abnAcn !== undefined && abnAcn !== '') data.abnAcn = abnAcn;
+  if (businessRegisteredAddress !== undefined && businessRegisteredAddress !== '') data.businessRegisteredAddress = businessRegisteredAddress;
+  if (businessLocation !== undefined && businessLocation !== '') data.businessLocation = businessLocation;
+  if (status !== undefined) data.status = status;
+  if (rejectionReason !== undefined) data.rejectionReason = rejectionReason;
 
-  if (!entry && searchKey.includes('@')) {
-    entry = {
-      id: `usr_reg_${Date.now()}`,
-      email: searchKey,
-      fullName: 'Vendor Partner',
-      role: 'VENDOR',
-      mfaEnabled: false,
-      passwordHash: '',
-      createdAt: new Date().toISOString(),
-      companyName: companyName || '',
-      abnAcn: abnAcn || '',
-      status: status || 'UNDER_REVIEW',
-      rejectionReason,
-      docs: [],
-    };
-    users[searchKey] = entry;
-  } else if (entry) {
-    if (companyName !== undefined && companyName !== '') entry.companyName = companyName;
-    if (abnAcn !== undefined && abnAcn !== '') entry.abnAcn = abnAcn;
-    if (status !== undefined) entry.status = status;
-    if (rejectionReason !== undefined) entry.rejectionReason = rejectionReason;
-    users[entry.email.toLowerCase()] = entry;
+  if (Object.keys(data).length === 0) return vendor;
+  return prisma.vendor.update({ where: { id: vendor.id }, data, include: { user: true } });
+}
+
+export async function addRuntimeVendorDoc(userEmailOrId: string, doc: { docType: string; fileName: string; fileUrl: string; fileSize: number; status: string }) {
+  const vendor = await findOrCreateVendorByKey(userEmailOrId);
+  if (!vendor) return null;
+
+  const existingDoc = await prisma.complianceDoc.findFirst({ where: { vendorId: vendor.id, docType: doc.docType } });
+  const savedDoc = existingDoc
+    ? await prisma.complianceDoc.update({
+        where: { id: existingDoc.id },
+        data: { fileName: doc.fileName, fileUrl: doc.fileUrl, fileSize: doc.fileSize, status: doc.status || 'PENDING', uploadedAt: new Date() },
+      })
+    : await prisma.complianceDoc.create({
+        data: { vendorId: vendor.id, docType: doc.docType, fileName: doc.fileName, fileUrl: doc.fileUrl, fileSize: doc.fileSize, status: doc.status || 'PENDING' },
+      });
+
+  if (vendor.status === 'PENDING') {
+    await prisma.vendor.update({ where: { id: vendor.id }, data: { status: 'UNDER_REVIEW' } });
   }
-
-  savePersistentUsers(users);
-}
-
-export function addRuntimeVendorDoc(userEmailOrId: string, doc: any) {
-  const users = loadPersistentUsers();
-  const searchKey = (userEmailOrId || '').toLowerCase().trim();
-  const rawId = searchKey.replace('vnd_', '');
-  
-  let entry = users[searchKey] || Object.values(users).find(
-    (u) => u.email.toLowerCase() === searchKey || u.id === searchKey || u.id === rawId || `vnd_${u.id}` === searchKey
-  );
-
-  if (!entry && searchKey.includes('@')) {
-    entry = {
-      id: `usr_reg_${Date.now()}`,
-      email: searchKey,
-      fullName: 'Vendor Partner',
-      role: 'VENDOR',
-      mfaEnabled: false,
-      passwordHash: '',
-      createdAt: new Date().toISOString(),
-      companyName: '',
-      abnAcn: '',
-      status: 'UNDER_REVIEW',
-      docs: [doc],
-    };
-    users[searchKey] = entry;
-  } else if (entry) {
-    if (!entry.docs) entry.docs = [];
-    const idx = entry.docs.findIndex((d) => d.docType === doc.docType);
-    if (idx >= 0) {
-      entry.docs[idx] = doc;
-    } else {
-      entry.docs.unshift(doc);
-    }
-    if (entry.status === 'PENDING') {
-      entry.status = 'UNDER_REVIEW';
-    }
-    users[entry.email.toLowerCase()] = entry;
-  }
-  
-  savePersistentUsers(users);
-}
-
-export function isUserRegistered(email: string): boolean {
-  const emailClean = email.toLowerCase().trim();
-  const users = loadPersistentUsers();
-  return !!users[emailClean];
-}
-
-export function registerRuntimeUser(email: string, fullName: string, role: UserRole, passwordHash: string): boolean {
-  const emailClean = email.toLowerCase().trim();
-  const users = loadPersistentUsers();
-
-  if (users[emailClean]) {
-    return false;
-  }
-
-  users[emailClean] = {
-    id: `usr_reg_${Date.now()}`,
-    email: emailClean,
-    fullName,
-    role,
-    mfaEnabled: false,
-    passwordHash,
-    createdAt: new Date().toISOString(),
-    companyName: '',
-    abnAcn: '',
-    status: 'PENDING',
-    docs: [],
-    assignedWarehouseCode: role === 'WAREHOUSE' ? 'UNASSIGNED' : undefined,
-  };
-
-  savePersistentUsers(users);
-  return true;
-}
-
-export function updateRuntimeUserPassword(email: string, newPasswordHash: string) {
-  const emailClean = email.toLowerCase().trim();
-  const users = loadPersistentUsers();
-  if (users[emailClean]) {
-    users[emailClean].passwordHash = newPasswordHash;
-    savePersistentUsers(users);
-  }
-}
-
-export function generatePasswordResetOtp(email: string): string {
-  const emailClean = email.toLowerCase().trim();
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + 15 * 60 * 1000;
-
-  ensureDataDir();
-  try {
-    let otps: Record<string, { code: string; expiresAt: number }> = {};
-    if (fs.existsSync(OTP_FILE)) {
-      otps = JSON.parse(fs.readFileSync(OTP_FILE, 'utf-8'));
-    }
-    otps[emailClean] = { code, expiresAt };
-    fs.writeFileSync(OTP_FILE, JSON.stringify(otps, null, 2), 'utf-8');
-  } catch (e) {}
-
-  return code;
-}
-
-export function verifyPasswordResetOtp(email: string, inputCode: string): boolean {
-  const emailClean = email.toLowerCase().trim();
-  ensureDataDir();
-  try {
-    if (fs.existsSync(OTP_FILE)) {
-      const otps: Record<string, { code: string; expiresAt: number }> = JSON.parse(fs.readFileSync(OTP_FILE, 'utf-8'));
-      const record = otps[emailClean];
-      if (!record) return false;
-      if (Date.now() > record.expiresAt) {
-        delete otps[emailClean];
-        fs.writeFileSync(OTP_FILE, JSON.stringify(otps, null, 2), 'utf-8');
-        return false;
-      }
-
-      if (record.code === inputCode.trim()) {
-        delete otps[emailClean];
-        fs.writeFileSync(OTP_FILE, JSON.stringify(otps, null, 2), 'utf-8');
-        return true;
-      }
-    }
-  } catch (e) {}
-  return false;
+  return savedDoc;
 }
 
 if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_SECRET) {
@@ -280,96 +158,61 @@ export const authOptions: NextAuthOptions = {
 
         const emailClean = credentials.email.toLowerCase().trim();
 
-        // 1. Check DB first
-        try {
-          const user = await prisma.user.findUnique({
-            where: { email: emailClean },
-            include: { vendor: true },
-          });
+        const user = await prisma.user.findUnique({
+          where: { email: emailClean },
+          include: { vendor: true },
+        });
 
-          if (user) {
-            if (user.isSuspended || user.vendor?.status === 'SUSPENDED') {
-              await logAuditEvent({
-                userId: user.id,
-                role: user.role,
-                action: 'USER_LOGIN_BLOCKED',
-                module: 'GOVERNANCE',
-                payloadJson: { reason: 'Account suspended by Platform Owner' },
-              }).catch(() => {});
-              throw new Error('Account suspended by Platform Owner.');
-            }
-
-            if (user.role === 'VENDOR' && user.vendor?.status === 'REJECTED') {
-              const reason = user.vendor.rejectionReason || 'Compliance verification failed';
-              await logAuditEvent({
-                userId: user.id,
-                role: user.role,
-                action: 'USER_LOGIN_BLOCKED_REJECTED',
-                module: 'GOVERNANCE',
-                payloadJson: { reason },
-              }).catch(() => {});
-              throw new Error(`Account registration rejected by Platform Owner. Reason: ${reason}`);
-            }
-
-            const isValidPassword = await bcrypt.compare(credentials.password, user.passwordHash);
-            if (isValidPassword) {
-              await logAuditEvent({
-                userId: user.id,
-                role: user.role,
-                action: 'USER_LOGIN_SUCCESS',
-                module: 'GOVERNANCE',
-                payloadJson: { email: user.email, role: user.role },
-              }).catch(() => {});
-
-              const isMfaActive = Boolean(user.mfaEnabled && user.mfaSecret);
-              return {
-                id: user.id,
-                email: user.email,
-                name: user.fullName,
-                role: user.role,
-                mfaEnabled: isMfaActive,
-                mfaVerified: !isMfaActive,
-                mfaSecret: user.mfaSecret || null,
-              };
-            }
-          }
-        } catch (dbError: any) {
-          if (dbError.message && dbError.message.includes('Platform Owner')) {
-            throw dbError;
-          }
-          console.warn('Prisma DB lookup warning, falling back to persistent file store:', dbError.message);
+        if (!user) {
+          throw new Error('Invalid email or password.');
         }
 
-        // 2. Check Persistent File Store Fallback
-        const persistentUsers = loadPersistentUsers();
-        const runtimeUser = persistentUsers[emailClean];
-        if (runtimeUser) {
-          if (runtimeUser.role === 'VENDOR' && runtimeUser.status === 'REJECTED') {
-            const reason = runtimeUser.rejectionReason || 'Compliance document verification failed';
-            throw new Error(`Account registration rejected by Platform Owner. Reason: ${reason}`);
-          }
-
-          if (runtimeUser.status === 'SUSPENDED') {
-            throw new Error('Account suspended by Platform Owner.');
-          }
-
-          const isValidPassword = await bcrypt.compare(credentials.password, runtimeUser.passwordHash);
-          if (isValidPassword) {
-            const isMfaActive = Boolean(runtimeUser.mfaEnabled && runtimeUser.mfaSecret);
-            return {
-              id: runtimeUser.id,
-              email: emailClean,
-              name: runtimeUser.fullName,
-              role: runtimeUser.role,
-              mfaEnabled: isMfaActive,
-              mfaVerified: !isMfaActive,
-              mfaSecret: runtimeUser.mfaSecret || null,
-              assignedWarehouseCode: runtimeUser.assignedWarehouseCode || (runtimeUser.role === 'WAREHOUSE' ? 'UNASSIGNED' : undefined),
-            };
-          }
+        if (user.isSuspended || user.vendor?.status === 'SUSPENDED') {
+          await logAuditEvent({
+            userId: user.id,
+            role: user.role,
+            action: 'USER_LOGIN_BLOCKED',
+            module: 'GOVERNANCE',
+            payloadJson: { reason: 'Account suspended by Platform Owner' },
+          }).catch(() => {});
+          throw new Error('Account suspended by Platform Owner.');
         }
 
-        throw new Error('Invalid email or password.');
+        if (user.role === 'VENDOR' && user.vendor?.status === 'REJECTED') {
+          const reason = user.vendor.rejectionReason || 'Compliance verification failed';
+          await logAuditEvent({
+            userId: user.id,
+            role: user.role,
+            action: 'USER_LOGIN_BLOCKED_REJECTED',
+            module: 'GOVERNANCE',
+            payloadJson: { reason },
+          }).catch(() => {});
+          throw new Error(`Account registration rejected by Platform Owner. Reason: ${reason}`);
+        }
+
+        const isValidPassword = await bcrypt.compare(credentials.password, user.passwordHash);
+        if (!isValidPassword) {
+          throw new Error('Invalid email or password.');
+        }
+
+        await logAuditEvent({
+          userId: user.id,
+          role: user.role,
+          action: 'USER_LOGIN_SUCCESS',
+          module: 'GOVERNANCE',
+          payloadJson: { email: user.email, role: user.role },
+        }).catch(() => {});
+
+        const isMfaActive = Boolean(user.mfaEnabled && user.mfaSecret);
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.fullName,
+          role: user.role,
+          mfaEnabled: isMfaActive,
+          mfaVerified: !isMfaActive,
+          mfaSecret: user.mfaSecret || null,
+        };
       },
     }),
   ],
@@ -381,14 +224,12 @@ export const authOptions: NextAuthOptions = {
         token.mfaEnabled = (user as any).mfaEnabled;
         token.mfaVerified = (user as any).mfaVerified;
         token.mfaSecret = (user as any).mfaSecret || null;
-        token.assignedWarehouseCode = (user as any).assignedWarehouseCode;
       }
       if (trigger === 'update') {
         if (session?.role) token.role = session.role;
         if (session?.mfaEnabled !== undefined) token.mfaEnabled = session.mfaEnabled;
         if (session?.mfaVerified !== undefined) token.mfaVerified = session.mfaVerified;
         if (session?.mfaSecret !== undefined) token.mfaSecret = session.mfaSecret;
-        if (session?.assignedWarehouseCode) token.assignedWarehouseCode = session.assignedWarehouseCode;
       }
       return token;
     },
@@ -399,7 +240,6 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).mfaEnabled = token.mfaEnabled as boolean;
         (session.user as any).mfaVerified = token.mfaVerified as boolean;
         (session.user as any).mfaSecret = token.mfaSecret as string;
-        (session.user as any).assignedWarehouseCode = token.assignedWarehouseCode as string;
       }
       return session;
     },

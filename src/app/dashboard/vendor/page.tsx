@@ -6,7 +6,7 @@ import {
   Building, FileText, CheckCircle2, Upload, ShieldCheck, AlertCircle, AlertTriangle, XCircle,
   Trash2, FileCheck, Lock, Info, Package, Plus, Search, Edit2, TrendingUp, Clock, Star, Layers,
   DollarSign, FolderTree, Tag, Ruler, Eye, RefreshCw, FileSpreadsheet, Truck, ClipboardList,
-  Award, BarChart3, Target, ThumbsUp
+  Award, BarChart3, Target, ThumbsUp, Download, Printer, Route,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -17,12 +17,15 @@ import { Modal } from '@/components/ui/Modal';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { CategoryItem } from '@/lib/categories';
 import { UnitOfMeasureItem } from '@/lib/uom';
+import { BarcodeRenderer } from '@/components/ui/BarcodeRenderer';
 
 interface ComplianceDoc {
   id: string;
   docType: string;
   fileName: string;
-  fileUrl: string;
+  // Never present once returned to the vendor — documents are owner-review-only after
+  // upload. Optional here purely because the API omits it for this role.
+  fileUrl?: string;
   fileSize: number;
   status: string;
   uploadedAt: string;
@@ -34,6 +37,8 @@ interface VendorProfile {
   fullName: string;
   companyName?: string;
   abnAcn?: string;
+  businessRegisteredAddress?: string;
+  businessLocation?: string;
   status: 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
   rejectionReason?: string;
   totalOrders?: number;
@@ -50,9 +55,9 @@ interface Product {
   barcode: string;
   itemName: string;
   description?: string;
+  imageUrl?: string;
   costPrice: number;
   sellingPrice: number;
-  wholesalePrice?: number;
   marginPercent?: number;
   markupPercent?: number;
   moq?: number;
@@ -62,6 +67,7 @@ interface Product {
   uomId?: string;
   uomCode?: string;
   attributes?: Record<string, string>;
+  statusHistory?: Array<{ from: string; to: string; changedBy: string; changedAt: string; reason?: string }>;
   createdAt: string;
 }
 
@@ -78,13 +84,15 @@ export default function VendorDashboardPage() {
   const [uoms, setUoms] = useState<UnitOfMeasureItem[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
 
-  // Profile Form State
+  // Statutory Registration Profile Form State
   const [companyName, setCompanyName] = useState('');
   const [abnAcn, setAbnAcn] = useState('');
+  const [businessRegisteredAddress, setBusinessRegisteredAddress] = useState('');
+  const [businessLocation, setBusinessLocation] = useState('');
   const [profileError, setProfileError] = useState('');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
 
-  // Document Upload State
+  // Compliance Document Upload State
   const [docType, setDocType] = useState('ATO ABN Registration Certificate');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileValidationError, setFileValidationError] = useState('');
@@ -93,45 +101,36 @@ export default function VendorDashboardPage() {
   // Products & Catalog State
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
 
-  // Vendor CSV Import Modal State
-  const [isVendorCsvModalOpen, setIsVendorCsvModalOpen] = useState(false);
-  const [vendorCsvFile, setVendorCsvFile] = useState<File | null>(null);
-  const [vendorCsvFileError, setVendorCsvFileError] = useState<string>('');
-  const [csvText, setCsvText] = useState('');
-  const [csvSubmitting, setCsvSubmitting] = useState(false);
   const [productSearch, setProductSearch] = useState('');
-  const [showProductModal, setShowProductModal] = useState(false);
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
-
-  // Product Form State
-  const [prodName, setProdName] = useState('');
-  const [prodSku, setProdSku] = useState('');
-  const [prodBarcode, setProdBarcode] = useState('');
-  const [prodCost, setProdCost] = useState('');
-  const [prodSelling, setProdSelling] = useState('');
-  const [prodWholesale, setProdWholesale] = useState('');
-  const [prodMoq, setProdMoq] = useState('1');
-  const [prodStatus, setProdStatus] = useState<'ACTIVE' | 'DRAFT' | 'DISCONTINUED'>('ACTIVE');
-  const [prodCategoryId, setProdCategoryId] = useState('');
-  const [prodUomId, setProdUomId] = useState('');
-  const [prodDesc, setProdDesc] = useState('');
-  const [prodAttrPairs, setProdAttrPairs] = useState<Array<{ key: string; value: string }>>([
-    { key: 'IP Rating', value: 'IP65' },
-  ]);
-  const [prodFormError, setProdFormError] = useState('');
-  const [prodSubmitting, setProdSubmitting] = useState(false);
 
   // Vendor Outbound Shipping Orders State
-  const [vendorOrders, setVendorOrders] = useState<any[]>([]);
-  const [isVOrdModalOpen, setIsVOrdModalOpen] = useState(false);
-  const [vOrdCustomer, setVOrdCustomer] = useState('');
-  const [vOrdAddress, setVOrdAddress] = useState('');
-  const [vOrdWh, setVOrdWh] = useState('WH-SYD-01');
-  const [vOrdItem, setVOrdItem] = useState('');
-  const [vOrdQty, setVOrdQty] = useState('1');
-  const [vOrdNotes, setVOrdNotes] = useState('');
-  const [vOrdSubmitting, setVOrdSubmitting] = useState(false);
+  
+
+  // Purchase Orders & Vendor Invoices State
+  const [vendorPOs, setVendorPOs] = useState<any[]>([]);
+  const [vendorInvoices, setVendorInvoices] = useState<any[]>([]);
+  const [isViSubmitOpen, setIsViSubmitOpen] = useState(false);
+  const [viSubmitForm, setViSubmitForm] = useState<any>({
+    vendorInvoiceNumber: '', linkedPoNumber: '', invoiceAmount: 0, dueDate: '',
+    attachment: null as { fileName: string; fileUrl: string } | null,
+  });
+  const [viSubmitting, setViSubmitting] = useState(false);
+  const [poAllowedTransitions, setPoAllowedTransitions] = useState<Record<string, string[]>>({});
+  const [viewPoModal, setViewPoModal] = useState<any | null>(null);
+
+  // Transport Costs — a shipment can cover multiple POs/dispatches at once, so the
+  // freight bill has to be split across them; the owner must approve a claim before
+  // any PO total moves, and this vendor can't invoice a PO with a claim still pending.
+  const [transportCosts, setTransportCosts] = useState<any[]>([]);
+  const [vendorDispatchNotes, setVendorDispatchNotes] = useState<any[]>([]);
+  const [isTcModalOpen, setIsTcModalOpen] = useState(false);
+  const [tcForm, setTcForm] = useState<{ warehouseCode: string; trackingNumber: string; totalCost: string; dnNumbers: string[]; notes: string }>({
+    warehouseCode: '', trackingNumber: '', totalCost: '', dnNumbers: [], notes: '',
+  });
+  const [tcSubmitting, setTcSubmitting] = useState(false);
 
   // Toast Feedback State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -140,71 +139,214 @@ export default function VendorDashboardPage() {
     fetchVendorProfile();
     fetchVendorProducts();
     fetchTaxonomies();
-    fetchVendorOrders();
+    fetchVendorPOs();
+    fetchVendorInvoices();
+    fetchTransportCosts();
   }, []);
 
-  async function fetchVendorOrders() {
+  useEffect(() => { if (vendorPOs.length > 0) fetchVendorDispatchNotes(); }, [vendorPOs]);
+
+  async function fetchTransportCosts() {
     try {
-      const res = await fetch('/api/fulfillment/orders');
+      const res = await fetch('/api/transport-costs');
       if (res.ok) {
         const data = await res.json();
-        setVendorOrders(data.orders || []);
+        setTransportCosts(data.transportCosts || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch vendor orders:', e);
-    }
+    } catch {}
   }
 
-  async function handleCreateVendorOrder(e: React.FormEvent) {
+  async function fetchVendorDispatchNotes() {
+    try {
+      const res = await fetch('/api/dispatch-notes');
+      if (res.ok) {
+        const data = await res.json();
+        const myLinkedSoNumbers = new Set(vendorPOs.map((p) => p.linkedSalesOrderNumber).filter(Boolean));
+        setVendorDispatchNotes((data.dispatchNotes || []).filter((d: any) => myLinkedSoNumbers.has(d.salesOrderNumber)));
+      }
+    } catch {}
+  }
+
+  useEffect(() => { if (vendor) fetchVendorPOs(); }, [vendor]);
+
+  useEffect(() => {
+    const loadAllowed = async () => {
+      const statuses = [...new Set(vendorPOs.map((p) => p.status))];
+      const map: Record<string, string[]> = {};
+      for (const status of statuses) {
+        try {
+          const res = await fetch(`/api/lifecycle?entity=PURCHASE_ORDER&from=${status}`);
+          const data = await res.json();
+          map[status] = data.allowed || [];
+        } catch { map[status] = []; }
+      }
+      setPoAllowedTransitions(map);
+    };
+    if (vendorPOs.length > 0) loadAllowed();
+  }, [vendorPOs]);
+
+
+  async function fetchVendorPOs() {
+    try {
+      const res = await fetch('/api/purchase-orders');
+      if (res.ok) {
+        const data = await res.json();
+        const myName = vendor?.companyName || session?.user?.name || '';
+        setVendorPOs((data.purchaseOrders || []).filter((p: any) =>
+          p.vendorName?.toLowerCase() === myName.toLowerCase() ||
+          ['SENT_TO_VENDOR', 'VENDOR_CONFIRMED', 'PARTIALLY_SUPPLIED', 'FULLY_SUPPLIED'].includes(p.status)
+        ));
+      }
+    } catch {}
+  }
+
+  async function fetchVendorInvoices() {
+    try {
+      const res = await fetch('/api/vendor-invoices');
+      if (res.ok) {
+        const data = await res.json();
+        setVendorInvoices(data.vendorInvoices || []);
+      }
+    } catch {}
+  }
+
+  async function handleSubmitVendorInvoice(e: React.FormEvent) {
     e.preventDefault();
-    if (!vOrdCustomer || !vOrdAddress || !vOrdItem) {
-      setToast({ message: 'Customer, delivery address, and product item are required.', type: 'error' });
+    setViSubmitting(true);
+    try {
+      const po = vendorPOs.find((p) => p.poNumber === viSubmitForm.linkedPoNumber);
+      const body: any = {
+        vendorInvoiceNumber: viSubmitForm.vendorInvoiceNumber,
+        linkedPoNumber: viSubmitForm.linkedPoNumber,
+        vendorName: vendor?.companyName || session?.user?.name || '',
+        invoiceAmount: Number(viSubmitForm.invoiceAmount),
+        dueDate: viSubmitForm.dueDate,
+        currency: po?.currency || 'AUD',
+        status: 'SUBMITTED',
+      };
+      if (viSubmitForm.attachment) body.attachment = viSubmitForm.attachment;
+      const res = await fetch('/api/vendor-invoices', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setToast({ message: `Invoice ${data.vendorInvoice.vendorInvoiceNumber} submitted.`, type: 'success' });
+      setIsViSubmitOpen(false);
+      setViSubmitForm({ vendorInvoiceNumber: '', linkedPoNumber: '', invoiceAmount: 0, dueDate: '', attachment: null });
+      fetchVendorInvoices();
+    } catch (err: any) {
+      setToast({ message: err.message || 'Submission failed.', type: 'error' });
+    } finally { setViSubmitting(false); }
+  }
+
+  function handleViAttachmentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ message: 'Attachment file size exceeds 5MB limit.', type: 'error' });
       return;
     }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setViSubmitForm((prev: any) => ({
+        ...prev,
+        attachment: { fileName: file.name, fileUrl: reader.result as string },
+      }));
+      setToast({ message: `Attached: ${file.name}`, type: 'success' });
+    };
+    reader.readAsDataURL(file);
+  }
 
-    const selectedItem = products.find((p) => p.id === vOrdItem);
-    if (!selectedItem) return;
-
-    setVOrdSubmitting(true);
+  async function handleSubmitTransportCost(e: React.FormEvent) {
+    e.preventDefault();
+    if (tcForm.dnNumbers.length === 0) {
+      setToast({ message: 'Select at least one dispatch note this shipment covers.', type: 'error' });
+      return;
+    }
+    setTcSubmitting(true);
     try {
-      const res = await fetch('/api/fulfillment/orders', {
+      const res = await fetch('/api/transport-costs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName: vOrdCustomer,
-          deliveryAddress: vOrdAddress,
-          warehouseCode: vOrdWh,
-          warehouseName: warehouses.find(w => w.code === vOrdWh)?.name || vOrdWh,
-          items: [
-            {
-              itemMasterId: selectedItem.id,
-              sku: selectedItem.sku,
-              itemName: selectedItem.itemName,
-              barcode: selectedItem.barcode,
-              quantityRequested: parseInt(vOrdQty) || 1,
-            },
-          ],
-          notes: vOrdNotes,
+          trackingNumber: tcForm.trackingNumber,
+          totalCost: Number(tcForm.totalCost),
+          relatedDnNumbers: tcForm.dnNumbers,
+          notes: tcForm.notes,
         }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        setToast({ message: data.error || 'Failed to submit dispatch request.', type: 'error' });
-      } else {
-        setToast({ message: data.message, type: 'success' });
-        setIsVOrdModalOpen(false);
-        setVOrdCustomer('');
-        setVOrdAddress('');
-        setVOrdNotes('');
-        fetchVendorOrders();
-      }
-    } catch {
-      setToast({ message: 'Error submitting dispatch request.', type: 'error' });
+      if (!res.ok) throw new Error(data.error);
+      setToast({ message: `Transport cost claim ${data.transportCost.transportCostNumber} submitted for owner approval.`, type: 'success' });
+      setIsTcModalOpen(false);
+      setTcForm({ warehouseCode: '', trackingNumber: '', totalCost: '', dnNumbers: [], notes: '' });
+      fetchTransportCosts();
+    } catch (err: any) {
+      setToast({ message: err.message || 'Submission failed.', type: 'error' });
     } finally {
-      setVOrdSubmitting(false);
+      setTcSubmitting(false);
     }
   }
+
+  function toggleTcDn(dnNumber: string) {
+    setTcForm((prev) => ({
+      ...prev,
+      dnNumbers: prev.dnNumbers.includes(dnNumber) ? prev.dnNumbers.filter((n) => n !== dnNumber) : [...prev.dnNumbers, dnNumber],
+    }));
+  }
+
+  // Same-warehouse, shipped, not-yet-claimed dispatch notes are the only ones a claim
+  // can legitimately cover — mirrors the server-side validation exactly.
+  const SHIPPED_STATUSES = ['DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'PARTIALLY_DELIVERED'];
+  const claimedDnNumbers = new Set(
+    transportCosts.filter((t) => t.status !== 'REJECTED').flatMap((t) => t.relatedDnNumbers || [])
+  );
+  const claimableDns = vendorDispatchNotes.filter(
+    (d) => SHIPPED_STATUSES.includes(d.status) && !claimedDnNumbers.has(d.dispatchNumber)
+  );
+  const claimableWarehouses = Array.from(new Set(claimableDns.map((d) => d.warehouseCode)));
+  const dnsForSelectedWarehouse = claimableDns.filter((d) => d.warehouseCode === tcForm.warehouseCode);
+
+  // Client-side preview only — mirrors deriveRelatedPosAndWeights on the server, which
+  // is what actually computes and validates the split on submit.
+  const tcRelatedPoPreview = (() => {
+    const selectedDns = dnsForSelectedWarehouse.filter((d) => tcForm.dnNumbers.includes(d.dispatchNumber));
+    const weightByPo = new Map<string, number>();
+    for (const dn of selectedDns) {
+      const candidatePos = vendorPOs.filter((p) => p.linkedSalesOrderNumber === dn.salesOrderNumber);
+      for (const line of dn.lines || []) {
+        const qty = Math.abs(line.dispatchQty || 0);
+        if (qty <= 0) continue;
+        for (const po of candidatePos) {
+          const poLine = (po.lines || []).find((l: any) => l.itemCode === line.itemCode);
+          if (!poLine) continue;
+          weightByPo.set(po.poNumber, (weightByPo.get(po.poNumber) || 0) + qty * (poLine.unitCost || 0));
+        }
+      }
+    }
+    const totalWeight = Array.from(weightByPo.values()).reduce((s, v) => s + v, 0);
+    const cost = Number(tcForm.totalCost) || 0;
+    return Array.from(weightByPo.entries()).map(([poNumber, weight]) => ({
+      poNumber,
+      amount: totalWeight > 0 ? (cost * weight) / totalWeight : 0,
+    }));
+  })();
+
+  async function advanceVendorPoStatus(po: any, nextStatus: string) {
+    try {
+      const res = await fetch(`/api/purchase-orders/${po.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setToast({ message: `Purchase order ${po.poNumber} → ${nextStatus.replace(/_/g, ' ')}`, type: 'success' });
+      fetchVendorPOs();
+    } catch (err: any) {
+      setToast({ message: err.message || 'Failed to update purchase order.', type: 'error' });
+    }
+  }
+
 
   async function fetchTaxonomies() {
     try {
@@ -234,27 +376,14 @@ export default function VendorDashboardPage() {
           setVendor(data.vendor);
           setCompanyName(data.vendor.companyName || '');
           setAbnAcn(data.vendor.abnAcn || '');
+          setBusinessRegisteredAddress(data.vendor.businessRegisteredAddress || '');
+          setBusinessLocation(data.vendor.businessLocation || '');
         }
       }
     } catch {
       setToast({ message: 'Error loading vendor profile.', type: 'error' });
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function fetchVendorProducts() {
-    setProductsLoading(true);
-    try {
-      const res = await fetch('/api/vendor/products');
-      if (res.ok) {
-        const data = await res.json();
-        setProducts(data.products || []);
-      }
-    } catch {
-      setToast({ message: 'Error loading vendor products.', type: 'error' });
-    } finally {
-      setProductsLoading(false);
     }
   }
 
@@ -267,16 +396,18 @@ export default function VendorDashboardPage() {
       const res = await fetch('/api/vendor/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName, abnAcn }),
+        body: JSON.stringify({ companyName, abnAcn, businessRegisteredAddress, businessLocation }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setToast({ message: 'Vendor company profile saved successfully!', type: 'success' });
+        setToast({ message: 'Vendor registration details saved and submitted for review.', type: 'success' });
         if (data.vendor) {
           setVendor(data.vendor);
           setCompanyName(data.vendor.companyName || '');
           setAbnAcn(data.vendor.abnAcn || '');
+          setBusinessRegisteredAddress(data.vendor.businessRegisteredAddress || '');
+          setBusinessLocation(data.vendor.businessLocation || '');
         }
       } else {
         setProfileError(data.error || 'Failed to save vendor profile.');
@@ -340,7 +471,7 @@ export default function VendorDashboardPage() {
 
         const data = await res.json();
         if (res.ok) {
-          setToast({ message: `Compliance document (${docType}) uploaded successfully!`, type: 'success' });
+          setToast({ message: `Compliance document (${docType}) uploaded successfully! It's now locked for Platform Owner review — you won't be able to view, download, or replace it unless it's rejected.`, type: 'success' });
           setSelectedFile(null);
           fetchVendorProfile();
         } else {
@@ -356,245 +487,27 @@ export default function VendorDashboardPage() {
     }
   }
 
-  function handleOpenDoc(doc: ComplianceDoc) {
-    if (!doc) return;
-
-    // Case 1: Base64 Data URL (Decoded and opened via Blob URL)
-    if (doc.fileUrl && doc.fileUrl.startsWith('data:')) {
-      try {
-        const arr = doc.fileUrl.split(',');
-        const mimeMatch = arr[0].match(/:(.*?);/);
-        const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        const blob = new Blob([u8arr], { type: mime });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
-        return;
-      } catch (e) {
-        const win = window.open();
-        if (win) {
-          win.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-          return;
-        }
-      }
-    }
-
-    // Case 2: Full remote HTTP URL (https://...)
-    if (doc.fileUrl && (doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://'))) {
-      window.open(doc.fileUrl, '_blank');
-      return;
-    }
-
-    // Case 3: Seeded demo document or relative path (e.g. /docs/abn_cert.pdf or /uploads/...)
-    // Render an official statutory certificate preview window so it never 404s
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>${doc.docType} — Verified Compliance Certificate</title>
-          <meta charset="utf-8" />
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #0f172a; margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
-            .cert-card { background: #ffffff; width: 100%; max-width: 780px; border-radius: 24px; padding: 48px; box-shadow: 0 25px 60px rgba(0,0,0,0.3); border: 2px solid #e2e8f0; position: relative; }
-            .header { border-bottom: 2px solid #f1f5f9; padding-bottom: 24px; margin-bottom: 28px; display: flex; justify-content: space-between; align-items: flex-start; }
-            .badge { background: #ecfdf5; color: #047857; padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 12px; border: 1px solid #a7f3d0; text-transform: uppercase; font-family: monospace; }
-            .title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 6px 0; }
-            .subtitle { font-size: 13px; color: #64748b; margin: 0; }
-            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 28px 0; }
-            .field { background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 14px; }
-            .label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 4px; font-family: monospace; }
-            .value { font-size: 15px; font-weight: 700; color: #0f172a; }
-            .footer { border-top: 1px solid #f1f5f9; padding-top: 20px; margin-top: 32px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8; }
-            .stamp { width: 100px; height: 100px; border-radius: 50%; border: 3px dashed #10b981; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #059669; font-weight: 800; font-size: 10px; transform: rotate(-12deg); margin: 0 auto; }
-          </style>
-        </head>
-        <body>
-          <div class="cert-card">
-            <div class="header">
-              <div>
-                <h1 class="title">Statutory Compliance Certificate</h1>
-                <p class="subtitle">Official Statutory Audit Record — LogiQ-On Technology Group</p>
-              </div>
-              <div class="badge">Verified Document</div>
-            </div>
-
-            <div class="grid">
-              <div class="field">
-                <div class="label">Document Classification</div>
-                <div class="value">${doc.docType}</div>
-              </div>
-              <div class="field">
-                <div class="label">Verification Status</div>
-                <div class="value" style="color: #059669;">APPROVED / VERIFIED 🟢</div>
-              </div>
-              <div class="field">
-                <div class="label">Original File Name</div>
-                <div class="value" style="font-family: monospace; font-size: 13px;">${doc.fileName || 'compliance_record.pdf'}</div>
-              </div>
-              <div class="field">
-                <div class="label">File Size</div>
-                <div class="value" style="font-family: monospace; font-size: 13px;">${((doc.fileSize || 1048576) / (1024 * 1024)).toFixed(2)} MB</div>
-              </div>
-            </div>
-
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 16px; margin-top: 20px;">
-              <div style="font-size: 13px; font-weight: 700; color: #166534; margin-bottom: 6px;">Statutory Verification Statement</div>
-              <div style="font-size: 12px; color: #15803d; line-height: 1.6;">
-                This compliance document has been verified against Australian Business Register (ABR) and statutory corporate governance standards for LogiQ-On 3PL multi-tenant supply chain access.
-              </div>
-            </div>
-
-            <div style="margin-top: 32px; text-align: center;">
-              <div class="stamp">
-                <span>ATO &amp; 3PL</span>
-                <span style="font-size: 13px;">VERIFIED</span>
-                <span>AUDIT PASS</span>
-              </div>
-            </div>
-
-            <div class="footer">
-              <span>LogiQ-On Platform Governance • Record ID: ${doc.id}</span>
-              <span>Timestamp: ${doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString() : new Date().toLocaleString()}</span>
-            </div>
-          </div>
-        </body>
-        </html>
-      `);
-      win.document.close();
-    }
-  }
-
-  async function handleDeleteDocument(docId: string) {
+  async function fetchVendorProducts() {
+    setProductsLoading(true);
     try {
-      const res = await fetch(`/api/vendor/documents?id=${docId}`, { method: 'DELETE' });
+      const res = await fetch('/api/vendor/products');
       if (res.ok) {
-        setToast({ message: 'Compliance document deleted.', type: 'info' });
-        setVendor((prev) => (prev ? { ...prev, docs: prev.docs.filter((d) => d.id !== docId) } : prev));
+        const data = await res.json();
+        setProducts(data.products || []);
       }
     } catch {
-      setToast({ message: 'Failed to delete document.', type: 'error' });
-    }
-  }
-
-  // Product CRUD Handlers
-  function openNewProductModal() {
-    setEditingProductId(null);
-    setProdName('');
-    setProdSku('');
-    setProdBarcode('');
-    setProdCost('');
-    setProdSelling('');
-    setProdWholesale('');
-    setProdMoq('1');
-    setProdStatus('ACTIVE');
-    setProdCategoryId('');
-    setProdUomId('');
-    setProdDesc('');
-    setProdAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
-    setProdFormError('');
-    setShowProductModal(true);
-  }
-
-  function openEditProductModal(p: any) {
-    setEditingProductId(p.id);
-    setProdName(p.itemName);
-    setProdSku(p.sku);
-    setProdBarcode(p.barcode);
-    setProdCost(p.costPrice ? p.costPrice.toString() : '0');
-    setProdSelling(p.sellingPrice ? p.sellingPrice.toString() : '0');
-    setProdWholesale(p.wholesalePrice ? p.wholesalePrice.toString() : p.sellingPrice ? p.sellingPrice.toString() : '0');
-    setProdMoq(p.moq ? p.moq.toString() : '1');
-    setProdStatus(p.status || 'ACTIVE');
-    setProdCategoryId(p.categoryId || '');
-    setProdUomId(p.uomId || '');
-    setProdDesc(p.description || '');
-
-    if (p.attributes && typeof p.attributes === 'object' && Object.keys(p.attributes).length > 0) {
-      setProdAttrPairs(Object.entries(p.attributes).map(([key, value]) => ({ key, value: String(value) })));
-    } else {
-      setProdAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
-    }
-
-    setProdFormError('');
-    setShowProductModal(true);
-  }
-
-  async function handleSaveProduct(e: React.FormEvent) {
-    e.preventDefault();
-    setProdFormError('');
-    setProdSubmitting(true);
-
-    const attributesObj: Record<string, string> = {};
-    prodAttrPairs.forEach((pair) => {
-      if (pair.key.trim() && pair.value.trim()) {
-        attributesObj[pair.key.trim()] = pair.value.trim();
-      }
-    });
-
-    const payload = {
-      id: editingProductId,
-      itemName: prodName,
-      sku: prodSku,
-      barcode: prodBarcode,
-      costPrice: prodCost,
-      sellingPrice: prodSelling,
-      wholesalePrice: prodWholesale || prodSelling,
-      moq: prodMoq || '1',
-      status: prodStatus,
-      categoryId: prodCategoryId,
-      uomId: prodUomId,
-      description: prodDesc,
-      attributes: attributesObj,
-    };
-
-    try {
-      const res = await fetch('/api/vendor/products', {
-        method: editingProductId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setProdFormError(data.error || 'Failed to save product.');
-        return;
-      }
-
-      setToast({
-        message: editingProductId ? 'Product updated successfully.' : 'New product created in your catalog.',
-        type: 'success',
-      });
-      setShowProductModal(false);
-      fetchVendorProducts();
-    } catch {
-      setProdFormError('Network error saving product.');
+      setToast({ message: 'Error loading vendor products.', type: 'error' });
     } finally {
-      setProdSubmitting(false);
+      setProductsLoading(false);
     }
   }
 
-  async function handleDeleteProduct(id: string) {
-    if (!confirm('Are you sure you want to delete this product from your catalog?')) return;
-    try {
-      const res = await fetch(`/api/vendor/products?id=${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setToast({ message: 'Product deleted from catalog.', type: 'info' });
-        fetchVendorProducts();
-      }
-    } catch {
-      setToast({ message: 'Failed to delete product.', type: 'error' });
-    }
-  }
 
   const isApproved = vendor?.status === 'APPROVED';
   const existingDocOfType = vendor?.docs?.find((d) => d.docType === docType);
+  // A document can only be uploaded once per type — re-upload is only allowed if the
+  // Owner has rejected it, since that's the vendor's one path to correct and resubmit.
+  const isLockedForType = !!existingDocOfType && existingDocOfType.status !== 'REJECTED';
 
   const filteredProducts = products.filter(
     (p) =>
@@ -604,7 +517,7 @@ export default function VendorDashboardPage() {
   );
 
   return (
-    <div className="p-6 md:p-10 space-y-8 font-sans max-w-[1600px] mx-auto">
+    <div className="space-y-8 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Light Header Banner Card (Matching Owner Console UI Styling) */}
@@ -619,7 +532,7 @@ export default function VendorDashboardPage() {
               VENDOR PORTAL • ATO COMPLIANCE & CATALOG
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Vendor Onboarding &amp; Product Portal
+              Vendor Operations Portal
             </h1>
             <p className="text-xs text-slate-500 font-mono">
               Manage statutory registration, upload compliance documents, and publish products.
@@ -633,7 +546,7 @@ export default function VendorDashboardPage() {
             <Badge
               variant={
                 vendor.status === 'APPROVED'
-                  ? 'emerald'
+                  ? 'indigo'
                   : vendor.status === 'UNDER_REVIEW'
                   ? 'amber'
                   : vendor.status === 'PENDING'
@@ -647,23 +560,44 @@ export default function VendorDashboardPage() {
         )}
       </div>
 
-      {/* Step 1 & 2 Grid: Statutory Registration + Document Upload */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Step 1 Card: Statutory Registration */}
+      {/* Statutory registration + compliance document upload happen in-app, reviewed and
+          approved by the Platform Owner from the Vendor Directory. Once a document is
+          uploaded it's locked from the vendor's side — no view, no download, no delete —
+          only the owner can see the file content during review. A vendor can only act on
+          orders/invoices/dispatches once this whole registration is APPROVED. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Step 1: Company Registration Details */}
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center font-mono">
                 1
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Statutory Entity Profile</h3>
+              <h3 className="text-lg font-bold text-slate-900">Company Registration Details</h3>
             </div>
-            {isApproved && (
-              <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> ATO Governance Approved
-              </span>
+            {vendor && (
+              <Badge
+                variant={
+                  vendor.status === 'APPROVED'
+                    ? 'indigo'
+                    : vendor.status === 'UNDER_REVIEW'
+                    ? 'amber'
+                    : vendor.status === 'PENDING'
+                    ? 'sky'
+                    : 'danger'
+                }
+              >
+                {vendor.status}
+              </Badge>
             )}
           </div>
+
+          {vendor?.status === 'REJECTED' && vendor.rejectionReason && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <XCircle className="w-4 h-4 shrink-0" />
+              <span>Rejected by Platform Owner: {vendor.rejectionReason}</span>
+            </div>
+          )}
 
           {profileError && (
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
@@ -690,21 +624,37 @@ export default function VendorDashboardPage() {
               placeholder="e.g. 51824753910"
               helperText="Must be exact numeric digits (e.g. 11 digits for ABN or 9 digits for ACN)."
             />
+            <Input
+              label="Business Registered Address"
+              required
+              disabled={isApproved}
+              value={businessRegisteredAddress}
+              onChange={(e) => setBusinessRegisteredAddress(e.target.value)}
+              placeholder="e.g. 12 Industrial Ave, Eastern Creek NSW 2766"
+              helperText="The official registered address on file with ASIC/ATO."
+            />
+            <Input
+              label="Business Location (Trading Address, if different)"
+              disabled={isApproved}
+              value={businessLocation}
+              onChange={(e) => setBusinessLocation(e.target.value)}
+              placeholder="e.g. Warehouse — 45 Distribution Rd, Chullora NSW 2190"
+            />
 
             {!isApproved ? (
               <Button type="submit" isLoading={profileSubmitting} className="w-full">
-                Save Statutory Profile
+                Save &amp; Submit for Review
               </Button>
             ) : (
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 font-mono flex items-center gap-2">
                 <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>Statutory Lock Active: Company name and ABN/ACN locked by ATO verification. Contact support for changes.</span>
+                <span>Details Locked: Registration details can't be changed once approved. Contact Platform Support for changes.</span>
               </div>
             )}
           </form>
         </div>
 
-        {/* Step 2 Card: Compliance Certificate Upload */}
+        {/* Step 2: Compliance Certificate Upload */}
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
@@ -713,6 +663,11 @@ export default function VendorDashboardPage() {
               </div>
               <h3 className="text-lg font-bold text-slate-900">Upload Compliance Documents</h3>
             </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold flex items-center gap-2">
+            <Lock className="w-3.5 h-3.5 shrink-0" />
+            <span>Each document type can only be uploaded once. Once submitted, it's locked for Platform Owner review — you won't be able to view, download, or replace it unless it's rejected. If it's rejected, you'll be able to upload a corrected file for that type.</span>
           </div>
 
           {fileValidationError && (
@@ -735,26 +690,35 @@ export default function VendorDashboardPage() {
               ]}
             />
 
-            <div className="space-y-1.5 font-sans">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Select Compliance File (PDF, PNG, JPG, DOC, DOCX • Max 5MB)
-              </label>
-              <input
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                onChange={handleFileSelect}
-                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-indigo-600 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-              />
-            </div>
+            {isLockedForType ? (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 font-mono flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>Already submitted for this type — status: {existingDocOfType?.status}. {existingDocOfType?.status === 'PENDING' ? 'Awaiting Owner review.' : 'Locked, no further changes possible.'}</span>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5 font-sans">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Select Compliance File (PDF, PNG, JPG, DOC, DOCX • Max 5MB)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                    onChange={handleFileSelect}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-indigo-600 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
 
-            <Button type="submit" variant="success" isLoading={uploading} className="w-full">
-              {existingDocOfType ? 'Replace Existing Certificate' : 'Upload Compliance Certificate'}
-            </Button>
+                <Button type="submit" variant="success" isLoading={uploading} className="w-full">
+                  {existingDocOfType ? 'Upload Corrected Certificate' : 'Upload Compliance Certificate'}
+                </Button>
+              </>
+            )}
           </form>
         </div>
       </div>
 
-      {/* Compliance Document Repository Table */}
+      {/* Compliance Document Repository — status only, no file access from this side */}
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
@@ -762,7 +726,7 @@ export default function VendorDashboardPage() {
             <h3 className="text-lg font-bold text-slate-900">Compliance Document Repository</h3>
           </div>
           <span className="text-xs font-mono text-slate-500 font-bold">
-            {vendor?.docs?.length || 0} {(vendor?.docs?.length || 0) === 1 ? 'File' : 'Files'} Uploaded
+            {vendor?.docs?.length || 0} {(vendor?.docs?.length || 0) === 1 ? 'File' : 'Files'} Submitted
           </span>
         </div>
 
@@ -780,14 +744,15 @@ export default function VendorDashboardPage() {
                   <th className="py-3.5 px-4 font-bold">Size</th>
                   <th className="py-3.5 px-4 font-bold">Uploaded Date</th>
                   <th className="py-3.5 px-4 font-bold">Status</th>
-                  <th className="py-3.5 px-4 font-bold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
                 {vendor.docs.map((doc) => (
                   <tr key={doc.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-bold text-slate-900">{doc.docType}</td>
-                    <td className="py-3.5 px-4 text-slate-700">{doc.fileName}</td>
+                    <td className="py-3.5 px-4 text-slate-700 flex items-center gap-1.5">
+                      <Lock className="w-3 h-3 text-slate-400" /> {doc.fileName}
+                    </td>
                     <td className="py-3.5 px-4 text-slate-600">
                       {doc.fileSize ? (doc.fileSize / (1024 * 1024)).toFixed(2) : '1.05'} MB
                     </td>
@@ -795,29 +760,9 @@ export default function VendorDashboardPage() {
                       {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : new Date().toLocaleDateString()}
                     </td>
                     <td className="py-3.5 px-4">
-                      <Badge variant={doc.status === 'APPROVED' ? 'emerald' : 'amber'}>
+                      <Badge variant={doc.status === 'APPROVED' ? 'indigo' : doc.status === 'REJECTED' ? 'danger' : 'amber'}>
                         {doc.status}
                       </Badge>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDoc(doc)}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
-                          title="View Document"
-                        >
-                          <FileCheck className="w-3.5 h-3.5 text-indigo-600" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteDocument(doc.id)}
-                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer"
-                          title="Delete Document"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -833,47 +778,16 @@ export default function VendorDashboardPage() {
           <div className="flex items-center gap-2">
             <Package className="w-5 h-5 text-indigo-600" />
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Product Catalog Management (Item Master Entry)</h3>
-              <p className="text-xs text-slate-500 font-mono">Manage catalog products, pricing, barcode locks, and taxonomy scoped to your vendor entity.</p>
+              <h3 className="text-lg font-bold text-slate-900">Product Catalog (Assigned to Your Vendor Account)</h3>
+              <p className="text-xs text-slate-500 font-mono">Read-only view of the products the Platform Owner has assigned to you, with pricing and taxonomy details.</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={!isApproved}
-              onClick={() => setIsVendorCsvModalOpen(true)}
-              className={`font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs border flex items-center gap-2 shrink-0 whitespace-nowrap transition-all ${
-                isApproved
-                  ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 cursor-pointer font-mono'
-                  : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
-              }`}
-            >
-              <Upload className="w-4 h-4 text-indigo-600" /> Bulk CSV Import
-            </button>
-
-            <button
-              type="button"
-              disabled={!isApproved}
-              onClick={openNewProductModal}
-              className={`font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs border flex items-center gap-2 shrink-0 whitespace-nowrap transition-all ${
-                isApproved
-                  ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800 cursor-pointer font-mono'
-                  : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
-              }`}
-              title={isApproved ? 'Add new product item to catalog' : 'Requires APPROVED Vendor status'}
-            >
-              {isApproved ? <Plus className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
-              Add New Product
-            </button>
           </div>
         </div>
 
-        {!isApproved && (
-          <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center gap-2 font-sans">
-            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Catalog Governance Lock Active: Adding or editing products is restricted until your vendor registration status is APPROVED by Platform Governance.</span>
-          </div>
-        )}
+        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold flex items-center gap-2 font-sans">
+          <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+          <span>Product Master Data is managed exclusively by the Platform Owner. Contact your account manager to add, change, or remove a catalog item.</span>
+        </div>
 
         {/* Search Bar */}
         <div className="flex items-center gap-3">
@@ -894,7 +808,7 @@ export default function VendorDashboardPage() {
           <div className="py-8 text-center text-xs text-slate-500 font-mono">Loading product catalog...</div>
         ) : filteredProducts.length === 0 ? (
           <div className="py-10 text-center text-xs text-slate-500 font-mono border border-dashed border-slate-200 rounded-2xl">
-            No products found in your catalog. Click "Add New Product" above to create your first item!
+            No products found in your catalog. Contact your account manager to have products added to your account.
           </div>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-100">
@@ -903,9 +817,10 @@ export default function VendorDashboardPage() {
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-mono">
                   <th className="py-3.5 px-4 font-bold">Item Name &amp; SKU</th>
                   <th className="py-3.5 px-4 font-bold">Category &amp; UOM</th>
-                  <th className="py-3.5 px-4 font-bold">Retail &amp; Wholesale Price</th>
+                  <th className="py-3.5 px-4 font-bold">Retail Price</th>
                   <th className="py-3.5 px-4 font-bold">MOQ</th>
                   <th className="py-3.5 px-4 font-bold">Status</th>
+                  <th className="py-3.5 px-4 font-bold">Cost of Goods</th>
                   <th className="py-3.5 px-4 font-bold text-right">Actions</th>
                 </tr>
               </thead>
@@ -932,38 +847,28 @@ export default function VendorDashboardPage() {
                       </div>
                     </td>
                     <td className="py-3.5 px-4 font-mono text-[11px]">
-                      <div className="space-y-0.5">
-                        <div className="font-bold text-slate-900">${Number(p.sellingPrice).toFixed(2)}</div>
-                        <div className="text-[10px] text-indigo-700">Wholesale: ${Number(p.wholesalePrice || p.sellingPrice).toFixed(2)}</div>
-                      </div>
+                      <div className="font-bold text-slate-900">${Number(p.sellingPrice).toFixed(2)}</div>
                     </td>
                     <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-800">
                       {p.moq || 1} units
                     </td>
                     <td className="py-3.5 px-4">
-                      <Badge variant={p.status === 'ACTIVE' ? 'emerald' : p.status === 'DRAFT' ? 'amber' : 'neutral'}>
+                      <Badge variant={p.status === 'ACTIVE' ? 'indigo' : p.status === 'DRAFT' ? 'amber' : 'neutral'}>
                         {p.status}
                       </Badge>
                     </td>
+                    <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-700">
+                      ${Number(p.costPrice || 0).toFixed(2)}
+                    </td>
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openEditProductModal(p)}
-                          leftIcon={<Edit2 className="w-3.5 h-3.5 text-indigo-600" />}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteProduct(p.id)}
-                          leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-600" />}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setSelectedProduct(p); setIsProductDetailOpen(true); }}
+                        leftIcon={<Eye className="w-3.5 h-3.5 text-indigo-600" />}
+                      >
+                        View Product Details
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -973,641 +878,542 @@ export default function VendorDashboardPage() {
         )}
       </div>
 
-      {/* Vendor Outbound Dispatch Requests & Fulfillment Tracker */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-2">
-            <Truck className="w-5 h-5 text-indigo-600" />
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Outbound Dispatch Requests &amp; Fulfillment Tracker</h3>
-              <p className="text-xs text-slate-500 font-mono">Submit shipping requests to dispatch stored catalog products from 3PL warehouses to client sites.</p>
+      {/* Product Detail & GS1 Barcode Modal — read-only, same view the Platform Owner gets */}
+      {selectedProduct && (
+        <Modal
+          isOpen={isProductDetailOpen}
+          onClose={() => setIsProductDetailOpen(false)}
+          title={`Item Master Detail & GS1 Barcode: ${selectedProduct.sku}`}
+          maxWidth="3xl"
+        >
+          <div className="space-y-6 text-xs font-sans">
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-slate-700 text-center uppercase tracking-widest font-mono">
+                Scannable GS1 Barcode Label
+              </div>
+              <BarcodeRenderer value={selectedProduct.barcode} height={80} />
             </div>
-          </div>
-          <button
-            type="button"
-            disabled={!isApproved}
-            onClick={() => setIsVOrdModalOpen(true)}
-            className={`font-bold px-4 py-2.5 rounded-xl shadow-sm text-xs border flex items-center gap-2 shrink-0 whitespace-nowrap transition-all ${
-              isApproved
-                ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-800 cursor-pointer font-mono'
-                : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed font-mono'
-            }`}
-          >
-            {isApproved ? <Plus className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
-            Submit Dispatch Order
-          </button>
-        </div>
 
-        {vendorOrders.length === 0 ? (
-          <div className="p-10 text-center bg-slate-50/70 border border-dashed border-slate-200 rounded-2xl space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
-              <Truck className="w-6 h-6" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-800 font-mono">No Outbound Dispatch Orders</h4>
-            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              {isApproved
-                ? "You have not submitted any outbound shipping requests yet. Click 'Submit Dispatch Order' above to create your first shipment."
-                : "Your vendor registration is currently undergoing statutory compliance review. Once approved by Platform Governance, you will be able to create and track 3PL outbound shipments."}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-sans">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
-                  <th className="py-3 px-4">Order Number</th>
-                  <th className="py-3 px-4">Customer Destination</th>
-                  <th className="py-3 px-4">3PL Facility</th>
-                  <th className="py-3 px-4">Requested Line Items</th>
-                  <th className="py-3 px-4">Fulfillment Status</th>
-                  <th className="py-3 px-4 text-right">Tracking</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {vendorOrders.map((ord) => (
-                  <tr key={ord.id} className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{ord.orderNumber}</td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900">{ord.customerName}</div>
-                      <div className="text-[10px] text-slate-500 font-mono">{ord.deliveryAddress}</div>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-700 font-bold">{ord.warehouseCode}</td>
-                    <td className="py-3.5 px-4 font-mono">
-                      {ord.items.map((i: any) => `${i.itemName} (${i.quantityRequested}x)`).join(', ')}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {ord.status === 'SUBMITTED' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                          🟡 SUBMITTED
-                        </span>
-                      )}
-                      {ord.status === 'IN_PICKING' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
-                          📋 IN PICKING
-                        </span>
-                      )}
-                      {ord.status === 'PACKED' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                          📦 PACKED
-                        </span>
-                      )}
-                      {ord.status === 'DISPATCHED' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 border border-green-300">
-                          🚚 DISPATCHED
-                        </span>
-                      )}
-                      {ord.status === 'CANCELLED' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
-                          ❌ CANCELLED
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-slate-600">
-                      {ord.packageDetails?.trackingNumber || 'Pending Pick'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              {selectedProduct.imageUrl && (
+                <div className="w-full h-48 rounded-xl overflow-hidden mb-4 border border-slate-200 bg-white flex items-center justify-center">
+                  <img src={selectedProduct.imageUrl} alt={selectedProduct.itemName} className="max-w-full max-h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="text-base font-extrabold text-slate-900">{selectedProduct.itemName}</div>
+                <Badge variant={selectedProduct.status === 'ACTIVE' ? 'indigo' : selectedProduct.status === 'DRAFT' ? 'amber' : 'neutral'}>
+                  {selectedProduct.status}
+                </Badge>
+              </div>
 
-      {/* Compliance Status Summary (Performance metrics removed) */}
-      {vendor && vendor.status === 'APPROVED' && (
-        <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 pb-5">
-            <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-emerald-600" /> Statutory Compliance
-            </div>
-            <h2 className="text-xl font-extrabold text-slate-900 mt-1">ATO Compliance Status</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Current compliance and platform governance status for your vendor account.</p>
-          </div>
+              {selectedProduct.description && <div className="text-xs text-slate-600 leading-relaxed">{selectedProduct.description}</div>}
 
-          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-              <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
-                <span className="text-slate-600">ABN / ACN Registration</span>
-                {vendor.abnAcnVerified ? (
-                  <span className="text-emerald-700 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> ATO Verified
+              <div className="grid grid-cols-2 gap-4 text-xs font-mono border-t border-slate-200 pt-3">
+                <div>
+                  <span className="text-slate-400 block">SKU Code:</span>
+                  <span className="font-bold text-indigo-700">{selectedProduct.sku}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block">Barcode EAN:</span>
+                  <span className="font-bold text-slate-900">{selectedProduct.barcode}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-sans">Retail Selling Price:</span>
+                  <span className="font-bold text-slate-900">${Number(selectedProduct.sellingPrice).toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-sans">Cost of Goods:</span>
+                  <span className="font-bold text-slate-700">${Number(selectedProduct.costPrice).toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-sans">Minimum Order Qty:</span>
+                  <span className="font-bold text-slate-900">{selectedProduct.moq || 1} units</span>
+                </div>
+              </div>
+
+              {selectedProduct.attributes && Object.keys(selectedProduct.attributes).length > 0 && (
+                <div className="space-y-2 border-t border-slate-200 pt-3">
+                  <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px] block">
+                    Technical Specifications:
                   </span>
-                ) : (
-                  <span className={`font-bold flex items-center gap-1 ${vendor.abnAcn ? 'text-amber-600' : 'text-slate-400'}`}>
-                    {vendor.abnAcnMessage || (vendor.abnAcn ? 'Checksum Pending' : 'Not Submitted')}
-                  </span>
-                )}
-              </div>
-              <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
-                <span className="text-slate-600">Company Profile</span>
-                <span className="text-emerald-700 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> {vendor.companyName ? 'Complete' : 'Incomplete'}
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
-                <span className="text-slate-600">Platform Governance</span>
-                <Badge variant={vendor.status === 'APPROVED' ? 'emerald' : 'amber'}>{vendor.status}</Badge>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal - Vendor Outbound Shipping Order Creation */}
-      <Modal
-        isOpen={isVOrdModalOpen}
-        onClose={() => setIsVOrdModalOpen(false)}
-        title="Submit Outbound Dispatch Request"
-        maxWidth="lg"
-      >
-        <form onSubmit={handleCreateVendorOrder} className="space-y-4 font-sans text-xs">
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Customer / Client Destination Name *</label>
-            <Input
-              value={vOrdCustomer}
-              onChange={(e) => setVOrdCustomer(e.target.value)}
-              placeholder="e.g. Retail Partner Site #402"
-              className="text-xs"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Delivery Destination Address *</label>
-            <Input
-              value={vOrdAddress}
-              onChange={(e) => setVOrdAddress(e.target.value)}
-              placeholder="e.g. 100 Spencer St, Melbourne VIC 3000"
-              className="text-xs"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Fulfilling 3PL Warehouse *</label>
-              <Select
-                value={vOrdWh}
-                onChange={(e) => setVOrdWh(e.target.value)}
-                options={[
-                  { value: 'WH-SYD-01', label: 'Sydney Central Logistics Hub (WH-SYD-01)' },
-                  { value: 'WH-MEL-02', label: 'Melbourne Fulfilment Facility (WH-MEL-02)' },
-                  { value: 'WH-BNE-03', label: 'Brisbane Regional Depot (WH-BNE-03)' },
-                  { value: 'WH-PER-04', label: 'Perth Regional Logistics Hub (WH-PER-04)' },
-                ]}
-                className="text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Select Catalog Product *</label>
-              <Select
-                value={vOrdItem}
-                onChange={(e) => setVOrdItem(e.target.value)}
-                options={[
-                  { value: '', label: '-- Select Your Product --' },
-                  ...products.map((p) => ({
-                    value: p.id,
-                    label: `${p.itemName} (${p.sku})`,
-                  })),
-                ]}
-                className="text-xs"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Quantity Requested (Units) *</label>
-              <Input
-                type="number"
-                min="1"
-                value={vOrdQty}
-                onChange={(e) => setVOrdQty(e.target.value)}
-                placeholder="1"
-                className="text-xs font-mono font-bold"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Special Dispatch Notes</label>
-              <Input
-                value={vOrdNotes}
-                onChange={(e) => setVOrdNotes(e.target.value)}
-                placeholder="e.g. Priority client delivery"
-                className="text-xs"
-              />
-            </div>
-          </div>
-
-          <div className="pt-3 flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => setIsVOrdModalOpen(false)} className="text-xs">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={vOrdSubmitting} className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-2">
-              <Truck className="w-4 h-4" /> Submit Dispatch Request
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* CREATE / EDIT PRODUCT MODAL (IDENTICAL 5-CARD STRUCTURE AS OWNER ITEM MASTER) */}
-      <Modal
-        isOpen={showProductModal}
-        onClose={() => setShowProductModal(false)}
-        title={editingProductId ? 'Edit Product Item Master' : 'Add New Product Item Master'}
-        subtitle="Catalog Entry Enforces Price Sanity, Taxonomy & Data Governance Locks"
-        maxWidth="4xl"
-      >
-        <div className="space-y-6 text-xs font-sans max-w-4xl">
-          {prodFormError && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <span>{prodFormError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSaveProduct} className="space-y-6">
-            {/* SECTION 1: ITEM IDENTIFICATION & NAME */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
-              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Package className="w-4 h-4 text-indigo-600" />
-                <span>1. Basic Identification &amp; Codes</span>
-              </div>
-
-              <Input
-                label="Product / Item Master Name"
-                required
-                value={prodName}
-                onChange={(e) => setProdName(e.target.value)}
-                placeholder="e.g. Industrial Barcode Scanner 2D"
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="SKU Code (Leave blank to auto-generate)"
-                  value={prodSku}
-                  onChange={(e) => setProdSku(e.target.value)}
-                  placeholder="e.g. LQ-SCN-00101"
-                  helperText="Must be unique across entire platform catalog"
-                />
-                <Input
-                  label="Barcode EAN-13 (Leave blank to auto-generate)"
-                  value={prodBarcode}
-                  onChange={(e) => setProdBarcode(e.target.value)}
-                  placeholder="e.g. 9312345678901"
-                  helperText="GS1 compliant 13-digit barcode"
-                />
-              </div>
-            </div>
-
-            {/* SECTION 2: SYSTEM TAXONOMY & UOM */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
-              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <FolderTree className="w-4 h-4 text-indigo-600" />
-                <span>2. System Taxonomy &amp; Unit of Measure</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Select
-                  label="Taxonomy Category"
-                  value={prodCategoryId}
-                  onChange={(e) => setProdCategoryId(e.target.value)}
-                  options={[
-                    { value: '', label: 'Select Category' },
-                    ...categories.map((c) => ({ value: c.id, label: c.name })),
-                  ]}
-                />
-                <Select
-                  label="Unit of Measure (UOM)"
-                  value={prodUomId}
-                  onChange={(e) => setProdUomId(e.target.value)}
-                  options={[
-                    { value: '', label: 'Select UOM' },
-                    ...uoms.map((u) => ({ value: u.id, label: `${u.code} - ${u.name}` })),
-                  ]}
-                />
-              </div>
-            </div>
-
-            {/* SECTION 3: PRICING ENGINE & MARGIN METRICS */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
-              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-indigo-600" />
-                <span>3. Pricing Engine &amp; Margin Calculations</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Cost Price ($ AUD)"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={prodCost}
-                  onChange={(e) => setProdCost(e.target.value)}
-                  placeholder="120.00"
-                />
-                <Input
-                  label="Retail Selling Price ($ AUD)"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={prodSelling}
-                  onChange={(e) => setProdSelling(e.target.value)}
-                  placeholder="249.99"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Input
-                  label="Wholesale Tier Price ($)"
-                  type="number"
-                  step="0.01"
-                  value={prodWholesale}
-                  onChange={(e) => setProdWholesale(e.target.value)}
-                  placeholder="185.00"
-                  helperText="Must be <= Retail Selling Price"
-                />
-                <Input
-                  label="Minimum Order Qty (MOQ)"
-                  type="number"
-                  min="1"
-                  value={prodMoq}
-                  onChange={(e) => setProdMoq(e.target.value)}
-                  placeholder="1"
-                  helperText="Default: 1 unit"
-                />
-                <Select
-                  label="Item Status"
-                  value={prodStatus}
-                  onChange={(e) => setProdStatus(e.target.value as any)}
-                  options={[
-                    { value: 'ACTIVE', label: 'ACTIVE' },
-                    { value: 'DRAFT', label: 'DRAFT' },
-                    { value: 'DISCONTINUED', label: 'DISCONTINUED' },
-                  ]}
-                />
-              </div>
-
-              {/* Live Margin & Markup Calculation Bar */}
-              {parseFloat(prodSelling || '0') > 0 && parseFloat(prodCost || '0') > 0 && (
-                <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs font-semibold">
-                  <span className="text-slate-600 font-bold">Auto Margin &amp; Markup Metrics:</span>
-                  <div className="flex items-center gap-3">
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold">
-                      Margin: {(((parseFloat(prodSelling) - parseFloat(prodCost)) / parseFloat(prodSelling)) * 100).toFixed(1)}%
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-bold">
-                      Markup: {(((parseFloat(prodSelling) - parseFloat(prodCost)) / parseFloat(prodCost)) * 100).toFixed(1)}%
-                    </span>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(selectedProduct.attributes).map(([k, v]) => (
+                      <span key={k} className="px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 font-semibold text-xs">
+                        <span className="font-bold text-indigo-900">{k}:</span> {v}
+                      </span>
+                    ))}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* SECTION 4: TECHNICAL SPECIFICATIONS & DYNAMIC ATTRIBUTES */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-indigo-600" />
-                  <span>4. Technical Specifications &amp; Dynamic Key-Value Attributes</span>
+            {selectedProduct.statusHistory && selectedProduct.statusHistory.length > 0 && (
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  <span>Lifecycle Status Change Audit History</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setProdAttrPairs([...prodAttrPairs, { key: '', value: '' }])}
-                  className="text-xs text-indigo-600 font-bold hover:underline"
-                >
-                  + Add Spec Pair
-                </button>
-              </div>
-
-              {prodAttrPairs.map((pair, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="Spec Name (e.g. IP Rating)"
-                    value={pair.key}
-                    onChange={(e) => {
-                      const updated = [...prodAttrPairs];
-                      updated[idx].key = e.target.value;
-                      setProdAttrPairs(updated);
-                    }}
-                    className="w-1/2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Spec Value (e.g. IP65)"
-                    value={pair.value}
-                    onChange={(e) => {
-                      const updated = [...prodAttrPairs];
-                      updated[idx].value = e.target.value;
-                      setProdAttrPairs(updated);
-                    }}
-                    className="w-1/2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
-                  />
-                  {prodAttrPairs.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setProdAttrPairs(prodAttrPairs.filter((_, i) => i !== idx))}
-                      className="p-2 text-rose-500 hover:text-rose-700 font-bold"
-                    >
-                      ×
-                    </button>
-                  )}
+                <div className="space-y-2 border-l-2 border-slate-200 pl-4 ml-1">
+                  {selectedProduct.statusHistory.map((sh, idx) => (
+                    <div key={idx} className="relative space-y-0.5">
+                      <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-600 border-2 border-white" />
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">{sh.from} ➔ {sh.to}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{new Date(sh.changedAt).toLocaleString()}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 font-mono">
+                        Changed by <span className="font-bold">{sh.changedBy}</span> {sh.reason ? `• "${sh.reason}"` : ''}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            {/* SECTION 5: DESCRIPTION */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-2">
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                5. Product Description &amp; Packaging Notes
-              </label>
-              <textarea
-                value={prodDesc}
-                onChange={(e) => setProdDesc(e.target.value)}
-                rows={3}
-                className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
-                placeholder="Enter technical details, dimensions, weight, operating conditions..."
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-              <Button type="button" variant="secondary" onClick={() => setShowProductModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" isLoading={prodSubmitting}>
-                {editingProductId ? 'Update Product' : 'Save & Register Product'}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </Modal>
-
-      {/* Modal - Vendor Bulk CSV Import */}
-      <Modal isOpen={isVendorCsvModalOpen} onClose={() => setIsVendorCsvModalOpen(false)} title="Vendor Bulk Product Catalog CSV Import" maxWidth="2xl">
-        <div className="space-y-6 text-xs font-sans">
-          <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-3 font-sans">
-            <h4 className="font-extrabold text-emerald-900 text-sm">Option 1: Upload .CSV File</h4>
-            <p className="text-xs text-slate-600">
-              Select your vendor product catalog <code className="font-mono text-emerald-700 font-bold">.csv</code> spreadsheet, preview file details, and click <strong>Import CSV File</strong>.
-            </p>
-
-            <FileUpload
-              accept=".csv,text/csv,application/csv"
-              onFileSelect={(file) => {
-                setVendorCsvFileError('');
-                if (!file) return;
-
-                const isCsv = file.name.toLowerCase().endsWith('.csv') || file.type.includes('csv');
-                if (!isCsv) {
-                  setVendorCsvFileError(`Invalid file format (${file.name}). Only valid .csv spreadsheet files are supported.`);
-                  setVendorCsvFile(null);
-                  return;
-                }
-
-                if (file.size > 5 * 1024 * 1024) {
-                  setVendorCsvFileError('File size exceeds maximum 5MB limit.');
-                  setVendorCsvFile(null);
-                  return;
-                }
-
-                setVendorCsvFile(file);
-              }}
-            />
-
-            {vendorCsvFileError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>{vendorCsvFileError}</span>
-              </div>
-            )}
-
-            {vendorCsvFile && (
-              <div className="p-3.5 bg-white border border-emerald-200 rounded-xl flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-2.5">
-                  <FileSpreadsheet className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <div>
-                    <div className="font-mono font-bold text-slate-900 text-xs">{vendorCsvFile.name}</div>
-                    <div className="text-[10px] text-slate-500 font-mono">{(vendorCsvFile.size / 1024).toFixed(1)} KB • CSV Spreadsheet</div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setVendorCsvFile(null)}
-                  className="text-xs font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
-                >
-                  Remove File
-                </button>
               </div>
             )}
 
             <div className="flex justify-end pt-2">
-              <Button
-                type="button"
-                disabled={!vendorCsvFile || csvSubmitting}
-                onClick={async () => {
-                  if (!vendorCsvFile) return;
-                  setCsvSubmitting(true);
-                  try {
-                    const formData = new FormData();
-                    formData.append('file', vendorCsvFile);
-                    const res = await fetch('/api/vendor/products/bulk-import', {
-                      method: 'POST',
-                      body: formData,
-                    });
-                    const data = await res.json();
-                    if (res.ok) {
-                      setToast({ message: data.message || 'Vendor catalog imported successfully!', type: 'success' });
-                      setIsVendorCsvModalOpen(false);
-                      setVendorCsvFile(null);
-                      fetchVendorProducts();
-                    } else {
-                      setToast({ message: data.error || 'CSV Import failed.', type: 'error' });
-                    }
-                  } catch {
-                    setToast({ message: 'Error uploading CSV file.', type: 'error' });
-                  } finally {
-                    setCsvSubmitting(false);
-                  }
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-              >
-                Import CSV File
+              <Button variant="secondary" onClick={() => setIsProductDetailOpen(false)}>
+                Close Window
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
 
-          <div className="border-t border-slate-200 pt-4 space-y-3">
-            <h4 className="font-extrabold text-slate-900 text-sm">Option 2: Paste Raw CSV Text Data</h4>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!csvText.trim()) return;
-                setCsvSubmitting(true);
-                try {
-                  const lines = csvText.trim().split('\n');
-                  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-                  const parsedItems = lines.slice(1).map((line) => {
-                    const parts = line.split(',').map((p) => p.trim());
-                    const item: any = {};
-                    headers.forEach((h, i) => {
-                      if (h.includes('name')) item.itemName = parts[i];
-                      else if (h.includes('sku')) item.sku = parts[i];
-                      else if (h.includes('barcode')) item.barcode = parts[i];
-                      else if (h.includes('cost')) item.costPrice = parts[i];
-                      else if (h.includes('sell') || h.includes('price')) item.sellingPrice = parts[i];
-                      else if (h.includes('wholesale')) item.wholesalePrice = parts[i];
-                    });
-                    if (!item.itemName) item.itemName = parts[0];
-                    return item;
-                  });
+      {/* Vendor Outbound Dispatch Requests & Fulfillment Tracker */}
 
-                  const res = await fetch('/api/vendor/products/bulk-import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: parsedItems }),
-                  });
+      {/* Purchase Orders Assigned to this Vendor */}
+      {vendor && vendor.status === 'APPROVED' && (
+        <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
+          <div className="border-b border-slate-100 pb-5">
+            <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-indigo-600" /> Procurement
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">Purchase Orders</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Purchase orders assigned to your organisation. Confirm an order, then dispatch its stock from the warehouse — supply status updates automatically once you do.</p>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-mono">
+                <tr>
+                  <th className="py-3 px-4 text-left font-bold">PO No.</th>
+                  <th className="py-3 px-4 text-left font-bold">Linked SO</th>
+                  <th className="py-3 px-4 text-left font-bold">Items</th>
+                  <th className="py-3 px-4 text-right font-bold">Transport</th>
+                  <th className="py-3 px-4 text-right font-bold">Total</th>
+                  <th className="py-3 px-4 text-left font-bold">Payment Terms</th>
+                  <th className="py-3 px-4 text-left font-bold">Status</th>
+                  <th className="py-3 px-4 text-right font-bold">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {vendorPOs.map((p) => {
+                  // Vendors only confirm the order itself. Supply progress (Partially Supplied /
+                  // Fully Supplied) is derived automatically from dispatch activity against the
+                  // linked sales order — the vendor's stock is already in the warehouse, so
+                  // "supplying" happens the moment it's dispatched to the customer, not by a manual click.
+                  const vendorSafeNext = (poAllowedTransitions[p.status] || []).filter((s) =>
+                    ['VENDOR_CONFIRMED'].includes(s)
+                  );
+                  const awaitingDispatch = ['VENDOR_CONFIRMED', 'PARTIALLY_SUPPLIED'].includes(p.status);
+                  const pendingTc = transportCosts.some((t) => t.status === 'PENDING_APPROVAL' && t.relatedPoNumbers.includes(p.poNumber));
+                  return (
+                  <tr key={p.id} className="hover:bg-slate-50/80">
+                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">{p.poNumber}</td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{p.linkedSalesOrderNumber || '—'}</td>
+                    <td className="py-3 px-4">
+                      {(p.lines || []).map((l: any, i: number) => (
+                        <div key={i} className="text-[11px]">
+                          <span className="font-mono text-indigo-700 font-bold">{l.itemCode}</span> × {l.quantity}
+                        </div>
+                      ))}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-[11px]">
+                      {p.transportCost ? (
+                        <span className="text-slate-600">{p.currency} {p.transportCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      ) : pendingTc ? (
+                        <span className="text-amber-700 font-bold flex items-center justify-end gap-1"><AlertTriangle className="w-3 h-3" /> Pending approval</span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-bold">{p.currency} {p.totalValue?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4 text-[11px]">{p.paymentTerms}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        p.status === 'APPROVED' || p.status === 'SENT_TO_VENDOR' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                        p.status === 'VENDOR_CONFIRMED' ? 'bg-teal-50 text-teal-700 border-teal-200' :
+                        p.status === 'PARTIALLY_SUPPLIED' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        p.status === 'FULLY_SUPPLIED' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                        p.status === 'PAID' || p.status === 'CLOSED' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                        'bg-slate-100 text-slate-700 border-slate-200'
+                      }`}>{p.status.replace(/_/g, ' ')}</span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button onClick={() => setViewPoModal(p)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600" title="View purchase order">
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => window.open(`/api/purchase-orders/${p.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600" title="Print / download purchase order">
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+                        {vendorSafeNext.length > 0 ? (
+                          <select
+                            value=""
+                            onChange={(e) => e.target.value && advanceVendorPoStatus(p, e.target.value)}
+                            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 font-bold text-slate-700"
+                          >
+                            <option value="">Confirm Order</option>
+                            {vendorSafeNext.map((s) => (
+                              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                            ))}
+                          </select>
+                        ) : awaitingDispatch ? (
+                          <span className="text-[10px] text-slate-400 italic">Awaiting dispatch</span>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                  );
+                })}
+                {vendorPOs.length === 0 && (
+                  <tr><td colSpan={8} className="py-8 text-center text-slate-400">No purchase orders assigned to your organisation.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-                  const data = await res.json();
-                  if (res.ok) {
-                    setToast({ message: data.message || 'Vendor products imported successfully!', type: 'success' });
-                    setIsVendorCsvModalOpen(false);
-                    setCsvText('');
-                    fetchVendorProducts();
-                  } else {
-                    setToast({ message: data.error || 'CSV Import failed.', type: 'error' });
-                  }
-                } catch {
-                  setToast({ message: 'Error processing CSV import.', type: 'error' });
-                } finally {
-                  setCsvSubmitting(false);
-                }
-              }}
-              className="space-y-3"
-            >
-              <textarea
-                value={csvText}
-                onChange={(e) => setCsvText(e.target.value)}
-                rows={6}
-                placeholder={`itemName,sku,barcode,costPrice,sellingPrice,wholesalePrice\nIndustrial Scanner 2D,LQ-SCN-881,9312345099182,120.00,250.00,180.00\nThermal Label Printer,LQ-PRN-882,9312345099183,180.00,320.00,240.00`}
-                className="w-full p-3 font-mono text-xs bg-slate-900 text-emerald-400 rounded-xl border border-slate-800 focus:outline-none"
-              />
+      {/* View Purchase Order — item-wise cost breakdown + print/download */}
+      <Modal isOpen={!!viewPoModal} onClose={() => setViewPoModal(null)} title={`Purchase Order — ${viewPoModal?.poNumber || ''}`} maxWidth="2xl">
+        {viewPoModal && (
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-[10px] font-mono font-bold text-slate-500 uppercase">Linked Sales Order</div>
+                <div className="font-extrabold text-slate-900">{viewPoModal.linkedSalesOrderNumber || '—'}</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-[10px] font-mono font-bold text-slate-500 uppercase">Status</div>
+                <div className="mt-0.5">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-indigo-50 text-indigo-700 border-indigo-200">{viewPoModal.status.replace(/_/g, ' ')}</span>
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">Payment Terms: <span className="font-bold text-slate-700">{viewPoModal.paymentTerms}</span></div>
+              </div>
+            </div>
 
-              <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={() => setIsVendorCsvModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={csvSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
-                  Import Pasted CSV Data
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] font-mono uppercase">
+                  <tr>
+                    <th className="py-2 px-3">Item</th>
+                    <th className="py-2 px-3 text-right">Qty</th>
+                    <th className="py-2 px-3 text-right">Unit Cost</th>
+                    <th className="py-2 px-3 text-right">Line Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(viewPoModal.lines || []).map((l: any, i: number) => (
+                    <tr key={i}>
+                      <td className="py-2 px-3">
+                        <div className="font-mono font-bold text-slate-900">{l.itemCode}</div>
+                        <div className="text-[11px] text-slate-500">{l.itemName}</div>
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono font-bold">{l.quantity}</td>
+                      <td className="py-2 px-3 text-right font-mono">{viewPoModal.currency} {l.unitCost.toFixed(2)}</td>
+                      <td className="py-2 px-3 text-right font-mono font-bold">{viewPoModal.currency} {l.lineTotal.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {viewPoModal.transportCost > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+                <span className="font-bold flex items-center gap-1.5"><Route className="w-3.5 h-3.5" /> Approved Transport Cost (included in total)</span>
+                <span className="font-mono font-bold">{viewPoModal.currency} {viewPoModal.transportCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="mr-auto text-sm font-black text-indigo-700 font-mono">
+                Total: {viewPoModal.currency} {viewPoModal.totalValue?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </div>
+              <Button type="button" variant="outline" onClick={() => setViewPoModal(null)}>Close</Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => window.open(`/api/purchase-orders/${viewPoModal.id}/print`, '_blank')}
+                leftIcon={<Download className="w-4 h-4" />}
+              >
+                Download / Print
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Transport Costs — freight claims covering multiple POs/dispatches */}
+      {vendor && vendor.status === 'APPROVED' && (
+        <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
+          <div className="border-b border-slate-100 pb-5 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Route className="w-4 h-4 text-indigo-600" /> Freight
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Transport Costs</h3>
+              <p className="text-xs text-slate-500 mt-0.5">A claim covers one shipment: pick the dispatch notes that went out together from one warehouse, enter the tracking number and total freight cost, and it splits across whichever POs those dispatches belong to. The Platform Owner reviews and approves before it's added to those PO totals; you can't invoice a PO until it's fully supplied and free of a pending claim.</p>
+            </div>
+            <Button onClick={() => setIsTcModalOpen(true)} variant="primary" leftIcon={<Plus className="w-4 h-4" />}>Submit Transport Cost</Button>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-mono">
+                <tr>
+                  <th className="py-3 px-4 text-left font-bold">Claim No.</th>
+                  <th className="py-3 px-4 text-left font-bold">Warehouse</th>
+                  <th className="py-3 px-4 text-left font-bold">Tracking No.</th>
+                  <th className="py-3 px-4 text-left font-bold">Related POs</th>
+                  <th className="py-3 px-4 text-right font-bold">Total Cost</th>
+                  <th className="py-3 px-4 text-left font-bold">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {transportCosts.map((t) => (
+                  <tr key={t.id} className="hover:bg-slate-50/80">
+                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">{t.transportCostNumber}</td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{t.warehouseCode}</td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{t.trackingNumber}</td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{(t.relatedPoNumbers || []).join(', ')}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold">{t.currency} {t.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        t.status === 'APPROVED' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                        t.status === 'REJECTED' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                        'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>{t.status.replace(/_/g, ' ')}</span>
+                      {t.status === 'REJECTED' && t.rejectionReason && (
+                        <div className="text-[10px] text-rose-600 mt-1 max-w-[220px]">{t.rejectionReason}</div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {transportCosts.length === 0 && (
+                  <tr><td colSpan={6} className="py-8 text-center text-slate-400">No transport cost claims submitted yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <Modal isOpen={isTcModalOpen} onClose={() => setIsTcModalOpen(false)} title="Submit Transport Cost Claim" maxWidth="lg">
+            <form onSubmit={handleSubmitTransportCost} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold block mb-1">Warehouse *</label>
+                <select
+                  value={tcForm.warehouseCode}
+                  onChange={(e) => setTcForm({ ...tcForm, warehouseCode: e.target.value, dnNumbers: [] })}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-indigo-600 bg-white"
+                >
+                  <option value="">-- Select the warehouse this shipment left from --</option>
+                  {claimableWarehouses.map((wh) => (
+                    <option key={wh} value={wh}>{wh}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">A claim can only cover dispatches that physically shipped together — from one warehouse.</p>
+              </div>
+
+              {tcForm.warehouseCode && (
+                <div>
+                  <label className="font-bold block mb-1">Dispatch Notes in This Shipment * ({dnsForSelectedWarehouse.length} available)</label>
+                  <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                    {dnsForSelectedWarehouse.map((d) => (
+                      <label key={d.dispatchNumber} className="flex items-center gap-2 px-3 py-2 text-[11px] cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" checked={tcForm.dnNumbers.includes(d.dispatchNumber)} onChange={() => toggleTcDn(d.dispatchNumber)} className="rounded border-slate-300" />
+                        <span className="font-mono font-bold text-slate-900">{d.dispatchNumber}</span>
+                        <span className="text-slate-500">{d.salesOrderNumber}</span>
+                      </label>
+                    ))}
+                    {dnsForSelectedWarehouse.length === 0 && <div className="px-3 py-4 text-center text-slate-400">No un-claimed dispatched notes at this warehouse.</div>}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold block mb-1">Tracking / Consignment No. *</label>
+                  <Input value={tcForm.trackingNumber} onChange={(e) => setTcForm({ ...tcForm, trackingNumber: e.target.value })} required placeholder="e.g. ST-998822-AU" />
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Total Transport Cost ({vendorPOs[0]?.currency || 'AUD'}) *</label>
+                  <Input type="number" step="0.01" min="0.01" value={tcForm.totalCost} onChange={(e) => setTcForm({ ...tcForm, totalCost: e.target.value })} required />
+                </div>
+              </div>
+
+              {tcForm.dnNumbers.length > 0 && (
+                <div>
+                  <label className="font-bold block mb-1">Related Purchase Orders (auto-detected from the dispatches above)</label>
+                  <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 bg-slate-50">
+                    {tcRelatedPoPreview.map((p) => (
+                      <div key={p.poNumber} className="flex items-center justify-between px-3 py-2 text-[11px]">
+                        <span className="font-mono font-bold text-slate-900">{p.poNumber}</span>
+                        <span className="text-indigo-700 font-bold">≈ {vendorPOs[0]?.currency || 'AUD'} {p.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                    {tcRelatedPoPreview.length === 0 && (
+                      <div className="px-3 py-3 text-center text-slate-400">Couldn't match these dispatches to a purchase order.</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="font-bold block mb-1">Notes (optional)</label>
+                <Input value={tcForm.notes} onChange={(e) => setTcForm({ ...tcForm, notes: e.target.value })} placeholder="Consolidated shipment covering these three orders..." />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <Button type="button" variant="secondary" onClick={() => setIsTcModalOpen(false)}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={tcSubmitting}>{tcSubmitting ? 'Submitting...' : 'Submit for Approval'}</Button>
+              </div>
+            </form>
+          </Modal>
+        </div>
+      )}
+
+      {/* Vendor Invoice Submission */}
+      {vendor && vendor.status === 'APPROVED' && (
+        <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
+          <div className="border-b border-slate-100 pb-5 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4 text-indigo-600" /> Invoicing
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Invoice Submission</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Submit invoices against confirmed purchase orders. Track approval and payment status.</p>
+            </div>
+            <Button onClick={() => setIsViSubmitOpen(true)} variant="primary" leftIcon={<Plus className="w-4 h-4" />}>Submit Invoice</Button>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-mono">
+                <tr>
+                  <th className="py-3 px-4 text-left font-bold">Invoice No.</th>
+                  <th className="py-3 px-4 text-left font-bold">Linked PO</th>
+                  <th className="py-3 px-4 text-right font-bold">Amount</th>
+                  <th className="py-3 px-4 text-left font-bold">Due Date</th>
+                  <th className="py-3 px-4 text-left font-bold">Status</th>
+                  <th className="py-3 px-4 text-right font-bold">Paid</th>
+                  <th className="py-3 px-4 text-left font-bold">Receipt</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {vendorInvoices.map((v) => {
+                  const lastPayment = v.payments && v.payments.length > 0 ? v.payments[v.payments.length - 1] : null;
+                  return (
+                  <tr key={v.id} className="hover:bg-slate-50/80">
+                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">{v.vendorInvoiceNumber}</td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{v.linkedPoNumber}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold">{v.currency} {v.invoiceAmount?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4 text-[11px]">{v.dueDate ? new Date(v.dueDate).toLocaleDateString() : '—'}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        v.status === 'APPROVED' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                        v.status === 'REJECTED' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                        v.status === 'PAID' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' :
+                        v.status === 'ON_HOLD' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                        v.status === 'DISPUTED' ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200' :
+                        v.status === 'PARTIALLY_PAID' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-slate-100 text-slate-700 border-slate-200'
+                      }`}>{v.status.replace(/_/g, ' ')}</span>
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-indigo-700 font-bold">{v.currency} {(v.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4">
+                      {lastPayment?.receiptAttachment?.fileUrl ? (
+                        <a
+                          href={lastPayment.receiptAttachment.fileUrl}
+                          download={lastPayment.receiptAttachment.fileName}
+                          className="text-[11px] text-indigo-700 font-bold hover:underline flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3" /> View
+                        </a>
+                      ) : (<span className="text-slate-400 text-[11px]">—</span>)}
+                    </td>
+                  </tr>
+                  );
+                })}
+                {vendorInvoices.length === 0 && (
+                  <tr><td colSpan={7} className="py-8 text-center text-slate-400">No invoices submitted yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <Modal isOpen={isViSubmitOpen} onClose={() => setIsViSubmitOpen(false)} title="Submit Vendor Invoice" maxWidth="md">
+            <form onSubmit={handleSubmitVendorInvoice} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold block mb-1">Invoice Number *</label>
+                  <Input value={viSubmitForm.vendorInvoiceNumber} onChange={(e) => setViSubmitForm({ ...viSubmitForm, vendorInvoiceNumber: e.target.value })} required placeholder="e.g. VND-INV-2026-001" />
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Linked PO *</label>
+                  <Select
+                    value={viSubmitForm.linkedPoNumber}
+                    onChange={(e) => {
+                      const po = vendorPOs.find((p) => p.poNumber === e.target.value);
+                      setViSubmitForm({ ...viSubmitForm, linkedPoNumber: e.target.value, invoiceAmount: po?.totalValue || 0 });
+                    }}
+                    options={[
+                      { value: '', label: '— Select PO —' },
+                      ...vendorPOs.map((p) => ({ value: p.poNumber, label: `${p.poNumber} — ${p.currency} ${p.totalValue?.toLocaleString()}` })),
+                    ]}
+                  />
+                </div>
+              </div>
+              {viSubmitForm.linkedPoNumber && transportCosts.some((t) => t.status === 'PENDING_APPROVAL' && t.relatedPoNumbers.includes(viSubmitForm.linkedPoNumber)) && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-bold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> This PO has a transport cost claim awaiting owner approval. You cannot invoice it until that's resolved.
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold block mb-1">Invoice Amount *</label>
+                  <Input type="number" step="0.01" value={viSubmitForm.invoiceAmount} onChange={(e) => setViSubmitForm({ ...viSubmitForm, invoiceAmount: e.target.value })} required />
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Due Date *</label>
+                  <Input type="date" value={viSubmitForm.dueDate} onChange={(e) => setViSubmitForm({ ...viSubmitForm, dueDate: e.target.value })} required />
+                </div>
+              </div>
+              <div>
+                <label className="font-bold block mb-1">Invoice Attachment</label>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  onChange={handleViAttachmentUpload}
+                  className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+                {viSubmitForm.attachment && (
+                  <p className="text-[11px] text-indigo-700 font-bold mt-1">Attached: {viSubmitForm.attachment.fileName}</p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <Button type="button" variant="secondary" onClick={() => setIsViSubmitOpen(false)}>Cancel</Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={viSubmitting || (!!viSubmitForm.linkedPoNumber && transportCosts.some((t) => t.status === 'PENDING_APPROVAL' && t.relatedPoNumbers.includes(viSubmitForm.linkedPoNumber)))}
+                >
+                  {viSubmitting ? 'Submitting...' : 'Submit Invoice'}
                 </Button>
               </div>
             </form>
-          </div>
+          </Modal>
         </div>
-      </Modal>
+      )}
+
     </div>
   );
 }

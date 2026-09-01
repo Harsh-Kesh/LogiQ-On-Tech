@@ -1,0 +1,645 @@
+{
+  "categories": [
+    {
+      "slug": "electronics",
+      "name": "Industrial Electronics",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "warehouse-hardware",
+      "name": "Warehouse Hardware & Scanners",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "iot-smart-warehouse-sensors",
+      "name": "IoT & Smart Warehouse Sensors",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "industrial-hardware",
+      "name": "Industrial Hardware",
+      "description": "Warehouse equipment, scanners, and terminals",
+      "parentSlug": null
+    },
+    {
+      "slug": "label-printing",
+      "name": "Label Printing",
+      "description": "Thermal printers, ribbons, and barcode labels",
+      "parentSlug": null
+    },
+    {
+      "slug": "rfid-tracking",
+      "name": "RFID & Tracking",
+      "description": "UHF RFID readers, antennas, and asset tags",
+      "parentSlug": null
+    },
+    {
+      "slug": "warehouse-supplies",
+      "name": "Warehouse Supplies",
+      "description": "Pallets, bins, racking labels, and packaging",
+      "parentSlug": null
+    },
+    {
+      "slug": "barcode-scanners",
+      "name": "Barcode Scanners",
+      "description": "1D & 2D handheld, Bluetooth, and fixed-mount scanners",
+      "parentSlug": "industrial-hardware"
+    },
+    {
+      "slug": "mobile-computers",
+      "name": "Mobile Computers",
+      "description": "Rugged handheld Android touch computers",
+      "parentSlug": "industrial-hardware"
+    },
+    {
+      "slug": "desktop-printers",
+      "name": "Desktop Printers",
+      "description": "Compact thermal transfer & direct thermal printers",
+      "parentSlug": "label-printing"
+    },
+    {
+      "slug": "industrial-printers",
+      "name": "Industrial Printers",
+      "description": "High-volume 24/7 heavy-duty label printers",
+      "parentSlug": "label-printing"
+    },
+    {
+      "slug": "labels-ribbons",
+      "name": "Barcode Labels & Ribbons",
+      "description": "Direct thermal & thermal transfer label rolls",
+      "parentSlug": "label-printing"
+    },
+    {
+      "slug": "rfid-tags",
+      "name": "RFID Smart Labels & Tags",
+      "description": "On-metal and printable UHF RFID adhesive tags",
+      "parentSlug": "rfid-tracking"
+    },
+    {
+      "slug": "rfid-readers",
+      "name": "RFID Fixed Readers",
+      "description": "Multi-port overhead portal RFID readers",
+      "parentSlug": "rfid-tracking"
+    },
+    {
+      "slug": "bin-location-markers",
+      "name": "Location & Bin Markers",
+      "description": "Retro-reflective aisle and bin location barcode signs",
+      "parentSlug": "warehouse-supplies"
+    },
+    {
+      "slug": "pallets-storage",
+      "name": "Pallets & Storage",
+      "description": "Heavy-duty plastic pallets and storage containers",
+      "parentSlug": "warehouse-supplies"
+    },
+    {
+      "slug": "warehouse-scales",
+      "name": "Warehouse Scales",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "thermal-labels",
+      "name": "Thermal Labels",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "printer-ribbons",
+      "name": "Printer Ribbons",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "packaging-boxes",
+      "name": "Packaging Boxes",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "specialty-labels",
+      "name": "Specialty Labels",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "mounting-hardware",
+      "name": "Mounting Hardware",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "barcode-verifiers",
+      "name": "Barcode Verifiers",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "rfid-antennas",
+      "name": "RFID Antennas",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "hazard-labels",
+      "name": "Hazard Labels",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "packaging-tape",
+      "name": "Packaging Tape",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "batteries-power",
+      "name": "Batteries & Power",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "charging-docks",
+      "name": "Charging Docks",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "rugged-tablets",
+      "name": "Rugged Tablets",
+      "description": null,
+      "parentSlug": null
+    },
+    {
+      "slug": "security-labels",
+      "name": "Security Labels",
+      "description": null,
+      "parentSlug": null
+    }
+  ],
+  "uoms": [
+    {
+      "code": "PCS",
+      "name": "Pieces",
+      "description": "Individual unit"
+    },
+    {
+      "code": "BOX",
+      "name": "Box of 10",
+      "description": "Box containing 10 pcs"
+    },
+    {
+      "code": "ROLL",
+      "name": "Roll of Labels",
+      "description": ""
+    },
+    {
+      "code": "CTN",
+      "name": "Carton of 50",
+      "description": "Master shipping carton of 50 units"
+    },
+    {
+      "code": "PLT",
+      "name": "Pallet of 500",
+      "description": "Standard Australian Wooden/Plastic Pallet"
+    },
+    {
+      "code": "KG",
+      "name": "Kilograms",
+      "description": "Weight unit of measure"
+    },
+    {
+      "code": "MTR",
+      "name": "Meters",
+      "description": "Linear length measure for cabling & ribbons"
+    },
+    {
+      "code": "PK",
+      "name": "Pack of 100",
+      "description": "Label & tag roll bundle"
+    }
+  ],
+  "warehouses": [
+    {
+      "code": "WH-SYD-01",
+      "name": "Sydney Central Logistics Hub",
+      "address": "100 Logistics Way, Chullora NSW 2190, Australia",
+      "contactPerson": null,
+      "contactEmail": null,
+      "managerEmail": null
+    },
+    {
+      "code": "WH-PER-04",
+      "name": "Perth Regional Hub",
+      "address": "50 Airport Drive, Kewdale WA 6105",
+      "contactPerson": null,
+      "contactEmail": null,
+      "managerEmail": null
+    },
+    {
+      "code": "WH-MEL-02",
+      "name": "Melbourne Fulfilment Facility",
+      "address": "88 Freight Drive, Truganina VIC 3029",
+      "contactPerson": "Melbourne Dispatch Desk",
+      "contactEmail": "warehouse.mel@logiqon.com",
+      "managerEmail": null
+    },
+    {
+      "code": "WH-BNE-03",
+      "name": "Brisbane Regional Depot",
+      "address": "45 Gateway Motorway, Acacia Ridge QLD 4110",
+      "contactPerson": "Brisbane Depot Operator",
+      "contactEmail": "warehouse.bne@logiqon.com",
+      "managerEmail": null
+    }
+  ],
+  "vendors": [
+    {
+      "companyName": "Apex Hardware & Logistics Ltd",
+      "abnAcn": "12345678901",
+      "email": "vendor@logiqon.tech",
+      "fullName": "John Supplier (Apex Hardware)",
+      "status": "APPROVED"
+    },
+    {
+      "companyName": "Smith Logistics Pty Ltd",
+      "abnAcn": "51824753556",
+      "email": "john@smithlogistics.com",
+      "fullName": "John Smith",
+      "status": "APPROVED"
+    },
+    {
+      "companyName": "Jonathan Logistics Hub",
+      "abnAcn": "51872356212",
+      "email": "jon.doe@vendor.logiqon.com",
+      "fullName": "Jonathan Doe",
+      "status": "APPROVED"
+    }
+  ],
+  "items": [
+    {
+      "sku": "LQ-SCN-00101",
+      "barcode": "9312345001015",
+      "itemName": "Industrial Handheld Wireless Barcode Scanner 2D (HD-900)",
+      "description": "Heavy-duty IP65 Bluetooth 2D barcode scanner for warehouse receiving and bin picking.",
+      "costPrice": 120,
+      "sellingPrice": 249.99,
+      "moq": 5,
+      "status": "ACTIVE",
+      "categorySlug": "barcode-scanners",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-PRT-00102",
+      "barcode": "9312345001022",
+      "itemName": "Thermal Transfer Desktop Label Printer 300DPI (LogiPrint-30)",
+      "description": "High-speed industrial thermal label printer with Ethernet, USB & Wi-Fi module.",
+      "costPrice": 310,
+      "sellingPrice": 599,
+      "moq": 2,
+      "status": "ACTIVE",
+      "categorySlug": "desktop-printers",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-MOB-00103",
+      "barcode": "9312345001039",
+      "itemName": "Rugged Touch Mobile Computer Android 13 (LogiPDA-X5)",
+      "description": "Enterprise 5.5-inch rugged mobile terminal with 2D zebra scan engine & 4G SIM.",
+      "costPrice": 450,
+      "sellingPrice": 899,
+      "moq": 3,
+      "status": "ACTIVE",
+      "categorySlug": "mobile-computers",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-RFD-00104",
+      "barcode": "9312345001046",
+      "itemName": "UHF RFID Smart Asset Labels (Pack of 100 Tags)",
+      "description": "High-durability printable UHF RFID adhesive tags for pallet and container tracking.",
+      "costPrice": 45,
+      "sellingPrice": 89,
+      "moq": 10,
+      "status": "ACTIVE",
+      "categorySlug": "rfid-tags",
+      "uomCode": "PK",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-SCL-00105",
+      "barcode": "9312345001053",
+      "itemName": "Heavy Duty Industrial Floor Bench Scale 300KG (LogiScale-300)",
+      "description": "Stainless steel IP67 bench scale with RS232 & USB connectivity for pallet weighing.",
+      "costPrice": 220,
+      "sellingPrice": 450,
+      "moq": 1,
+      "status": "ACTIVE",
+      "categorySlug": "warehouse-scales",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-LBL-00106",
+      "barcode": "9312345001060",
+      "itemName": "Premium Direct Thermal Shipping Labels 100mm x 150mm (Roll of 1000)",
+      "description": "Perforated top-coated direct thermal labels for courier and logistics dispatch parcels.",
+      "costPrice": 14.5,
+      "sellingPrice": 29.99,
+      "moq": 20,
+      "status": "ACTIVE",
+      "categorySlug": "thermal-labels",
+      "uomCode": null,
+      "vendorCompanyName": "Smith Logistics Pty Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-RBN-00107",
+      "barcode": "9312345001077",
+      "itemName": "Thermal Transfer Premium Resin Ribbon 110mm x 300m Black",
+      "description": "High-smudge resistance resin ribbon for synthetic chemical and cold-storage labelling.",
+      "costPrice": 18,
+      "sellingPrice": 38.5,
+      "moq": 15,
+      "status": "ACTIVE",
+      "categorySlug": "printer-ribbons",
+      "uomCode": null,
+      "vendorCompanyName": "Smith Logistics Pty Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-PLT-00108",
+      "barcode": "9312345001084",
+      "itemName": "Standard Australian Hardwood Timber Pallet (1165mm x 1165mm)",
+      "description": "Export-grade heat treated ISPM-15 certified 4-way entry hardwood timber pallet.",
+      "costPrice": 25,
+      "sellingPrice": 49,
+      "moq": 10,
+      "status": "ACTIVE",
+      "categorySlug": "pallets-storage",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Smith Logistics Pty Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-RFD-00109",
+      "barcode": "9312345001091",
+      "itemName": "Fixed 4-Port Overhead Portal RFID Reader (LogiGate-400)",
+      "description": "Industrial 4-port UHF RFID reader for automatic dock door pallet scanning.",
+      "costPrice": 950,
+      "sellingPrice": 1850,
+      "moq": 1,
+      "status": "ACTIVE",
+      "categorySlug": "rfid-readers",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-SCN-00110",
+      "barcode": "9312345001107",
+      "itemName": "Fixed-Mount Industrial Barcode Scanner (LogiScan-FM200)",
+      "description": "Conveyor belt high-speed barcode reader for automated package sortation.",
+      "costPrice": 620,
+      "sellingPrice": 1190,
+      "moq": 1,
+      "status": "ACTIVE",
+      "categorySlug": "barcode-scanners",
+      "uomCode": "PCS",
+      "vendorCompanyName": null,
+      "lowStockThreshold": null,
+      "reorderQuantity": null
+    },
+    {
+      "sku": "LQ-BOX-00111",
+      "barcode": "9312345001114",
+      "itemName": "Heavy Duty Corrugated Double-Wall Shipping Carton 500x400x300mm",
+      "description": "High burst-strength kraft corrugated carton for e-commerce and export freight.",
+      "costPrice": 2.2,
+      "sellingPrice": 5.5,
+      "moq": 50,
+      "status": "ACTIVE",
+      "categorySlug": "packaging-boxes",
+      "uomCode": "CTN",
+      "vendorCompanyName": "Smith Logistics Pty Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-LBL-00112",
+      "barcode": "9312345001121",
+      "itemName": "Synthetic Cryogenic Freezer Labels 50mm x 25mm (Roll of 500)",
+      "description": "Ultra-low temperature -80C to -196C liquid nitrogen compatible cryo labels.",
+      "costPrice": 28,
+      "sellingPrice": 58,
+      "moq": 10,
+      "status": "ACTIVE",
+      "categorySlug": "specialty-labels",
+      "uomCode": null,
+      "vendorCompanyName": "Smith Logistics Pty Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-SCN-00113",
+      "barcode": "9312345001138",
+      "itemName": "Rugged Wearable Ring Scanner Bluetooth 2D (LogiRing-20)",
+      "description": "Hands-free Bluetooth finger ring scanner with haptic vibration feedback.",
+      "costPrice": 160,
+      "sellingPrice": 320,
+      "moq": 4,
+      "status": "ACTIVE",
+      "categorySlug": "barcode-scanners",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-PRT-00114",
+      "barcode": "9312345001145",
+      "itemName": "Industrial Metal Mid-Range Label Printer 203DPI (LogiPrint-Heavy)",
+      "description": "Full metal chassis 24/7 continuous duty cycle thermal label printer.",
+      "costPrice": 650,
+      "sellingPrice": 1190,
+      "moq": 1,
+      "status": "ACTIVE",
+      "categorySlug": "industrial-printers",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-MOB-00115",
+      "barcode": "9312345001152",
+      "itemName": "Cold Storage Heated Screen Mobile Terminal (LogiFreeze-X)",
+      "description": "Deep-freeze rated mobile computer operating reliably down to -30C with defroster.",
+      "costPrice": 780,
+      "sellingPrice": 1490,
+      "moq": 2,
+      "status": "ACTIVE",
+      "categorySlug": "mobile-computers",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-MNT-00116",
+      "barcode": "9312345001169",
+      "itemName": "Heavy-Duty Forklift Mounting Cradle & Power Dock (Vesa-Mount)",
+      "description": "Shock and vibration dampened forklift clamp mount with integrated DC power step-down.",
+      "costPrice": 85,
+      "sellingPrice": 175,
+      "moq": 5,
+      "status": "ACTIVE",
+      "categorySlug": "mounting-hardware",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-VER-00117",
+      "barcode": "9312345001176",
+      "itemName": "ISO/IEC Compliant Offline Barcode Verifier (LogiVerify-1D/2D)",
+      "description": "Precision optical barcode grading verifier testing ANSI/ISO quality grades A to F.",
+      "costPrice": 1800,
+      "sellingPrice": 3200,
+      "moq": 1,
+      "status": "ACTIVE",
+      "categorySlug": "barcode-verifiers",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-ANT-00118",
+      "barcode": "9312345001183",
+      "itemName": "UHF High-Gain Circular Polarized RFID Antenna (LogiAnt-9dBi)",
+      "description": "IP67 weather-sealed antenna for portal, conveyer, and doorway asset tracking.",
+      "costPrice": 140,
+      "sellingPrice": 280,
+      "moq": 4,
+      "status": "ACTIVE",
+      "categorySlug": "rfid-antennas",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-LBL-00119",
+      "barcode": "9312345001190",
+      "itemName": "Hazardous Material GHS Flammable Diamond Labels (Roll of 500)",
+      "description": "Chemical and UV resistant BS5609 certified GHS compliance hazard warning labels.",
+      "costPrice": 19.5,
+      "sellingPrice": 42,
+      "moq": 10,
+      "status": "ACTIVE",
+      "categorySlug": "hazard-labels",
+      "uomCode": null,
+      "vendorCompanyName": "Smith Logistics Pty Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-TP-00120",
+      "barcode": "9312345001206",
+      "itemName": "Reinforced Water-Activated Gummed Paper Tape 70mm x 150m",
+      "description": "Tamper-evident fiberglass reinforced Kraft packaging tape for secure carton closure.",
+      "costPrice": 8.5,
+      "sellingPrice": 19.95,
+      "moq": 25,
+      "status": "ACTIVE",
+      "categorySlug": "packaging-tape",
+      "uomCode": null,
+      "vendorCompanyName": "Smith Logistics Pty Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-BAT-00121",
+      "barcode": "9312345001213",
+      "itemName": "Extended Lithium-Ion Battery Pack 6700mAh for LogiPDA-X5",
+      "description": "High-capacity smart battery pack with charge status indicator LED for 24-hour shifts.",
+      "costPrice": 48,
+      "sellingPrice": 95,
+      "moq": 10,
+      "status": "ACTIVE",
+      "categorySlug": "batteries-power",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-CHG-00122",
+      "barcode": "9312345001220",
+      "itemName": "Multi-Slot 4-Bay Terminal & 4-Bay Battery Charging Station",
+      "description": "Simultaneous Ethernet networked fast-charging rack for enterprise mobile fleet.",
+      "costPrice": 260,
+      "sellingPrice": 490,
+      "moq": 2,
+      "status": "ACTIVE",
+      "categorySlug": "charging-docks",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-TBL-00110",
+      "barcode": "9312345001230",
+      "itemName": "Panasonic Toughbook G2 Rugged Tablet 10.1\" IP65",
+      "description": "Fully rugged Windows 11 Pro warehouse tablet with hot-swappable dual battery.",
+      "costPrice": 1200,
+      "sellingPrice": 2250,
+      "moq": 2,
+      "status": "ACTIVE",
+      "categorySlug": "rugged-tablets",
+      "uomCode": "PCS",
+      "vendorCompanyName": "Apex Hardware & Logistics Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    },
+    {
+      "sku": "LQ-LBL-00123",
+      "barcode": "9312345001237",
+      "itemName": "Tamper-Evident Void Security Warranty Seal Labels (Pack of 500)",
+      "description": "High-security silver polyester labels leaving irreversible VOID pattern upon removal.",
+      "costPrice": 22,
+      "sellingPrice": 48,
+      "moq": 10,
+      "status": "ACTIVE",
+      "categorySlug": "security-labels",
+      "uomCode": "PK",
+      "vendorCompanyName": "Smith Logistics Pty Ltd",
+      "lowStockThreshold": 10,
+      "reorderQuantity": 50
+    }
+  ]
+}

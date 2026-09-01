@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, loadPersistentUsers, savePersistentUsers } from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
 import { verifyMfaToken } from '@/lib/mfa';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
@@ -25,40 +25,15 @@ export async function POST(req: Request) {
     }
 
     const userId = (session.user as any).id;
-    const emailClean = session.user.email?.toLowerCase().trim() || '';
 
-    // 1. Try Prisma DB Update
-    try {
-      if (userId) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            mfaEnabled: true,
-            mfaSecret: secret,
-          },
-        });
-      }
-    } catch (e: any) {
-      console.warn('Prisma DB MFA update warning (falling back to file store):', e.message);
-    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        mfaEnabled: true,
+        mfaSecret: secret,
+      },
+    });
 
-    // 2. Dual-Write to Persistent File Store
-    try {
-      const users = loadPersistentUsers();
-      const targetKey = Object.keys(users).find(
-        (k) => k.toLowerCase() === emailClean || users[k].id === userId
-      );
-
-      if (targetKey && users[targetKey]) {
-        users[targetKey].mfaEnabled = true;
-        users[targetKey].mfaSecret = secret;
-        savePersistentUsers(users);
-      }
-    } catch (e: any) {
-      console.warn('File store MFA update warning:', e.message);
-    }
-
-    // Audit Log Entry
     await logAuditEvent({
       userId: userId || 'usr_unknown',
       role: (session.user as any).role || 'VENDOR',

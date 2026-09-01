@@ -7,7 +7,7 @@ import { logAuditEvent } from '@/lib/audit';
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const returns = loadPersistentReturns();
+  const returns = await loadPersistentReturns();
   return NextResponse.json({ success: true, returns });
 }
 
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'WAREHOUSE')) {
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
     return NextResponse.json({ error: 'Unauthorized: Admin or Warehouse operator access required.' }, { status: 403 });
   }
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Customer, Product Item, Warehouse, Bin, Quantity (>0), Condition, and Reason Code are required.' }, { status: 400 });
   }
 
-  const newReturn = processRmaReturn({
+  const newReturn = await processRmaReturn({
     rmaNumber,
     orderId,
     orderNumber,

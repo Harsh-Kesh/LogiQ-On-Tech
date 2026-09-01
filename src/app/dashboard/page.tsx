@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Shield, Building, Warehouse, Lock, FileText, CheckCircle2, UserCheck, ArrowRight, Clock, Key, Package } from 'lucide-react';
+import { Shield, Building, Lock, FileText, CheckCircle2, UserCheck, ArrowRight, Clock } from 'lucide-react';
 
 export default function MainDashboardPage() {
   const { data: session, status } = useSession();
@@ -13,7 +13,7 @@ export default function MainDashboardPage() {
     return (
       <div className="py-12 text-center text-xs font-mono text-slate-500 flex items-center justify-center gap-2">
         <div className="w-4 h-4 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-        <span>Loading active session parameters...</span>
+        <span>Loading your dashboard…</span>
       </div>
     );
   }
@@ -38,20 +38,6 @@ export default function MainDashboardPage() {
       icon: Building,
       desc: 'Company profile, statutory compliance docs & product catalog.',
     },
-    WAREHOUSE: {
-      title: 'Warehouse Point Operations',
-      href: '/dashboard/warehouse',
-      color: 'emerald',
-      icon: Warehouse,
-      desc: 'Bin allocations, stock balances & immutable ledger feed.',
-    },
-    MDM: {
-      title: 'Master Data Management',
-      href: '/dashboard/owner/items',
-      color: 'sky',
-      icon: Package,
-      desc: 'Item master catalog, categories, UOMs & bulk data imports.',
-    },
   };
 
   const currentPortal = rolePortalLinks[role] || rolePortalLinks.VENDOR;
@@ -62,8 +48,8 @@ export default function MainDashboardPage() {
       {/* Welcome Banner */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Authentication Successful
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 font-mono">
+            <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" /> Authentication Successful
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
             Welcome Back, {name}!
@@ -92,18 +78,18 @@ export default function MainDashboardPage() {
             {role}
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Scoped access verified via Next.js Edge Middleware and 4-Role Permission Matrix engine.
+            Scoped access verified via Next.js Edge Middleware and the 2-Role Permission Matrix.
           </p>
         </div>
 
         {/* Card 2: Security & MFA Status */}
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
           <div className="text-xs font-mono text-slate-500 uppercase tracking-widest flex items-center gap-2 font-bold">
-            <Lock className="w-4 h-4 text-emerald-600" /> Security &amp; 2FA Status
+            <Lock className="w-4 h-4 text-indigo-600" /> Security &amp; 2FA Status
           </div>
           <div className="flex items-center gap-2">
             {mfaEnabled ? (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 font-mono">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 font-mono">
                 <CheckCircle2 className="w-3.5 h-3.5" /> 2FA MFA Active
               </span>
             ) : (
@@ -113,7 +99,7 @@ export default function MainDashboardPage() {
             )}
           </div>
           {mfaEnabled ? (
-            <div className="text-xs text-emerald-700 font-semibold pt-1 flex items-center gap-1">
+            <div className="text-xs text-indigo-700 font-semibold pt-1 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> MFA Active &amp; Secured
             </div>
           ) : (

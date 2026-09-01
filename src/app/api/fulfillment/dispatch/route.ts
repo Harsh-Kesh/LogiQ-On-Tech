@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'WAREHOUSE')) {
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
     return NextResponse.json({ error: 'Unauthorized: Admin or Warehouse operator access required.' }, { status: 403 });
   }
 
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Order ID is required for carrier dispatch release.' }, { status: 400 });
   }
 
-  const result = dispatchOutboundOrder(
+  const result = await dispatchOutboundOrder(
     orderId,
     {
       manifestId,

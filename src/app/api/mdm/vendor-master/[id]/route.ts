@@ -5,9 +5,8 @@ import { updateVendorMasterRecord, deleteVendorMasterRecord } from '@/lib/vendor
 import { logAuditEvent } from '@/lib/audit';
 
 import { MDM_ROLES, isRoleIn } from '@/lib/api-auth';
-const AUTH_ROLES = [...MDM_ROLES, 'SALES_OPS' as const, 'FINANCE' as const];
 function authorised(user: any) {
-  return isRoleIn(user, AUTH_ROLES);
+  return isRoleIn(user, MDM_ROLES);
 }
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
@@ -18,10 +17,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   try {
     const body = await req.json();
     const patch: any = {};
-    ['vendorName', 'itemCode', 'itemDescription', 'currency', 'paymentTerms'].forEach((k) => {
+    ['vendorName', 'itemCode', 'itemDescription', 'currency', 'paymentTerms', 'incoterms'].forEach((k) => {
       if (body[k] !== undefined) patch[k] = String(body[k]).trim();
     });
-    ['purchasePrice', 'moq', 'leadTimeDays'].forEach((k) => {
+    ['costOfGoods', 'moq', 'leadTimeDays'].forEach((k) => {
       if (body[k] !== undefined) {
         const n = Number(body[k]);
         if (Number.isNaN(n) || n < 0) throw new Error(`${k} must be a non-negative number.`);
@@ -30,7 +29,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     });
     if (patch.currency) patch.currency = patch.currency.toUpperCase();
 
-    const rec = updateVendorMasterRecord(params.id, patch);
+    const rec = await updateVendorMasterRecord(params.id, patch);
     if (!rec) return NextResponse.json({ error: 'Record not found.' }, { status: 404 });
 
     await logAuditEvent({
@@ -53,7 +52,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const user = session?.user as any;
   if (!authorised(user)) return NextResponse.json({ error: 'Unauthorized: Owner or MDM role required.' }, { status: 403 });
 
-  const ok = deleteVendorMasterRecord(params.id);
+  const ok = await deleteVendorMasterRecord(params.id);
   if (!ok) return NextResponse.json({ error: 'Record not found.' }, { status: 404 });
 
   await logAuditEvent({

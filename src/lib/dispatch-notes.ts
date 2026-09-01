@@ -1,10 +1,5 @@
-import fs from 'fs';
-import { dataFilePath, ensureDataDir } from './storage';
+import { prisma } from './prisma';
 import { nextDocumentNumber } from './document-sequences';
-
-// FR-DN-001..012 — Dispatch Notes. Structured to match:
-//   • Warehouse Dispatch Note List (columns: SO No., Dispatch No., Customer, Item, Qty, Status, Tracking, Comments)
-//   • End-to-end fulfilment: Pending → Allocated → Picking → Picked → Packing → Packed → Ready → Dispatched → Delivered.
 
 export type DispatchStatus =
   | 'PENDING'
@@ -36,6 +31,19 @@ export const DISPATCH_STATUS_FLOW: DispatchStatus[] = [
   'DELIVERED',
 ];
 
+export interface DispatchNoteLine {
+  id: string;
+  itemCode: string;
+  itemName: string;
+  orderedQty: number;
+  pickedQty: number;
+  dispatchQty: number;
+  deliveredQty: number;
+  // Units confirmed damaged on arrival, out of deliveredQty — captured at delivery
+  // confirmation, separate from condition so partial-damage quantities are exact.
+  damagedQty?: number;
+}
+
 export interface DispatchNote {
   id: string;
   dispatchNumber: string; // DSP-YYYY-#####
@@ -45,147 +53,171 @@ export interface DispatchNote {
   customerAddress: string;
   warehouseCode: string;
   warehouseName?: string;
-  itemCode: string;
-  itemName: string;
-  orderedQty: number;
-  dispatchQty: number;
   status: DispatchStatus;
+  lines: DispatchNoteLine[];
   dispatchDate?: string;
   carrier?: string;
-  trackingNumber?: string;
+  // Tracking number lives on the Transport Cost claim, not here — several dispatch
+  // notes from the same warehouse can go out as one consolidated shipment under one
+  // tracking number, so it's a fact about that shipment (the claim), not any single
+  // dispatch note.
   expectedDeliveryDate?: string;
   actualDeliveryDate?: string;
   comments?: string;
+  receiverName?: string;
+  podReference?: string;
+  // Set when a vendor/warehouse reports the shipment can't be completed after it has
+  // already left the warehouse (DELIVERY_EXCEPTION) — the reason is mandatory so there's
+  // always a record of why.
+  rejectionReason?: string;
+  attachment?: {
+    fileName: string;
+    fileData?: string;
+    fileType?: string;
+    uploadedAt?: string;
+    receiverName?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
 
-const FILE = 'dispatch_notes.json';
+const DN_INCLUDE = { lines: true } as const;
+type DispatchNoteRow = Awaited<ReturnType<typeof prisma.dispatchNote.findFirstOrThrow<{ include: typeof DN_INCLUDE }>>>;
 
-export function loadDispatchNotes(): DispatchNote[] {
-  ensureDataDir();
-  const p = dataFilePath(FILE);
-  if (!fs.existsSync(p)) return SEED_DISPATCH_NOTES;
-  try {
-    return JSON.parse(fs.readFileSync(p, 'utf-8')) as DispatchNote[];
-  } catch {
-    return SEED_DISPATCH_NOTES;
-  }
+function toLine(row: DispatchNoteRow['lines'][number]): DispatchNoteLine {
+  return {
+    id: row.id,
+    itemCode: row.itemCode,
+    itemName: row.itemName,
+    orderedQty: row.orderedQty,
+    pickedQty: row.pickedQty,
+    dispatchQty: row.dispatchQty,
+    deliveredQty: row.deliveredQty,
+    damagedQty: row.damagedQty,
+  };
 }
 
-export function saveDispatchNotes(records: DispatchNote[]) {
-  ensureDataDir();
-  fs.writeFileSync(dataFilePath(FILE), JSON.stringify(records, null, 2), 'utf-8');
+function toDispatchNote(row: DispatchNoteRow): DispatchNote {
+  return {
+    id: row.id,
+    dispatchNumber: row.dispatchNumber,
+    salesOrderNumber: row.salesOrderNumber,
+    salesOrderId: row.salesOrderId ?? undefined,
+    customerName: row.customerName,
+    customerAddress: row.customerAddress,
+    warehouseCode: row.warehouseCode,
+    warehouseName: row.warehouseName ?? undefined,
+    status: row.status as DispatchStatus,
+    lines: (row.lines || []).map(toLine),
+    dispatchDate: row.dispatchDate?.toISOString(),
+    carrier: row.carrier ?? undefined,
+    expectedDeliveryDate: row.expectedDeliveryDate?.toISOString(),
+    actualDeliveryDate: row.actualDeliveryDate?.toISOString(),
+    comments: row.comments ?? undefined,
+    receiverName: row.receiverName ?? undefined,
+    podReference: row.podReference ?? undefined,
+    rejectionReason: row.rejectionReason ?? undefined,
+    attachment: row.attachmentFileName
+      ? {
+          fileName: row.attachmentFileName,
+          fileData: row.attachmentFileData ?? undefined,
+          fileType: row.attachmentFileType ?? undefined,
+          uploadedAt: row.attachmentUploadedAt?.toISOString(),
+          receiverName: row.receiverName ?? undefined,
+        }
+      : undefined,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
-export function nextDispatchNumber(): string {
-  const y = new Date().getFullYear();
-  const existing = loadDispatchNotes();
-  const seq = existing.filter((d) => d.dispatchNumber.includes(`DSP-${y}-`)).length + 1;
-  return `DSP-${y}-${String(seq).padStart(5, '0')}`;
+export async function loadDispatchNotes(): Promise<DispatchNote[]> {
+  const rows = await prisma.dispatchNote.findMany({ include: DN_INCLUDE, orderBy: { createdAt: 'desc' } });
+  return rows.map(toDispatchNote);
 }
 
 // BR-012 atomic number allocation.
 export async function createDispatchNote(input: Omit<DispatchNote, 'id' | 'dispatchNumber' | 'createdAt' | 'updatedAt' | 'status'> & { status?: DispatchStatus }): Promise<DispatchNote> {
-  const now = new Date().toISOString();
-  const rec: DispatchNote = {
-    ...input,
-    id: `dsp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-    dispatchNumber: await nextDocumentNumber('DN'),
-    status: input.status || 'PENDING',
-    createdAt: now,
-    updatedAt: now,
-  };
-  const records = loadDispatchNotes();
-  records.push(rec);
-  saveDispatchNotes(records);
-  return rec;
+  const dispatchNumber = await nextDocumentNumber('DN');
+  const row = await prisma.dispatchNote.create({
+    data: {
+      dispatchNumber,
+      salesOrderNumber: input.salesOrderNumber,
+      salesOrderId: input.salesOrderId,
+      customerName: input.customerName,
+      customerAddress: input.customerAddress,
+      warehouseCode: input.warehouseCode,
+      warehouseName: input.warehouseName,
+      // Starts at ALLOCATED, not READY_FOR_DISPATCH — picking and dispatch are separate,
+      // vendor-performed steps that still need to happen before this is actually ready.
+      status: input.status || 'ALLOCATED',
+      dispatchDate: input.dispatchDate ? new Date(input.dispatchDate) : null,
+      carrier: input.carrier,
+      expectedDeliveryDate: input.expectedDeliveryDate ? new Date(input.expectedDeliveryDate) : null,
+      actualDeliveryDate: input.actualDeliveryDate ? new Date(input.actualDeliveryDate) : null,
+      comments: input.comments,
+      receiverName: input.receiverName,
+      podReference: input.podReference,
+      rejectionReason: input.rejectionReason,
+      attachmentFileName: input.attachment?.fileName,
+      attachmentFileData: input.attachment?.fileData,
+      attachmentFileType: input.attachment?.fileType,
+      attachmentUploadedAt: input.attachment?.uploadedAt ? new Date(input.attachment.uploadedAt) : undefined,
+      lines: {
+        create: input.lines.map((l) => ({
+          itemCode: l.itemCode,
+          itemName: l.itemName,
+          orderedQty: l.orderedQty,
+          pickedQty: l.pickedQty,
+          dispatchQty: l.dispatchQty,
+          deliveredQty: l.deliveredQty,
+          damagedQty: l.damagedQty || 0,
+        })),
+      },
+    },
+    include: DN_INCLUDE,
+  });
+  return toDispatchNote(row);
 }
 
-export function updateDispatchNote(id: string, patch: Partial<DispatchNote>): DispatchNote | null {
-  const records = loadDispatchNotes();
-  const idx = records.findIndex((r) => r.id === id);
-  if (idx < 0) return null;
-  records[idx] = { ...records[idx], ...patch, id: records[idx].id, updatedAt: new Date().toISOString() };
-  saveDispatchNotes(records);
-  return records[idx];
-}
+export async function updateDispatchNote(id: string, patch: Partial<DispatchNote>): Promise<DispatchNote | null> {
+  const data: any = {};
+  (['salesOrderNumber', 'salesOrderId', 'customerName', 'customerAddress', 'warehouseCode', 'warehouseName', 'status', 'carrier', 'comments', 'receiverName', 'podReference', 'rejectionReason'] as const).forEach((k) => {
+    if (patch[k] !== undefined) data[k] = patch[k];
+  });
+  if (patch.dispatchDate !== undefined) data.dispatchDate = patch.dispatchDate ? new Date(patch.dispatchDate) : null;
+  if (patch.expectedDeliveryDate !== undefined) data.expectedDeliveryDate = patch.expectedDeliveryDate ? new Date(patch.expectedDeliveryDate) : null;
+  if (patch.actualDeliveryDate !== undefined) data.actualDeliveryDate = patch.actualDeliveryDate ? new Date(patch.actualDeliveryDate) : null;
+  if (patch.attachment !== undefined) {
+    data.attachmentFileName = patch.attachment?.fileName ?? null;
+    data.attachmentFileData = patch.attachment?.fileData ?? null;
+    data.attachmentFileType = patch.attachment?.fileType ?? null;
+    data.attachmentUploadedAt = patch.attachment?.uploadedAt ? new Date(patch.attachment.uploadedAt) : null;
+  }
 
-// Seed a small demo set matching the SRS document example rows.
-const SEED_DISPATCH_NOTES: DispatchNote[] = [
-  {
-    id: 'dsp_seed_1',
-    dispatchNumber: 'DSP-2026-00087',
-    salesOrderNumber: 'SO-2026-00125',
-    customerName: 'Customer A',
-    customerAddress: '12 Collins St, Melbourne VIC 3000',
-    warehouseCode: 'WH-SYD-01',
-    warehouseName: 'Sydney Central Logistics Hub',
-    itemCode: 'ITEM-001',
-    itemName: 'Zebra DS2200 Handheld Barcode Scanner',
-    orderedQty: 50,
-    dispatchQty: 50,
-    status: 'PICKING',
-    comments: 'Picking in progress',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'dsp_seed_2',
-    dispatchNumber: 'DSP-2026-00088',
-    salesOrderNumber: 'SO-2026-00126',
-    customerName: 'Customer B',
-    customerAddress: '55 George St, Sydney NSW 2000',
-    warehouseCode: 'WH-SYD-01',
-    warehouseName: 'Sydney Central Logistics Hub',
-    itemCode: 'ITEM-025',
-    itemName: 'Honeywell CT47 Mobile Computer',
-    orderedQty: 100,
-    dispatchQty: 100,
-    status: 'PACKED',
-    comments: 'Ready for dispatch',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'dsp_seed_3',
-    dispatchNumber: 'DSP-2026-00089',
-    salesOrderNumber: 'SO-2026-00127',
-    customerName: 'Customer C',
-    customerAddress: '200 Queen St, Brisbane QLD 4000',
-    warehouseCode: 'WH-MEL-02',
-    warehouseName: 'Melbourne Fulfilment Facility',
-    itemCode: 'ITEM-014',
-    itemName: 'Impinj Speedway R420 RFID Reader',
-    orderedQty: 25,
-    dispatchQty: 25,
-    status: 'IN_TRANSIT',
-    trackingNumber: 'TRK45879621',
-    carrier: 'StarTrack Express',
-    comments: 'Dispatched via courier',
-    dispatchDate: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'dsp_seed_4',
-    dispatchNumber: 'DSP-2026-00090',
-    salesOrderNumber: 'SO-2026-00128',
-    customerName: 'Customer D',
-    customerAddress: '350 St Georges Tce, Perth WA 6000',
-    warehouseCode: 'WH-BNE-03',
-    warehouseName: 'Brisbane Regional Depot',
-    itemCode: 'ITEM-032',
-    itemName: 'Bixolon SLP-DX420 Desktop Printer',
-    orderedQty: 75,
-    dispatchQty: 75,
-    status: 'DELIVERED',
-    trackingNumber: 'TRK45879635',
-    carrier: 'Toll IPEC',
-    comments: 'Delivered successfully',
-    dispatchDate: new Date(Date.now() - 3 * 86400000).toISOString(),
-    actualDeliveryDate: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.dispatchNote.update({ where: { id }, data });
+
+      if (patch.lines) {
+        for (const line of patch.lines) {
+          if (!line.id) continue;
+          await tx.dispatchNoteLine.update({
+            where: { id: line.id },
+            data: {
+              pickedQty: line.pickedQty,
+              dispatchQty: line.dispatchQty,
+              deliveredQty: line.deliveredQty,
+              damagedQty: line.damagedQty,
+            },
+          }).catch(() => {});
+        }
+      }
+    });
+  } catch {
+    return null;
+  }
+
+  const row = await prisma.dispatchNote.findUnique({ where: { id }, include: DN_INCLUDE });
+  return row ? toDispatchNote(row) : null;
+}

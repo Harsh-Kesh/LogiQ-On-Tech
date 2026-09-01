@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { loadPersistentProducts, savePersistentProducts, PersistentProduct } from '@/lib/products';
+import { loadPersistentProducts, createItemMasterRecord } from '@/lib/products';
 import { loadCategories } from '@/lib/categories';
 import { loadUOMs } from '@/lib/uom';
-import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM')) {
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
     return NextResponse.json({ error: 'Unauthorized: Owner or MDM role required.' }, { status: 403 });
   }
 
@@ -22,12 +21,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'CSV items payload array is required.' }, { status: 400 });
     }
 
-    const categories = loadCategories();
-    const uoms = loadUOMs();
-    const persistentProducts = loadPersistentProducts();
+    const categories = await loadCategories();
+    const uoms = await loadUOMs();
+    const persistentProducts = await loadPersistentProducts();
+    const existingSkus = new Set(Object.values(persistentProducts).map((p) => p.sku.toUpperCase()));
 
     let createdCount = 0;
-    const importedItems: PersistentProduct[] = [];
 
     for (let idx = 0; idx < rawItems.length; idx++) {
       const row = rawItems[idx];
@@ -39,14 +38,17 @@ export async function POST(req: Request) {
       const uomObj = uoms.find((u) => u.code.toLowerCase() === (row.uom || row.uomCode || '').toLowerCase() || u.name.toLowerCase() === (row.uom || '').toLowerCase());
 
       const seq = Math.floor(100 + Math.random() * 900);
-      const sku = row.sku && row.sku.trim() ? row.sku.trim().toUpperCase() : `LQ-${catCode}-${seq}${idx}`;
+      let sku = row.sku && row.sku.trim() ? row.sku.trim().toUpperCase() : `LQ-${catCode}-${seq}${idx}`;
+      if (existingSkus.has(sku)) sku = `${sku}-${Date.now().toString().slice(-4)}`;
+      existingSkus.add(sku);
+
       const barcode = row.barcode && row.barcode.trim() ? row.barcode.trim() : `93123450${Math.floor(10000 + Math.random() * 89999)}`;
       const costPrice = parseFloat(row.costPrice || '0');
       const sellingPrice = parseFloat(row.sellingPrice || '0');
       const status = ['ACTIVE', 'DRAFT', 'DISCONTINUED'].includes(row.status) ? row.status : 'ACTIVE';
 
       const itemId = `item_csv_${Date.now()}_${idx}`;
-      const newItem: PersistentProduct = {
+      await createItemMasterRecord({
         id: itemId,
         sku,
         barcode,
@@ -54,42 +56,14 @@ export async function POST(req: Request) {
         description: row.description || '',
         costPrice: isNaN(costPrice) ? 0 : costPrice,
         sellingPrice: isNaN(sellingPrice) ? 0 : sellingPrice,
+        moq: 1,
         status,
         vendorId: null,
-        vendorEmail: user.email || 'admin@logiqon.tech',
-        categoryId: catObj ? catObj.id : undefined,
-        categoryName: catObj ? catObj.name : 'General Hardware',
-        uomId: uomObj ? uomObj.id : undefined,
-        uomCode: uomObj ? uomObj.code : 'PCS',
-        uomName: uomObj ? uomObj.name : 'Pieces',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      persistentProducts[itemId] = newItem;
-      importedItems.push(newItem);
+        categoryId: catObj ? catObj.id : null,
+        uomId: uomObj ? uomObj.id : null,
+      });
       createdCount++;
-
-      try {
-        await prisma.itemMaster.create({
-          data: {
-            id: itemId,
-            sku,
-            barcode,
-            itemName: name,
-            description: newItem.description,
-            costPrice: newItem.costPrice,
-            sellingPrice: newItem.sellingPrice,
-            status: status as any,
-            vendorId: newItem.vendorId,
-            categoryId: catObj ? catObj.id : null,
-            uomId: uomObj ? uomObj.id : null,
-          },
-        });
-      } catch (e: any) {}
     }
-
-    savePersistentProducts(persistentProducts);
 
     await logAuditEvent({
       userId: user.id,

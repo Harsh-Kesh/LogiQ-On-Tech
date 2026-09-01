@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { loadUOMs, saveUOMs, UnitOfMeasureItem } from '@/lib/uom';
-import { prisma } from '@/lib/prisma';
+import { loadUOMs, createUOM, updateUOM, deleteUOM } from '@/lib/uom';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function GET() {
@@ -10,7 +9,7 @@ export async function GET() {
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const uoms = loadUOMs();
+  const uoms = await loadUOMs();
   return NextResponse.json({ uoms });
 }
 
@@ -18,8 +17,8 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM')) {
-    return NextResponse.json({ error: 'Unauthorized: MDM or Owner role required.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Platform Owner or Vendor role required.' }, { status: 403 });
   }
 
   try {
@@ -30,39 +29,19 @@ export async function POST(req: Request) {
     }
 
     const cleanCode = code.toUpperCase().trim();
-    const id = `uom_${cleanCode.toLowerCase()}`;
-    const newUOM: UnitOfMeasureItem = {
-      id,
-      code: cleanCode,
-      name: name.trim(),
-      description: description || '',
-    };
-
-    const uoms = loadUOMs();
+    const uoms = await loadUOMs();
     if (uoms.some((u) => u.code === cleanCode)) {
       return NextResponse.json({ error: `UOM code "${cleanCode}" already exists.` }, { status: 400 });
     }
 
-    uoms.push(newUOM);
-    saveUOMs(uoms);
-
-    try {
-      await prisma.unitOfMeasure.create({
-        data: {
-          id,
-          code: cleanCode,
-          name: newUOM.name,
-          description: newUOM.description,
-        },
-      });
-    } catch (e: any) {}
+    const newUOM = await createUOM({ code: cleanCode, name, description });
 
     await logAuditEvent({
       userId: user.id,
       role: user.role,
       action: 'UOM_CREATED',
       module: 'MASTER_DATA_MDM',
-      targetId: id,
+      targetId: newUOM.id,
       payloadJson: { code: cleanCode, name: newUOM.name },
     }).catch(() => {});
 
@@ -76,8 +55,8 @@ export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM')) {
-    return NextResponse.json({ error: 'Unauthorized: MDM or Owner role required.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Platform Owner or Vendor role required.' }, { status: 403 });
   }
 
   try {
@@ -91,24 +70,13 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'UOM Name is required.' }, { status: 400 });
     }
 
-    const uoms = loadUOMs();
-    const idx = uoms.findIndex((u) => u.id === id);
-
-    if (idx === -1) {
+    const uoms = await loadUOMs();
+    const existing = uoms.find((u) => u.id === id);
+    if (!existing) {
       return NextResponse.json({ error: 'UOM not found.' }, { status: 404 });
     }
 
-    const oldName = uoms[idx].name;
-    uoms[idx].name = name.trim();
-    if (description !== undefined) uoms[idx].description = description;
-    saveUOMs(uoms);
-
-    try {
-      await prisma.unitOfMeasure.update({
-        where: { id },
-        data: { name: name.trim(), description: description || uoms[idx].description },
-      });
-    } catch (e: any) {}
+    const updated = await updateUOM(id, { name, description });
 
     await logAuditEvent({
       userId: user.id,
@@ -116,10 +84,10 @@ export async function PUT(req: Request) {
       action: 'UOM_UPDATED',
       module: 'MASTER_DATA_MDM',
       targetId: id,
-      payloadJson: { oldName, newName: name.trim() },
+      payloadJson: { oldName: existing.name, newName: updated.name },
     }).catch(() => {});
 
-    return NextResponse.json({ success: true, uom: uoms[idx] });
+    return NextResponse.json({ success: true, uom: updated });
   } catch (error: any) {
     return NextResponse.json({ error: 'Failed to update UOM.' }, { status: 500 });
   }
@@ -129,8 +97,8 @@ export async function DELETE(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'MDM')) {
-    return NextResponse.json({ error: 'Unauthorized: MDM or Owner role required.' }, { status: 403 });
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
+    return NextResponse.json({ error: 'Unauthorized: Platform Owner or Vendor role required.' }, { status: 403 });
   }
 
   try {
@@ -141,7 +109,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'UOM ID is required.' }, { status: 400 });
     }
 
-    const uoms = loadUOMs();
+    const uoms = await loadUOMs();
     const target = uoms.find((u) => u.id === id);
 
     if (!target) {
@@ -157,12 +125,7 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const filtered = uoms.filter((u) => u.id !== id);
-    saveUOMs(filtered);
-
-    try {
-      await prisma.unitOfMeasure.delete({ where: { id } });
-    } catch (e: any) {}
+    await deleteUOM(id);
 
     await logAuditEvent({
       userId: user.id,

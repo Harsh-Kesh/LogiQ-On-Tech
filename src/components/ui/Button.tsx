@@ -26,12 +26,12 @@ export function Button({
   const baseStyles = 'inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap shrink-0 font-bold transition-all rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantStyles: Record<ButtonVariant, string> = {
-    primary: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/25 border border-emerald-500/30',
+    primary: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 border border-indigo-500/30',
     secondary: 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200',
     outline: 'bg-transparent text-slate-700 hover:bg-slate-100 border border-slate-300',
     ghost: 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100',
     danger: 'bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/20 border border-rose-400/30',
-    success: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 border border-emerald-400/30',
+    success: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 border border-indigo-400/30',
   };
 
   const sizeStyles: Record<ButtonSize, string> = {

@@ -3,14 +3,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loadPersistentProducts } from '@/lib/products';
 import { addStockLedgerEntry, loadPersistentWarehouses } from '@/lib/stock';
-import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'WAREHOUSE')) {
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
     return NextResponse.json({ error: 'Unauthorized: Admin or Warehouse operator access required.' }, { status: 403 });
   }
 
@@ -22,7 +21,7 @@ export async function POST(req: Request) {
   }
 
   // Load Item Master details
-  const persistentProducts = loadPersistentProducts();
+  const persistentProducts = await loadPersistentProducts();
   let item = persistentProducts[itemMasterId] || Object.values(persistentProducts).find((p) => p.id === itemMasterId || p.sku === itemMasterId);
 
   if (!item) {
@@ -30,7 +29,7 @@ export async function POST(req: Request) {
   }
 
   // Load Warehouse Location
-  const persistentWarehouses = loadPersistentWarehouses();
+  const persistentWarehouses = await loadPersistentWarehouses();
   const wh = persistentWarehouses[warehouseCode.trim().toUpperCase()] || Object.values(persistentWarehouses).find((w) => w.code === warehouseCode || w.id === warehouseCode);
 
   if (!wh) {
@@ -47,7 +46,7 @@ export async function POST(req: Request) {
     : (vendorId ? 'Vendor Supplier' : 'LogiQ-On Internal Stock');
 
   // Append IMMUTABLE Stock Ledger RECEIPT row
-  const ledgerRow = addStockLedgerEntry({
+  const ledgerRow = await addStockLedgerEntry({
     warehouseId: wh.id,
     warehouseCode: wh.code,
     warehouseName: wh.name,
@@ -65,44 +64,6 @@ export async function POST(req: Request) {
     createdById: user.id,
     createdByEmail: user.email,
   });
-
-  // Database synchronization
-  try {
-    const existingStock = await prisma.warehouseStock.findFirst({
-      where: { warehouseId: wh.id, itemMasterId: item.id, binLocation: binLocation.trim().toUpperCase() },
-    });
-
-    if (existingStock) {
-      await prisma.warehouseStock.update({
-        where: { id: existingStock.id },
-        data: { quantityOnHand: { increment: qty } },
-      });
-    } else {
-      await prisma.warehouseStock.create({
-        data: {
-          warehouseId: wh.id,
-          itemMasterId: item.id,
-          binLocation: binLocation.trim().toUpperCase(),
-          quantityOnHand: qty,
-        },
-      });
-    }
-
-    await prisma.stockLedger.create({
-      data: {
-        warehouseId: wh.id,
-        itemMasterId: item.id,
-        binLocation: binLocation.trim().toUpperCase(),
-        movementType: 'RECEIPT',
-        quantityDelta: qty,
-        referenceNumber: ledgerRow.referenceNumber,
-        reasonCode: ledgerRow.reasonCode,
-        createdById: user.id,
-      },
-    });
-  } catch (e: any) {
-    console.warn('Prisma stock receiving sync warning:', e.message);
-  }
 
   await logAuditEvent({
     userId: user.id,

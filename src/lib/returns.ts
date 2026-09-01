@@ -1,5 +1,4 @@
-import fs from 'fs';
-
+import { prisma } from './prisma';
 import { addStockLedgerEntry, loadPersistentWarehouses } from './stock';
 import { loadPersistentProducts } from './products';
 
@@ -27,79 +26,36 @@ export interface RmaReturnRequest {
   createdAt: string;
 }
 
-import { ensureDataDir, dataFilePath } from './storage';
-const RETURNS_FILE = dataFilePath('persistent_returns.json');
-
-
-export function loadPersistentReturns(): RmaReturnRequest[] {
-  ensureDataDir();
-  try {
-    if (fs.existsSync(RETURNS_FILE)) {
-      const data = fs.readFileSync(RETURNS_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (e) {}
-
-  const seeded = getSeededReturns();
-  savePersistentReturns(seeded);
-  return seeded;
+function toReturn(row: any): RmaReturnRequest {
+  return {
+    id: row.id,
+    rmaNumber: row.rmaNumber,
+    orderId: row.orderId,
+    orderNumber: row.orderNumber ?? undefined,
+    customerName: row.customerName,
+    itemMasterId: row.itemMasterId,
+    sku: row.sku,
+    itemName: row.itemName,
+    barcode: row.barcode,
+    warehouseCode: row.warehouseCode,
+    warehouseName: row.warehouseName,
+    binLocation: row.binLocation,
+    quantityReturned: row.quantityReturned,
+    condition: row.condition as ReturnCondition,
+    reasonCode: row.reasonCode,
+    notes: row.notes ?? undefined,
+    createdById: row.createdById ?? undefined,
+    createdByEmail: row.createdByEmail ?? undefined,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
 
-export function savePersistentReturns(returnsList: RmaReturnRequest[]) {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(RETURNS_FILE, JSON.stringify(returnsList, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('[RETURNS] Failed to persist returns data:', e);
-  }
+export async function loadPersistentReturns(): Promise<RmaReturnRequest[]> {
+  const rows = await prisma.rmaReturn.findMany({ orderBy: { createdAt: 'desc' } });
+  return rows.map(toReturn);
 }
 
-export function getSeededReturns(): RmaReturnRequest[] {
-  return [
-    {
-      id: 'rma_seeded_101',
-      rmaNumber: 'RMA-2026-101',
-      orderId: 'ord_syd_901',
-      orderNumber: 'ORD-2026-901',
-      customerName: 'TechRetail Logistics Centre Sydney',
-      itemMasterId: 'item_01',
-      sku: 'LQ-SCN-00101',
-      itemName: 'Industrial Handheld Wireless Barcode Scanner 2D (HD-900)',
-      barcode: '9312345001015',
-      warehouseCode: 'WH-SYD-01',
-      warehouseName: 'Sydney Central Logistics Hub',
-      binLocation: 'BIN-A1-01',
-      quantityReturned: 1,
-      condition: 'RESTOCKABLE',
-      reasonCode: 'Customer Ordered Excess Stock',
-      notes: 'Inspected by Sydney Warehouse Desk, original seal intact.',
-      createdByEmail: 'sydney.manager@logiqon.com',
-      createdAt: '2026-08-11T10:15:00.000Z',
-    },
-    {
-      id: 'rma_seeded_102',
-      rmaNumber: 'RMA-2026-102',
-      orderId: 'ord_mel_902',
-      orderNumber: 'ORD-2026-902',
-      customerName: 'Victorian Express Fulfillment Depot',
-      itemMasterId: 'item_02',
-      sku: 'LQ-PRT-00102',
-      itemName: 'Thermal Transfer Desktop Label Printer 300DPI (LogiPrint-30)',
-      barcode: '9312345001022',
-      warehouseCode: 'WH-MEL-02',
-      warehouseName: 'Melbourne Fulfilment Facility',
-      binLocation: 'BIN-A1-02',
-      quantityReturned: 1,
-      condition: 'DAMAGED_WRITE_OFF',
-      reasonCode: 'Transit Damage by Carrier',
-      notes: 'Casing cracked during carrier transit, isolated to write-off bay.',
-      createdByEmail: 'melbourne.manager@logiqon.com',
-      createdAt: '2026-08-11T11:45:00.000Z',
-    },
-  ];
-}
-
-export function processRmaReturn(
+export async function processRmaReturn(
   data: {
     rmaNumber?: string;
     orderId?: string;
@@ -115,37 +71,46 @@ export function processRmaReturn(
     operatorEmail?: string;
     operatorId?: string;
   }
-): RmaReturnRequest {
-  const returnsList = loadPersistentReturns();
-  const persistentProducts = loadPersistentProducts();
-  const persistentWarehouses = loadPersistentWarehouses();
+): Promise<RmaReturnRequest> {
+  const persistentProducts = await loadPersistentProducts();
+  const persistentWarehouses = await loadPersistentWarehouses();
 
   const item = persistentProducts[data.itemMasterId] || Object.values(persistentProducts).find((p) => p.id === data.itemMasterId || p.sku === data.itemMasterId);
   const wh = persistentWarehouses[data.warehouseCode.trim().toUpperCase()] || Object.values(persistentWarehouses).find((w) => w.code === data.warehouseCode || w.id === data.warehouseCode);
 
-  const rmaNum = data.rmaNumber || `RMA-2026-${Math.floor(100 + Math.random() * 900)}`;
+  const rmaNumber = data.rmaNumber || `RMA-2026-${Math.floor(100 + Math.random() * 900)}`;
+  const warehouseCode = wh ? wh.code : data.warehouseCode;
+  const warehouseName = wh ? wh.name : data.warehouseCode;
+  const binLocation = data.binLocation.trim().toUpperCase();
+  const itemMasterId = item ? item.id : data.itemMasterId;
+  const sku = item ? item.sku : 'SKU-UNKNOWN';
+  const itemName = item ? item.itemName : 'Returned Product Item';
+  const barcode = item ? item.barcode : 'EAN-UNKNOWN';
+  const createdByEmail = data.operatorEmail || 'system.operator@logiqon.com';
+  const createdById = data.operatorId || 'usr_system';
 
-  const newReturn: RmaReturnRequest = {
-    id: `rma_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-    rmaNumber: rmaNum,
-    orderId: data.orderId || null,
-    orderNumber: data.orderNumber || 'DIRECT-RMA',
-    customerName: data.customerName,
-    itemMasterId: item ? item.id : data.itemMasterId,
-    sku: item ? item.sku : 'SKU-UNKNOWN',
-    itemName: item ? item.itemName : 'Returned Product Item',
-    barcode: item ? item.barcode : 'EAN-UNKNOWN',
-    warehouseCode: wh ? wh.code : data.warehouseCode,
-    warehouseName: wh ? wh.name : data.warehouseCode,
-    binLocation: data.binLocation.trim().toUpperCase(),
-    quantityReturned: data.quantityReturned,
-    condition: data.condition,
-    reasonCode: data.reasonCode,
-    notes: data.notes || '',
-    createdByEmail: data.operatorEmail || 'system.operator@logiqon.com',
-    createdById: data.operatorId || 'usr_system',
-    createdAt: new Date().toISOString(),
-  };
+  const row = await prisma.rmaReturn.create({
+    data: {
+      rmaNumber,
+      orderId: data.orderId || null,
+      orderNumber: data.orderNumber || 'DIRECT-RMA',
+      customerName: data.customerName,
+      itemMasterId,
+      sku,
+      itemName,
+      barcode,
+      warehouseCode,
+      warehouseName,
+      binLocation,
+      quantityReturned: data.quantityReturned,
+      condition: data.condition,
+      reasonCode: data.reasonCode,
+      notes: data.notes || '',
+      createdByEmail,
+      createdById,
+    },
+  });
+  const newReturn = toReturn(row);
 
   // Determine Stock Ledger Action
   // If RESTOCKABLE -> Write RETURN movement row (+qty)
@@ -156,30 +121,25 @@ export function processRmaReturn(
   const reasonText = isRestockable
     ? `RMA Customer Return (${newReturn.rmaNumber}): Restocked`
     : `RMA Customer Return (${newReturn.rmaNumber}): Damaged Write-off`;
-  const referenceNumber = isRestockable
-    ? newReturn.rmaNumber
-    : `${newReturn.rmaNumber} - DAMAGED_WRITE_OFF - No stock movement (already deducted at dispatch)`;
 
-  addStockLedgerEntry({
+  await addStockLedgerEntry({
     warehouseId: wh ? wh.id : 'wh_syd_01',
-    warehouseCode: newReturn.warehouseCode,
-    warehouseName: newReturn.warehouseName,
-    itemMasterId: newReturn.itemMasterId,
-    sku: newReturn.sku,
-    barcode: newReturn.barcode,
-    itemName: newReturn.itemName,
+    warehouseCode,
+    warehouseName,
+    itemMasterId,
+    sku,
+    barcode,
+    itemName,
     vendorId: item?.vendorId || null,
     vendorName: item?.vendorName || 'Vendor Partner',
-    binLocation: newReturn.binLocation,
+    binLocation,
     movementType: movementType as any,
     quantityDelta: delta,
     referenceNumber: newReturn.rmaNumber,
     reasonCode: `${newReturn.reasonCode} - ${reasonText}`,
-    createdById: newReturn.createdById || 'usr_system',
-    createdByEmail: newReturn.createdByEmail || 'system.operator@logiqon.com',
+    createdById,
+    createdByEmail,
   });
 
-  returnsList.unshift(newReturn);
-  savePersistentReturns(returnsList);
   return newReturn;
 }

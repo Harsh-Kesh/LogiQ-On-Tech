@@ -23,7 +23,7 @@ export function Toast({ message, type = 'info', onClose }: ToastProps) {
     <div
       className={`p-4 rounded-2xl shadow-xl border flex items-center justify-between gap-3 ${
         type === 'success'
-          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+          ? 'bg-indigo-50 border-indigo-200 text-indigo-900'
           : type === 'error'
           ? 'bg-rose-50 border-rose-200 text-rose-900'
           : type === 'warning'
@@ -32,7 +32,7 @@ export function Toast({ message, type = 'info', onClose }: ToastProps) {
       }`}
     >
       <div className="flex items-center gap-2.5">
-        {type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+        {type === 'success' && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
         {type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600" />}
         {type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-600" />}
         {type === 'info' && <Info className="w-5 h-5 text-sky-600" />}
@@ -79,7 +79,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             className={`pointer-events-auto p-4 rounded-2xl shadow-2xl border flex items-start gap-3 transition-all ${
               t.type === 'success'
-                ? 'bg-white border-emerald-200 text-slate-900'
+                ? 'bg-white border-indigo-200 text-slate-900'
                 : t.type === 'error'
                 ? 'bg-white border-rose-200 text-slate-900'
                 : t.type === 'warning'
@@ -88,7 +88,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             }`}
           >
             <div className="shrink-0 mt-0.5">
-              {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+              {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
               {t.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600" />}
               {t.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-600" />}
               {t.type === 'info' && <Info className="w-5 h-5 text-sky-600" />}

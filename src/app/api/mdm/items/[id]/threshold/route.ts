@@ -8,7 +8,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'WAREHOUSE' && user.role !== 'MDM')) {
+  if (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'VENDOR')) {
     return NextResponse.json({ error: 'Unauthorized: Admin, Warehouse, or MDM role required.' }, { status: 403 });
   }
 
@@ -22,7 +22,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: 'Valid non-negative low stock threshold number is required.' }, { status: 400 });
   }
 
-  const updatedProduct = updateItemThreshold(productId, threshold, reorderQty);
+  const updatedProduct = await updateItemThreshold(productId, threshold, reorderQty);
 
   if (!updatedProduct) {
     return NextResponse.json({ error: `Product item '${productId}' not found.` }, { status: 404 });

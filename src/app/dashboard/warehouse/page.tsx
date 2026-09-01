@@ -4,23 +4,17 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
   Warehouse, ArrowRight, ShieldCheck, Box, CheckCircle2,
-  TrendingUp, History, PackageCheck, MapPin, UserCheck, Globe
+  TrendingUp, History, MapPin, UserCheck, Globe,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-
-const WAREHOUSE_MANAGERS: Record<string, { name: string; email: string }> = {
-  'WH-SYD-01': { name: 'Jack Taylor (Sydney Warehouse Manager)', email: 'sydney.manager@logiqon.com' },
-  'WH-MEL-02': { name: 'Sarah Jenkins (Melbourne Operations Lead)', email: 'melbourne.manager@logiqon.com' },
-  'WH-BNE-03': { name: 'Michael Chang (Brisbane Hub Supervisor)', email: 'brisbane.manager@logiqon.com' },
-  'WH-PER-04': { name: 'David Wilson (Perth Regional Manager)', email: 'perth.manager@logiqon.com' },
-};
+import WarehouseOpsTabs from '@/components/warehouse/WarehouseOpsTabs';
 
 export default function WarehouseDashboardPage() {
   const { data: session } = useSession();
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [selectedWarehouseCode, setSelectedWarehouseCode] = useState<string>('ALL');
-  const [stock, setStock] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
+  const [whSummary, setWhSummary] = useState<Record<string, { totalQty: number; itemCount: number }>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,54 +22,25 @@ export default function WarehouseDashboardPage() {
   }, []);
 
   useEffect(() => {
-    // If logged in as WAREHOUSE role manager, lock to their assigned facility
-    if (session?.user) {
-      const userRole = (session.user as any).role;
-      const assignedWh = (session.user as any).assignedWarehouseCode;
-      const userEmail = (session.user.email || '').toLowerCase();
-
-      if (userRole === 'WAREHOUSE') {
-        if (assignedWh && assignedWh !== 'ALL' && assignedWh !== 'UNASSIGNED') {
-          setSelectedWarehouseCode(assignedWh);
-          return;
-        }
-
-        // Check dynamic match in loaded warehouses list
-        const matchedWh = warehouses.find(
-          (w) =>
-            (w.managerEmail && w.managerEmail.toLowerCase() === userEmail) ||
-            (w.contactEmail && w.contactEmail.toLowerCase() === userEmail)
-        );
-        if (matchedWh) {
-          setSelectedWarehouseCode(matchedWh.code);
-          return;
-        }
-
-        // Seeded demo email shortcuts ONLY for explicit demo accounts
-        if (userEmail === 'sydney.manager@logiqon.com' || userEmail === 'warehouse@logiqon.tech' || userEmail === 'warehouse@logiqon.com') setSelectedWarehouseCode('WH-SYD-01');
-        else if (userEmail === 'melbourne.manager@logiqon.com') setSelectedWarehouseCode('WH-MEL-02');
-        else if (userEmail === 'brisbane.manager@logiqon.com') setSelectedWarehouseCode('WH-BNE-03');
-        else if (userEmail === 'perth.manager@logiqon.com') setSelectedWarehouseCode('WH-PER-04');
-        else setSelectedWarehouseCode('UNASSIGNED');
-      }
-    }
-  }, [session, warehouses]);
+    // Default to ALL facilities
+    setSelectedWarehouseCode('ALL');
+  }, [session]);
 
   const fetchWarehouseData = async () => {
     setLoading(true);
     try {
-      const [stockRes, ledgerRes, whRes] = await Promise.all([
-        fetch('/api/inventory/stock'),
+      const [ledgerRes, whRes, summaryRes] = await Promise.all([
         fetch('/api/inventory/ledger'),
         fetch('/api/inventory/warehouses'),
+        fetch('/api/inventory/warehouse-summary'),
       ]);
-      const stockData = stockRes.ok ? await stockRes.json() : { stock: [] };
       const ledgerData = ledgerRes.ok ? await ledgerRes.json() : { ledger: [] };
       const whData = whRes.ok ? await whRes.json() : { warehouses: [] };
+      const summaryData = summaryRes.ok ? await summaryRes.json() : { summary: {} };
 
-      setStock(stockData.stock || []);
       setLedger(ledgerData.ledger || []);
       setWarehouses(whData.warehouses || []);
+      setWhSummary(summaryData.summary || {});
     } catch (e) {
       console.error('Failed to load warehouse data:', e);
     } finally {
@@ -83,14 +48,13 @@ export default function WarehouseDashboardPage() {
     }
   };
 
-  const isOwner = (session?.user as any)?.role === 'PLATFORM_OWNER';
   const isGlobal = selectedWarehouseCode === 'ALL';
 
   const activeWarehouse = isGlobal
     ? {
-        code: 'GLOBAL-3PL',
-        name: 'LogiQ-On Global Logistics Fleet',
-        address: 'Enterprise Operations • 3PL Network',
+        code: 'ALL',
+        name: 'All Warehouses',
+        address: 'All facility locations',
         bins: warehouses.flatMap((w) => w.bins || []),
       }
     : warehouses.find((w) => w.code === selectedWarehouseCode) || {
@@ -100,144 +64,97 @@ export default function WarehouseDashboardPage() {
         bins: [{ code: 'BIN-A1-01' }, { code: 'BIN-A1-02' }],
       };
 
-  const activeManager = isGlobal
-    ? {
-        name: 'Logistics Directorate',
-        email: session?.user?.email || 'owner@logiqon.com',
-      }
-    : {
-        name: (activeWarehouse as any).contactPerson || WAREHOUSE_MANAGERS[selectedWarehouseCode]?.name || session?.user?.name || 'Warehouse Manager',
-        email: (activeWarehouse as any).contactEmail || WAREHOUSE_MANAGERS[selectedWarehouseCode]?.email || session?.user?.email || 'sydney.manager@logiqon.com',
-      };
-
-  const filteredStock = isGlobal
-    ? stock
-    : stock.filter((s) => s.warehouseCode === selectedWarehouseCode);
+  // Always reflects the logged-in user viewing this page — it shouldn't change
+  // just because a different warehouse is selected in the dropdown above.
+  const activeManager = {
+    name: session?.user?.name || 'You',
+    email: session?.user?.email || '',
+  };
 
   const filteredLedger = isGlobal
     ? ledger
     : ledger.filter((l) => l.warehouseCode === selectedWarehouseCode);
 
-  const totalStockCount = filteredStock.reduce((sum, item) => sum + (item.quantityOnHand || 0), 0);
-
-  if (selectedWarehouseCode === 'UNASSIGNED') {
-    return (
-      <div className="p-8 md:p-12 rounded-3xl bg-white border border-amber-200 shadow-sm space-y-6 max-w-3xl mx-auto text-center my-8 font-sans">
-        <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl border border-amber-200 flex items-center justify-center mx-auto">
-          <MapPin className="w-8 h-8" />
-        </div>
-        <div className="space-y-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold font-mono">
-            🔒 STATUS: UNASSIGNED WAREHOUSE MANAGER
-          </span>
-          <h2 className="text-2xl font-black text-slate-900">Facility Site Assignment Pending Setup</h2>
-          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-            Your Warehouse Manager account (<span className="font-bold text-slate-800">{session?.user?.email}</span>) is active and authenticated, but you have not yet been assigned to manage a specific 3PL facility site by the Platform Owner.
-          </p>
-        </div>
-        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs text-slate-700 space-y-2 max-w-xl mx-auto">
-          <div className="font-bold text-slate-900 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Administrative Action Required:
-          </div>
-          <p className="text-slate-600 leading-relaxed">
-            Please contact the Platform Owner (<span className="font-mono text-slate-900 font-bold">owner@logiqon.com</span>) to assign your account to an existing location (Sydney, Melbourne, Brisbane, Perth) or configure a new warehouse location.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Total stock/capacity numbers always reflect ALL products in the warehouse(s), not just
+  // the caller's own — a vendor's slice of the stock would understate real utilization.
+  const totalStockCount = isGlobal
+    ? Object.values(whSummary).reduce((sum, w) => sum + w.totalQty, 0)
+    : whSummary[selectedWarehouseCode]?.totalQty || 0;
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Emerald Green Header Banner with Pixel-Perfect Alignment */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white border border-emerald-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <WarehouseOpsTabs />
+
+      {/* Header Banner */}
+      <div className="p-6 md:p-8 rounded-3xl bg-white border border-indigo-200 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div className="flex items-center gap-4 min-w-0">
-          <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
+          <div className="p-3.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
             {isGlobal ? <Globe className="w-8 h-8" /> : <Warehouse className="w-8 h-8" />}
           </div>
           <div className="space-y-1 min-w-0">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold font-mono">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              {isOwner
-                ? (isGlobal ? 'GLOBAL 3PL FLEET DESK' : `${selectedWarehouseCode} FACILITY DESK`)
-                : `ASSIGNED WAREHOUSE DESK (${selectedWarehouseCode})`}
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+              {isGlobal ? 'ALL WAREHOUSES' : `WAREHOUSE: ${selectedWarehouseCode}`}
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
+              <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
                 {activeWarehouse.name}
               </h1>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-mono font-bold shrink-0">
-                {activeWarehouse.code}
-              </span>
+              {!isGlobal && (
+                <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 border border-indigo-300 text-xs font-mono font-bold shrink-0">
+                  {activeWarehouse.code}
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500 font-mono flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span><MapPin className="w-3.5 h-3.5 text-emerald-600 inline" /> {activeWarehouse.address}</span>
+              <span><MapPin className="w-3.5 h-3.5 text-indigo-600 inline" /> {activeWarehouse.address}</span>
               <span>•</span>
-              <span className="text-emerald-700 font-bold"><UserCheck className="w-3.5 h-3.5 inline" /> {activeManager.name} ({activeManager.email})</span>
+              <span className="text-indigo-700 font-bold"><UserCheck className="w-3.5 h-3.5 inline" /> {activeManager.name}{activeManager.email ? ` (${activeManager.email})` : ''}</span>
             </p>
           </div>
         </div>
 
-        {/* Perfectly Aligned Controls Baseline */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 shrink-0">
-          {/* Facility Location Selector (Only shown to Platform Owner) */}
-          {isOwner ? (
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">
-                Select Active Desk View:
-              </label>
-              <select
-                value={selectedWarehouseCode}
-                onChange={(e) => setSelectedWarehouseCode(e.target.value)}
-                className="h-[42px] px-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 focus:outline-none focus:border-emerald-600 font-mono shadow-sm"
-              >
-                <option value="ALL">🌐 All Warehouses (Global View)</option>
-                {warehouses.map((w) => (
-                  <option key={w.code} value={w.code}>
-                    🏬 {w.name} ({w.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="px-4 py-2.5 h-[42px] bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 font-mono flex items-center gap-2 shadow-sm">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Assigned Desk: {selectedWarehouseCode}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/owner/inventory"
-              className="h-[42px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer font-mono whitespace-nowrap"
-            >
-              <PackageCheck className="w-4 h-4" /> Inventory Management
-            </Link>
-          </div>
+        <div className="space-y-1 shrink-0">
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">
+            View Warehouse:
+          </label>
+          <select
+            value={selectedWarehouseCode}
+            onChange={(e) => setSelectedWarehouseCode(e.target.value)}
+            className="h-[42px] px-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-900 focus:outline-none focus:border-indigo-600 font-mono shadow-sm w-full sm:w-auto"
+          >
+            <option value="ALL">🌐 All Warehouses</option>
+            {warehouses.map((w) => (
+              <option key={w.code} value={w.code}>
+                🏬 {w.name} ({w.code})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* 4 Metric Cards - Emerald / Green Styled */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Bin Locations</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase">SKUs Tracked</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
           </div>
           <div className="text-2xl font-extrabold text-slate-900">
-            {isGlobal ? `${warehouses.reduce((sum, w) => sum + (w.bins?.length || 0), 0)} Bins` : `${activeWarehouse.bins?.length || 0} Storage Bins`}
+            {new Set(filteredLedger.map((l) => l.sku)).size} SKUs
           </div>
-          <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" /> {isGlobal ? 'Across All Facilities' : `Assigned at ${activeWarehouse.code}`}
+          <p className="text-xs text-indigo-600 font-semibold flex items-center gap-1">
+            <TrendingUp className="w-3.5 h-3.5" /> {isGlobal ? 'Across All Facilities' : `Active at ${activeWarehouse.code}`}
           </p>
         </div>
 
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold text-slate-500 uppercase">{isGlobal ? 'Total Network Stock' : 'Facility Stock On Hand'}</span>
-            <Box className="w-4 h-4 text-emerald-600" />
+            <Box className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="text-2xl font-extrabold text-slate-900">{totalStockCount} Units</div>
-          <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+          <p className="text-xs text-indigo-600 font-semibold flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> Reconciled against ledger
           </p>
         </div>
@@ -245,19 +162,10 @@ export default function WarehouseDashboardPage() {
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold text-slate-500 uppercase">Stock Movements</span>
-            <History className="w-4 h-4 text-emerald-600" />
+            <History className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="text-2xl font-extrabold text-slate-900">{filteredLedger.length} Movements</div>
-          <p className="text-xs text-emerald-600 font-semibold">Append-Only Ledger Rows</p>
-        </div>
-
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Audit Status</span>
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-2xl font-extrabold text-emerald-600">100% Verified</div>
-          <p className="text-xs text-slate-500 font-mono">0 Discrepancies</p>
+          <p className="text-xs text-indigo-600 font-semibold">Append-Only Ledger Rows</p>
         </div>
       </div>
 
@@ -265,10 +173,10 @@ export default function WarehouseDashboardPage() {
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <History className="w-5 h-5 text-emerald-600" />
+            <History className="w-5 h-5 text-indigo-600" />
             {isGlobal ? 'Recent Global Warehouse Stock Movements (All Facilities)' : `Recent Facility Stock Movements (${activeWarehouse.code})`}
           </h2>
-          <Link href="/dashboard/owner/inventory" className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1">
+          <Link href="/dashboard/owner/inventory" className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
             View Master Ledger <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -279,7 +187,7 @@ export default function WarehouseDashboardPage() {
               <div key={row.id} className="py-3 flex items-center justify-between text-xs">
                 <div className="space-y-0.5">
                   <div className="font-bold text-slate-900 flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded font-mono text-[10px] ${row.quantityDelta > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                    <span className={`px-2 py-0.5 rounded font-mono text-[10px] ${row.quantityDelta > 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-rose-100 text-rose-800'}`}>
                       {row.movementType}
                     </span>
                     <span>{row.itemName} ({row.sku})</span>
@@ -290,11 +198,11 @@ export default function WarehouseDashboardPage() {
                     )}
                   </div>
                   <div className="text-slate-400 font-mono text-[11px]">
-                    Ref: {row.referenceNumber} • Facility: {row.warehouseCode} • Bin: {row.binLocation} • {new Date(row.createdAt).toLocaleTimeString()}
+                    Ref: {row.referenceNumber} • Facility: {row.warehouseCode} • {new Date(row.createdAt).toLocaleTimeString()}
                   </div>
                 </div>
 
-                <div className={`font-mono font-black text-sm ${row.quantityDelta > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <div className={`font-mono font-black text-sm ${row.quantityDelta > 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
                   {row.quantityDelta > 0 ? `+${row.quantityDelta}` : row.quantityDelta} units
                 </div>
               </div>

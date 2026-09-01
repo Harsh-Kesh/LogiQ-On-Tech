@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions, loadPersistentUsers } from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
 import { verifyMfaToken } from '@/lib/mfa';
 import { prisma } from '@/lib/prisma';
 import { logAuditEvent } from '@/lib/audit';
@@ -19,27 +19,10 @@ export async function POST(req: Request) {
     }
 
     const emailClean = session.user.email?.toLowerCase().trim() || '';
-    let mfaSecret: string | null = null;
-    let userId = (session.user as any).id;
+    const userId = (session.user as any).id;
 
-    // 1. Check Prisma DB
-    try {
-      const dbUser = await prisma.user.findUnique({ where: { email: emailClean } });
-      if (dbUser && dbUser.mfaSecret) {
-        mfaSecret = dbUser.mfaSecret;
-      }
-    } catch (e) {
-      console.warn('Prisma DB lookup warning for MFA secret:', e);
-    }
-
-    // 2. Check Persistent File Store Fallback
-    if (!mfaSecret) {
-      const users = loadPersistentUsers();
-      const targetUser = users[emailClean] || Object.values(users).find(u => u.email.toLowerCase() === emailClean || u.id === userId);
-      if (targetUser && targetUser.mfaSecret) {
-        mfaSecret = targetUser.mfaSecret;
-      }
-    }
+    const dbUser = await prisma.user.findUnique({ where: { email: emailClean } });
+    const mfaSecret = dbUser?.mfaSecret || null;
 
     if (!mfaSecret) {
       return NextResponse.json({ error: 'MFA is not fully configured for this account. Please contact admin.' }, { status: 400 });

@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const paramVendorId = searchParams.get('vendorId');
     const status = searchParams.get('status');
 
-    let orders = loadPersistentOrders();
+    let orders = await loadPersistentOrders();
 
     const userRole = (session.user as any)?.role;
     const userId = (session.user as any)?.id;
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     if (action === 'generate-pick-list') {
       if (!orderId) return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
-      const updatedOrder = generatePickListForOrder(orderId);
+      const updatedOrder = await generatePickListForOrder(orderId);
       if (!updatedOrder) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
       return NextResponse.json({ success: true, message: `Pick list generated for ${updatedOrder.orderNumber}`, order: updatedOrder });
     }
@@ -71,10 +71,10 @@ export async function POST(req: NextRequest) {
 
     const userRole = (session.user as any)?.role;
     const userId = (session.user as any)?.id;
-    const resolvedVendorId = userRole === 'VENDOR' ? `vnd_${userId}` : (vendorId || userId);
+    const resolvedVendorId = userRole === 'VENDOR' ? userId : (vendorId || userId);
     const resolvedVendorName = vendorName || (session.user as any).companyName || session.user.name || 'Vendor Partner';
 
-    const order = createOutboundOrder({
+    const order = await createOutboundOrder({
       customerName,
       deliveryAddress,
       warehouseCode,

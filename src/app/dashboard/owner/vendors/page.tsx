@@ -24,6 +24,8 @@ interface VendorRecord {
   id: string;
   companyName: string;
   abnAcn: string;
+  businessRegisteredAddress?: string;
+  businessLocation?: string;
   status: 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'SUSPENDED' | 'REJECTED';
   rejectionReason?: string;
   userId: string;
@@ -254,7 +256,7 @@ export default function AdminVendorsPage() {
       cell: (v) => {
         const variant =
           v.status === 'APPROVED'
-            ? 'emerald'
+            ? 'indigo'
             : v.status === 'UNDER_REVIEW'
             ? 'amber'
             : v.status === 'PENDING'
@@ -310,7 +312,7 @@ export default function AdminVendorsPage() {
               VENDOR GOVERNANCE DIRECTORY
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Vendor Directory &amp; Audit Console
+              Vendor Onboarding &amp; Compliance
             </h1>
             <p className="text-xs text-slate-500 font-mono">
               Inspect vendor registrations, verify compliance documents, and manage status transitions.
@@ -381,12 +383,20 @@ export default function AdminVendorsPage() {
                 <span className="font-mono text-slate-900 font-bold">{selectedVendor.abnAcn || 'Not Provided'}</span>
               </div>
               <div>
+                <span className="text-slate-500 font-semibold block">Business Registered Address:</span>
+                <span className="font-bold text-slate-900">{selectedVendor.businessRegisteredAddress || 'Not Provided'}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 font-semibold block">Business Location (Trading Address):</span>
+                <span className="font-bold text-slate-900">{selectedVendor.businessLocation || '— Same as registered address —'}</span>
+              </div>
+              <div>
                 <span className="text-slate-500 font-semibold block">Primary Account:</span>
                 <span className="font-mono text-indigo-700 font-bold">{selectedVendor.user?.email}</span>
               </div>
               <div>
                 <span className="text-slate-500 font-semibold block">Current Lifecycle Status:</span>
-                <Badge variant={selectedVendor.status === 'APPROVED' ? 'emerald' : selectedVendor.status === 'UNDER_REVIEW' ? 'amber' : 'danger'}>
+                <Badge variant={selectedVendor.status === 'APPROVED' ? 'indigo' : selectedVendor.status === 'UNDER_REVIEW' ? 'amber' : 'danger'}>
                   {selectedVendor.status}
                 </Badge>
               </div>
@@ -425,7 +435,7 @@ export default function AdminVendorsPage() {
                         <span
                           className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
                             doc.status === 'APPROVED'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                               : doc.status === 'REJECTED'
                               ? 'bg-rose-50 text-rose-700 border-rose-200'
                               : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -457,7 +467,7 @@ export default function AdminVendorsPage() {
                                 }
                               } catch (e) {}
                             }}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                            className="px-2.5 py-1 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
                           >
                             Approve
                           </button>

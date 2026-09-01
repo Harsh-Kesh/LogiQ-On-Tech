@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 
 export interface EmailOptions {
   to: string;
+  cc?: string;
   subject: string;
   html: string;
   text?: string;
@@ -26,6 +27,7 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<{ s
       const info = await transporter.sendMail({
         from,
         to: options.to,
+        cc: options.cc || undefined,
         subject: options.subject,
         html: options.html,
         text: options.text || options.subject,
@@ -42,11 +44,46 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<{ s
   console.log(`=================================================================`);
   console.log(`✉️ [SIMULATED EMAIL DISPATCH]`);
   console.log(`To: ${options.to}`);
+  if (options.cc) console.log(`Cc: ${options.cc}`);
   console.log(`From: ${from}`);
   console.log(`Subject: ${options.subject}`);
   console.log(`=================================================================`);
 
   return { success: true, messageId: `sim_${Date.now()}`, mode: 'simulated' };
+}
+
+// For flows where the OWNER composes their own subject/message in a form (e.g. the Send
+// Tax Invoice modal) rather than a fixed template — wraps whatever they wrote in the same
+// branded shell as every other outbound email, without overriding their actual words.
+// Call this once per recipient (not once with a multi-address `to`) so each person only
+// ever sees themselves in the message — never a list of everyone else it also went to.
+export async function sendComposedEmail(
+  to: string,
+  subject: string,
+  message: string,
+  options?: { cc?: string; attachmentLinkUrl?: string; attachmentLabel?: string }
+) {
+  const bodyHtml = message
+    .split('\n')
+    .map((line) => (line.trim() ? `<p style="margin:0 0 10px 0;">${line}</p>` : '<br/>'))
+    .join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+      <div style="background-color: #1e3a8a; padding: 20px; border-radius: 12px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 22px;">LogiQ-On Technology Group</h1>
+      </div>
+      <div style="padding: 24px 10px; color: #0f172a; font-size: 14px; line-height: 1.6;">
+        ${bodyHtml}
+        ${options?.attachmentLinkUrl ? `<p style="margin-top: 20px;"><a href="${options.attachmentLinkUrl}" style="color: #2563eb; font-weight: bold;">${options.attachmentLabel || 'View Document'}</a></p>` : ''}
+      </div>
+      <div style="border-top: 1px solid #f1f5f9; padding-top: 14px; font-size: 11px; color: #94a3b8; text-align: center;">
+        © 2026 LogiQ-On Technology Group Pty Ltd
+      </div>
+    </div>
+  `;
+
+  return sendTransactionalEmail({ to, cc: options?.cc, subject, html, text: message });
 }
 
 export async function sendVendorApprovalEmail(vendorEmail: string, companyName: string) {
@@ -79,6 +116,66 @@ export async function sendVendorApprovalEmail(vendorEmail: string, companyName: 
   `;
 
   return sendTransactionalEmail({ to: vendorEmail, subject, html });
+}
+
+// FR-STORE — sent immediately on public storefront checkout. This is an order
+// confirmation only, not a Tax Invoice: the formal Tax Invoice is generated and
+// emailed later at the normal point in the fulfilment pipeline (once dispatched),
+// exactly like every other Sales Order in the system.
+export async function sendOrderConfirmationEmail(
+  customerEmail: string,
+  customerName: string,
+  salesOrderNumber: string,
+  lines: Array<{ itemName: string; quantity: number; sellingPrice: number; lineTotal: number }>,
+  totalValue: number,
+  currency: string
+) {
+  const subject = `Order Confirmation — ${salesOrderNumber} — LogiQ-On Tech`;
+  const rows = lines
+    .map(
+      (l) => `
+        <tr>
+          <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">${l.itemName}</td>
+          <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; text-align: center;">${l.quantity}</td>
+          <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; text-align: right;">${currency} ${l.sellingPrice.toFixed(2)}</td>
+          <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; text-align: right;">${currency} ${l.lineTotal.toFixed(2)}</td>
+        </tr>`
+    )
+    .join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+      <div style="background-color: #1e3a8a; padding: 20px; border-radius: 12px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 22px;">LogiQ-On Technology Group</h1>
+        <p style="color: #bfdbfe; margin: 5px 0 0 0; font-size: 13px;">Online Store — Order Confirmation</p>
+      </div>
+      <div style="padding: 24px 10px; color: #0f172a;">
+        <h2 style="color: #16a34a; font-size: 20px; margin-top: 0;">Thank you for your order, ${customerName}!</h2>
+        <p>Your order <strong>${salesOrderNumber}</strong> has been received and is now being reviewed by our team before it moves into fulfilment.</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13.5px;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding-bottom: 8px; border-bottom: 2px solid #1e3a8a; color: #1e3a8a;">Item</th>
+              <th style="text-align: center; padding-bottom: 8px; border-bottom: 2px solid #1e3a8a; color: #1e3a8a;">Qty</th>
+              <th style="text-align: right; padding-bottom: 8px; border-bottom: 2px solid #1e3a8a; color: #1e3a8a;">Unit Price</th>
+              <th style="text-align: right; padding-bottom: 8px; border-bottom: 2px solid #1e3a8a; color: #1e3a8a;">Line Total</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p style="text-align: right; font-size: 16px; font-weight: bold; color: #0f172a;">Order Total: ${currency} ${totalValue.toFixed(2)}</p>
+        <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; border-radius: 12px; margin: 20px 0;">
+          <p style="margin: 0; color: #1e3a8a; font-size: 13px;">A formal Tax Invoice will be issued by email once your order has been dispatched, along with tracking details.</p>
+        </div>
+        <p style="font-size: 13px; color: #64748b;">If you have any questions about this order, please contact us and reference your order number above.</p>
+      </div>
+      <div style="border-top: 1px solid #f1f5f9; padding-top: 14px; font-size: 11px; color: #94a3b8; text-align: center;">
+        © 2026 LogiQ-On Technology Group Pty Ltd
+      </div>
+    </div>
+  `;
+
+  return sendTransactionalEmail({ to: customerEmail, subject, html });
 }
 
 export async function sendVendorRejectionEmail(vendorEmail: string, companyName: string, rejectionReason: string) {

@@ -22,12 +22,7 @@ export async function POST(req: Request) {
 
     // PHASE 1: Request Password Reset OTP Code
     if (action === 'REQUEST_OTP') {
-      let userExists = isUserRegistered(emailClean);
-
-      try {
-        const dbUser = await prisma.user.findUnique({ where: { email: emailClean } });
-        if (dbUser) userExists = true;
-      } catch (e) {}
+      const userExists = await isUserRegistered(emailClean);
 
       if (!userExists) {
         return NextResponse.json({
@@ -36,7 +31,7 @@ export async function POST(req: Request) {
         });
       }
 
-      const otpCode = generatePasswordResetOtp(emailClean);
+      const otpCode = await generatePasswordResetOtp(emailClean);
 
       await logAuditEvent({
         action: 'PASSWORD_RESET_OTP_SENT',
@@ -70,34 +65,24 @@ export async function POST(req: Request) {
       }
 
       // Verify OTP Code
-      const isOtpValid = verifyPasswordResetOtp(emailClean, otpCode);
+      const isOtpValid = await verifyPasswordResetOtp(emailClean, otpCode);
       if (!isOtpValid) {
         return NextResponse.json({ error: 'Invalid or expired 6-digit OTP verification code. Please request a new code.' }, { status: 400 });
       }
 
       const newPasswordHash = await bcrypt.hash(newPassword, 10);
+      await updateRuntimeUserPassword(emailClean, newPasswordHash);
 
-      // Update in Runtime User Store
-      updateRuntimeUserPassword(emailClean, newPasswordHash);
-
-      // Update in PostgreSQL Database
-      try {
-        const dbUser = await prisma.user.findUnique({ where: { email: emailClean } });
-        if (dbUser) {
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: { passwordHash: newPasswordHash },
-          });
-
-          await logAuditEvent({
-            userId: dbUser.id,
-            role: dbUser.role,
-            action: 'PASSWORD_RESET_SUCCESS',
-            module: 'GOVERNANCE',
-            payloadJson: { email: emailClean },
-          }).catch(() => {});
-        }
-      } catch (e) {}
+      const dbUser = await prisma.user.findUnique({ where: { email: emailClean } });
+      if (dbUser) {
+        await logAuditEvent({
+          userId: dbUser.id,
+          role: dbUser.role,
+          action: 'PASSWORD_RESET_SUCCESS',
+          module: 'GOVERNANCE',
+          payloadJson: { email: emailClean },
+        }).catch(() => {});
+      }
 
       return NextResponse.json({
         success: true,
