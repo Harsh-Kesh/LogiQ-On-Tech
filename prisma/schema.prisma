@@ -7,10 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Strictly 2-Role System: PLATFORM_OWNER and VENDOR.
 enum UserRole {
   PLATFORM_OWNER
   VENDOR
+  SALES
+  PROCUREMENT
+  WAREHOUSE
+  ACCOUNTS_PAYABLE
+  FINANCE_APPROVER
+  WARRANTY_MANAGER
+  ANALYST
 }
 
 enum VendorStatus {
@@ -65,6 +71,14 @@ model Vendor {
   userId              String       @unique
   user                User         @relation(fields: [userId], references: [id])
   approvedAt          DateTime?
+  poEmail             String?
+  apEmail             String?
+  paymentTerms        String?
+  currency            String       @default("AUD")
+  bankBsb             String?
+  bankAccountNumber   String?
+  bankAccountName     String?
+  myobContactId       String?
 
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
@@ -151,6 +165,16 @@ model ItemMaster {
   lowStockThreshold Int?
   reorderQuantity   Int?
   imageUrl          String?
+  manufacturerCode  String?
+  supplierItemCode  String?
+  supplierEmail     String?
+  leadTimeDays      Int?
+  mrq               Int?
+  serialTracked     Boolean       @default(false)
+  batchTracked      Boolean       @default(false)
+  warrantyPeriodMonths Int?
+  warrantyStartRule String?       @default("DELIVERY_DATE")
+  taxPercent        Decimal?      @db.Decimal(6, 3)
   // Public storefront listing (opt-in, FR-STORE-001). An item can only be published
   // once it has a vendor allocated, a public description, and at least one image —
   // enforced server-side, not just in the form.
@@ -163,6 +187,7 @@ model ItemMaster {
 
   stockItems     WarehouseStock[]
   ledgerEntries  StockLedger[]
+  warrantyRecords WarrantyRecord[]
 
   @@index([vendorId])
   @@index([categoryId])
@@ -589,6 +614,7 @@ model SalesOrder {
   purchaseOrders   PurchaseOrder[]
   intake           OrderIntake?
   transaction      Transaction?
+  storefrontOrder  StorefrontOrder?
 
   @@index([customerId])
   @@index([status])
@@ -689,6 +715,8 @@ model DispatchNoteLine {
   dispatchQty    Int      @default(0)
   deliveredQty   Int      @default(0)
   damagedQty     Int      @default(0)
+  serialNumbers  String[] @default([])
+  batchNumber    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -768,6 +796,9 @@ model CustomerInvoice {
   viewedAt       DateTime?
   paidAt         DateTime?
   pdfSnapshotUrl String?
+  myobInvoiceGuid   String?
+  myobInvoiceNumber String?
+  stripePaymentId   String?
   createdBy      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -818,6 +849,8 @@ model CustomerPayment {
   receiptFileData    String? @db.Text
   receiptFileType    String?
   receiptFileSize    Int?
+  myobPaymentGuid    String?
+  stripePaymentId    String?
   status         CustomerPaymentStatus @default(PENDING)
   createdBy      String?
   createdAt      DateTime @default(now())
@@ -864,6 +897,11 @@ model PurchaseOrder {
   leadTimeDays   Int?
   notes          String?
   transportCost  Decimal? @db.Decimal(18, 4)
+  myobPoGuid     String?
+  myobPoNumber   String?
+  emailSentAt    DateTime?
+  emailSentTo    String?
+  supplierAcknowledgedAt DateTime?
   createdBy      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -915,6 +953,13 @@ model SupplierInvoice {
   attachmentFileName    String?
   status                SupplierInvoiceStatus @default(SUBMITTED)
   approvalReason        String?
+  myobBillGuid          String?
+  myobBillNumber        String?
+  threeWayMatchResult   String?
+  threeWayMatchNotes    String?
+  matchedAt             DateTime?
+  matchedBy             String?
+  monoovaTxnId          String?
   createdBy             String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -940,6 +985,9 @@ model SupplierPayment {
   bankReference String?
   evidenceUrl    String?
   notes          String?
+  myobPaymentGuid String?
+  monoovaTxnId   String?
+  monoovaStatus  String?
   status         SupplierPaymentStatus @default(DRAFT)
   createdBy      String?
   createdAt      DateTime @default(now())
@@ -1144,6 +1192,180 @@ model PasswordResetOtp {
   createdAt DateTime @default(now())
 
   @@map("password_reset_otps")
+}
+
+// =====================================================================
+//  Warranty lifecycle — spec §6
+// =====================================================================
+
+enum WarrantyStatus {
+  PENDING_DATA
+  ACTIVE
+  FINAL_SIX_MONTHS
+  EXPIRING_SOON
+  EXPIRED
+  CLOSED
+}
+
+model WarrantyRecord {
+  id                    String         @id @default(uuid())
+  warrantyNumber        String         @unique
+  // Item link
+  itemMasterId          String?
+  itemMaster            ItemMaster?    @relation(fields: [itemMasterId], references: [id])
+  partNumber            String
+  partDescription       String?
+  serialNumber          String?
+  batchNumber           String?
+  // Customer side (denormalised for traceability search speed)
+  customerId            String?
+  customerName          String?
+  salesOrderId          String?
+  salesOrderNumber      String?
+  customerInvoiceId     String?
+  customerInvoiceNumber String?
+  // Supplier side
+  vendorId              String?
+  vendorName            String?
+  purchaseOrderId       String?
+  purchaseOrderNumber   String?
+  supplierInvoiceId     String?
+  supplierInvoiceNumber String?
+  // Delivery evidence
+  deliveryDate          DateTime?
+  // Warranty terms
+  warrantyStartRule     String         @default("DELIVERY_DATE")
+  warrantyStartDate     DateTime?
+  warrantyPeriodMonths  Int
+  warrantyExpiryDate    DateTime?
+  remainingDays         Int?
+  // Status
+  status                WarrantyStatus @default(PENDING_DATA)
+  // Notification flags (set true when that bucket email has been sent)
+  notifiedAt180Days     Boolean        @default(false)
+  notifiedAt90Days      Boolean        @default(false)
+  notifiedAt60Days      Boolean        @default(false)
+  notifiedAt30Days      Boolean        @default(false)
+  notifiedAt14Days      Boolean        @default(false)
+  notifiedAt7Days       Boolean        @default(false)
+  notifiedAtExpiry      Boolean        @default(false)
+  notificationEmails    String[]       @default([])
+  // Audit
+  overrideReason        String?
+  overriddenBy          String?
+  closedAt              DateTime?
+  closedBy              String?
+  createdBy             String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  notifications         WarrantyNotification[]
+
+  @@index([status])
+  @@index([warrantyExpiryDate])
+  @@index([partNumber])
+  @@index([serialNumber])
+  @@index([salesOrderId])
+  @@map("warranty_records")
+}
+
+model WarrantyNotification {
+  id           String             @id @default(uuid())
+  warrantyId   String
+  warranty     WarrantyRecord     @relation(fields: [warrantyId], references: [id], onDelete: Cascade)
+  daysBucket   Int                // 180, 90, 60, 30, 14, 7, 0 (0 = expiry day)
+  sentAt       DateTime           @default(now())
+  recipients   String[]
+  status       NotificationStatus @default(PENDING)
+  errorMessage String?
+  createdAt    DateTime           @default(now())
+
+  @@index([warrantyId])
+  @@map("warranty_notifications")
+}
+
+// =====================================================================
+//  Storefront (website order → Stripe → auto PO) — spec phase 2
+// =====================================================================
+
+enum StorefrontOrderStatus {
+  PENDING_PAYMENT
+  PAID
+  SO_CREATED
+  PO_SENT
+  INVOICE_RECEIVED
+  MATCH_PENDING
+  MATCHED
+  MATCH_EXCEPTION
+  BILL_CREATED
+  PAYMENT_SCHEDULED
+  SUPPLIER_PAID
+  FULFILLED
+  CANCELLED
+}
+
+model StorefrontOrder {
+  id              String                @id @default(uuid())
+  orderNumber     String                @unique
+  customerName    String
+  customerEmail   String
+  deliveryAddress String
+  currency        String                @default("AUD")
+  subtotal        Decimal               @db.Decimal(18, 4)
+  taxTotal        Decimal               @db.Decimal(18, 4) @default(0)
+  totalAmount     Decimal               @db.Decimal(18, 4)
+  status          StorefrontOrderStatus @default(PENDING_PAYMENT)
+  // Stripe
+  stripeSessionId String?               @unique
+  stripePaymentId String?
+  paidAt          DateTime?
+  // Linked SO
+  salesOrderId    String?               @unique
+  salesOrder      SalesOrder?           @relation(fields: [salesOrderId], references: [id])
+  // MYOB references (all financial entries go through MYOB)
+  myobPoGuid      String?
+  myobPoNumber    String?
+  myobBillGuid    String?
+  myobBillNumber  String?
+  myobPaymentGuid String?
+  // Monoova (actual bank transfer)
+  monoovaTxnId    String?
+  monoovaStatus   String?
+  supplierPaidAt  DateTime?
+  // PO email tracking
+  poEmailSentAt   DateTime?
+  poEmailSentTo   String?
+  // Supplier invoice + match
+  supplierInvoiceReceivedAt DateTime?
+  threeWayMatchResult       String?
+  threeWayMatchNotes        String?
+  matchedAt                 DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  items           StorefrontOrderItem[]
+
+  @@index([customerEmail])
+  @@index([status])
+  @@map("storefront_orders")
+}
+
+model StorefrontOrderItem {
+  id                String          @id @default(uuid())
+  storefrontOrderId String
+  storefrontOrder   StorefrontOrder @relation(fields: [storefrontOrderId], references: [id], onDelete: Cascade)
+  itemMasterId      String?
+  itemCode          String
+  itemName          String
+  manufacturerCode  String?
+  supplierItemCode  String?
+  quantity          Int
+  unitPrice         Decimal         @db.Decimal(18, 4)
+  taxPercent        Decimal         @db.Decimal(6, 3) @default(0)
+  lineTotal         Decimal         @db.Decimal(18, 4)
+
+  @@index([storefrontOrderId])
+  @@map("storefront_order_items")
 }
 
 // Warehouse pick/pack/dispatch workflow for the Stock Control Desk's outbound

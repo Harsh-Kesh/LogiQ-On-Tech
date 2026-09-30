@@ -2,21 +2,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCart } from '@/components/store/CartContext';
-
-const PAYMENT_TERMS = ['Net 7', 'Net 14', 'Net 30', 'Net 45', 'Net 60', 'Prepaid', 'CIA (Cash in Advance)', 'COD'];
+import { LockKeyhole, CreditCard } from 'lucide-react';
 
 export default function CheckoutPage() {
-  const { lines, totalValue, clear } = useCart();
-  const router = useRouter();
+  const { lines, totalValue } = useCart();
 
   const [form, setForm] = useState({
     customerName: '',
     customerEmail: '',
     customerPhone: '',
-    deliveryLocation: '',
-    paymentTerms: '',
+    deliveryAddress: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -25,7 +21,7 @@ export default function CheckoutPage() {
   const taxTotal = Math.round(totalValue * 0.1 * 100) / 100;
   const grandTotal = Math.round((totalValue + taxTotal) * 100) / 100;
 
-  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,7 +33,7 @@ export default function CheckoutPage() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch('/api/store/orders', {
+      const res = await fetch('/api/checkout/stripe-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -47,12 +43,12 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Something went wrong placing your order.');
+        setError(data.error || 'Something went wrong. Please try again.');
         setSubmitting(false);
         return;
       }
-      clear();
-      router.push(`/products/shop/confirmation?order=${encodeURIComponent(data.salesOrderNumber)}`);
+      // Redirect to Stripe-hosted checkout
+      window.location.href = data.url;
     } catch {
       setError('Network error — please try again.');
       setSubmitting(false);
@@ -64,7 +60,11 @@ export default function CheckoutPage() {
       <div className="bg-surface pt-32 pb-20 min-h-screen">
         <div className="container mx-auto px-margin-desktop max-w-2xl text-center">
           <h1 className="text-3xl font-extrabold text-slate-950 mb-4">Your cart is empty</h1>
-          <Link href="/products/shop" className="inline-block bg-slate-950 hover:bg-indigo-600 text-white font-bold text-sm px-6 py-3 rounded-full transition-colors" style={{ color: '#ffffff' }}>
+          <Link
+            href="/products/shop"
+            className="inline-block bg-slate-950 hover:bg-indigo-600 text-white font-bold text-sm px-6 py-3 rounded-full transition-colors"
+            style={{ color: '#ffffff' }}
+          >
             Browse Products
           </Link>
         </div>
@@ -109,6 +109,7 @@ export default function CheckoutPage() {
                 <input
                   value={form.customerPhone}
                   onChange={set('customerPhone')}
+                  type="tel"
                   className="w-full px-4 py-2.5 rounded-xl border border-outline-variant focus:border-indigo-600 focus:outline-none text-sm"
                   placeholder="04xx xxx xxx"
                 />
@@ -119,55 +120,47 @@ export default function CheckoutPage() {
               <label className="block text-xs font-bold text-on-surface-variant mb-1.5">Delivery Address *</label>
               <input
                 required
-                value={form.deliveryLocation}
-                onChange={set('deliveryLocation')}
+                value={form.deliveryAddress}
+                onChange={set('deliveryAddress')}
                 className="w-full px-4 py-2.5 rounded-xl border border-outline-variant focus:border-indigo-600 focus:outline-none text-sm"
                 placeholder="1 Example St, Sydney NSW 2000"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-on-surface-variant mb-1.5">Payment Terms *</label>
-              <select
-                required
-                value={form.paymentTerms}
-                onChange={set('paymentTerms')}
-                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant focus:border-indigo-600 focus:outline-none text-sm bg-white"
-              >
-                <option value="" disabled>Select payment terms…</option>
-                {PAYMENT_TERMS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-              <p className="text-xs text-on-surface-variant mt-1.5">
-                No payment is collected now. This selects the terms for the invoice you&apos;ll receive after the order is placed.
-              </p>
-            </div>
-
             {error && (
-              <div className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">{error}</div>
+              <div className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
+                {error}
+              </div>
             )}
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-slate-950 hover:bg-indigo-600 disabled:opacity-60 text-white font-bold text-sm px-6 py-3.5 rounded-full transition-colors"
+              className="w-full bg-slate-950 hover:bg-indigo-600 disabled:opacity-60 text-white font-bold text-sm px-6 py-3.5 rounded-full transition-colors flex items-center justify-center gap-2"
               style={{ color: '#ffffff' }}
             >
-              {submitting ? 'Placing Order…' : `Place Order — ${currency} ${grandTotal.toFixed(2)}`}
+              <CreditCard className="w-4 h-4" />
+              {submitting ? 'Redirecting to payment…' : `Pay ${currency} ${grandTotal.toFixed(2)} with Card`}
             </button>
-            <p className="text-xs text-on-surface-variant text-center">
-              You&apos;ll receive an order confirmation by email now. A formal Tax Invoice follows once your order is dispatched.
-            </p>
+
+            <div className="flex items-center justify-center gap-2 text-xs text-on-surface-variant">
+              <LockKeyhole className="w-3.5 h-3.5 text-emerald-600" />
+              Secure payment powered by Stripe. Your card details never touch our servers.
+            </div>
           </form>
 
+          {/* Order Summary */}
           <div className="bg-white border border-outline-variant rounded-2xl p-6">
             <h2 className="font-bold text-slate-950 mb-4">Order Summary</h2>
             <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
               {lines.map((l) => (
                 <div key={l.sku} className="flex justify-between text-sm">
-                  <span className="text-on-surface-variant truncate pr-2">{l.quantity} × {l.itemName}</span>
-                  <span className="font-bold text-slate-950 tabular-nums shrink-0">{l.currency} {(l.sellingPrice * l.quantity).toFixed(2)}</span>
+                  <span className="text-on-surface-variant truncate pr-2">
+                    {l.quantity} × {l.itemName}
+                  </span>
+                  <span className="font-bold text-slate-950 tabular-nums shrink-0">
+                    {l.currency} {(l.sellingPrice * l.quantity).toFixed(2)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -185,6 +178,9 @@ export default function CheckoutPage() {
                 <span className="tabular-nums">{currency} {grandTotal.toFixed(2)}</span>
               </div>
             </div>
+            <p className="text-[11px] text-on-surface-variant mt-4">
+              GST included. A tax invoice will be emailed after your order is dispatched.
+            </p>
           </div>
         </div>
       </div>

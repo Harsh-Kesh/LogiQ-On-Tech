@@ -45,6 +45,14 @@ export async function GET(req: Request) {
       user: { id: u.id, email: u.email, fullName: u.fullName, isSuspended: u.isSuspended },
       createdAt: (v?.createdAt || u.createdAt).toISOString(),
       docs: v?.docs || [],
+      poEmail: v?.poEmail || null,
+      apEmail: v?.apEmail || null,
+      paymentTerms: v?.paymentTerms || null,
+      currency: v?.currency || 'AUD',
+      bankBsb: v?.bankBsb || null,
+      bankAccountNumber: v?.bankAccountNumber || null,
+      bankAccountName: v?.bankAccountName || null,
+      myobContactId: v?.myobContactId || null,
     };
   });
 
@@ -63,4 +71,29 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({ vendors: allVendors });
+}
+
+export async function PUT(req: Request) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as any;
+  if (!user || user.role !== 'PLATFORM_OWNER') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const { vendorId, poEmail, apEmail, paymentTerms, currency, bankBsb, bankAccountNumber, bankAccountName, myobContactId } = body;
+  if (!vendorId) return NextResponse.json({ error: 'vendorId required' }, { status: 400 });
+
+  const data: any = {};
+  if (poEmail !== undefined) data.poEmail = poEmail || null;
+  if (apEmail !== undefined) data.apEmail = apEmail || null;
+  if (paymentTerms !== undefined) data.paymentTerms = paymentTerms || null;
+  if (currency !== undefined) data.currency = currency || 'AUD';
+  if (bankBsb !== undefined) data.bankBsb = bankBsb || null;
+  if (bankAccountNumber !== undefined) data.bankAccountNumber = bankAccountNumber || null;
+  if (bankAccountName !== undefined) data.bankAccountName = bankAccountName || null;
+  if (myobContactId !== undefined) data.myobContactId = myobContactId || null;
+
+  const updated = await prisma.vendor.update({ where: { id: vendorId }, data });
+  return NextResponse.json({ success: true, vendor: updated });
 }

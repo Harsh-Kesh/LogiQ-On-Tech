@@ -115,6 +115,16 @@ export async function POST(req: Request) {
       publishToStore,
       storeDescription,
       storeImages,
+      manufacturerCode,
+      supplierItemCode,
+      supplierEmail,
+      leadTimeDays,
+      mrq,
+      serialTracked,
+      batchTracked,
+      warrantyPeriodMonths,
+      warrantyStartRule,
+      taxPercent,
     } = body;
 
     if (!itemName || !itemName.trim()) {
@@ -235,6 +245,16 @@ export async function POST(req: Request) {
       storeImages: finalStoreImages,
       attributes: attributes && typeof attributes === 'object' ? attributes : {},
       statusHistory: [{ from: 'NEW', to: finalStatus, changedBy: user.email || 'Admin', changedAt: new Date().toISOString(), reason: 'Initial Item Master Registration' }],
+      manufacturerCode: manufacturerCode || undefined,
+      supplierItemCode: supplierItemCode || undefined,
+      supplierEmail: supplierEmail || undefined,
+      leadTimeDays: leadTimeDays !== undefined ? Number(leadTimeDays) : undefined,
+      mrq: mrq !== undefined ? Number(mrq) : undefined,
+      serialTracked: serialTracked === true,
+      batchTracked: batchTracked === true,
+      warrantyPeriodMonths: warrantyPeriodMonths !== undefined ? Number(warrantyPeriodMonths) : undefined,
+      warrantyStartRule: warrantyStartRule || 'DELIVERY_DATE',
+      taxPercent: taxPercent !== undefined ? Number(taxPercent) : undefined,
     });
 
     // Every vendor allocated to this item — the primary one and any additional vendors
@@ -309,6 +329,16 @@ export async function PUT(req: Request) {
       publishToStore,
       storeDescription,
       storeImages,
+      manufacturerCode,
+      supplierItemCode,
+      supplierEmail,
+      leadTimeDays,
+      mrq,
+      serialTracked,
+      batchTracked,
+      warrantyPeriodMonths,
+      warrantyStartRule,
+      taxPercent,
     } = body;
 
     if (!id) {
@@ -403,6 +433,16 @@ export async function PUT(req: Request) {
     patch.publishToStore = nextPublishToStore;
     if (catObj) patch.categoryId = catObj.id;
     if (uomObj) patch.uomId = uomObj.id;
+    if (manufacturerCode !== undefined) patch.manufacturerCode = manufacturerCode;
+    if (supplierItemCode !== undefined) patch.supplierItemCode = supplierItemCode;
+    if (supplierEmail !== undefined) patch.supplierEmail = supplierEmail;
+    if (leadTimeDays !== undefined) patch.leadTimeDays = Number(leadTimeDays);
+    if (mrq !== undefined) patch.mrq = Number(mrq);
+    if (serialTracked !== undefined) patch.serialTracked = serialTracked === true;
+    if (batchTracked !== undefined) patch.batchTracked = batchTracked === true;
+    if (warrantyPeriodMonths !== undefined) patch.warrantyPeriodMonths = Number(warrantyPeriodMonths);
+    if (warrantyStartRule !== undefined) patch.warrantyStartRule = warrantyStartRule;
+    if (taxPercent !== undefined) patch.taxPercent = Number(taxPercent);
 
     const updated = await updateItemMasterRecord(id, patch);
     if (!updated) return NextResponse.json({ error: 'Item not found.' }, { status: 404 });

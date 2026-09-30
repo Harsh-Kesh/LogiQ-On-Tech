@@ -37,6 +37,17 @@ export interface PersistentProduct {
     changedAt: string;
     reason?: string;
   }>;
+  // Supply chain & warranty fields
+  manufacturerCode?: string;
+  supplierItemCode?: string;
+  supplierEmail?: string;
+  leadTimeDays?: number;
+  mrq?: number;
+  serialTracked?: boolean;
+  batchTracked?: boolean;
+  warrantyPeriodMonths?: number;
+  warrantyStartRule?: string;
+  taxPercent?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,6 +90,16 @@ function toRecord(row: ItemMasterWithRelations): PersistentProduct {
     storeImages: row.storeImages,
     attributes: row.attributesJson ? JSON.parse(row.attributesJson) : undefined,
     statusHistory: row.statusHistoryJson ? JSON.parse(row.statusHistoryJson) : undefined,
+    manufacturerCode: row.manufacturerCode ?? undefined,
+    supplierItemCode: row.supplierItemCode ?? undefined,
+    supplierEmail: row.supplierEmail ?? undefined,
+    leadTimeDays: row.leadTimeDays ?? undefined,
+    mrq: row.mrq ?? undefined,
+    serialTracked: row.serialTracked,
+    batchTracked: row.batchTracked,
+    warrantyPeriodMonths: row.warrantyPeriodMonths ?? undefined,
+    warrantyStartRule: row.warrantyStartRule ?? undefined,
+    taxPercent: row.taxPercent !== null ? Number(row.taxPercent) : undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -140,6 +161,16 @@ export interface CreateItemMasterInput {
   storeImages?: string[];
   attributes?: Record<string, string>;
   statusHistory?: PersistentProduct['statusHistory'];
+  manufacturerCode?: string;
+  supplierItemCode?: string;
+  supplierEmail?: string;
+  leadTimeDays?: number;
+  mrq?: number;
+  serialTracked?: boolean;
+  batchTracked?: boolean;
+  warrantyPeriodMonths?: number;
+  warrantyStartRule?: string;
+  taxPercent?: number;
 }
 
 export async function createItemMasterRecord(input: CreateItemMasterInput): Promise<PersistentProduct> {
@@ -163,6 +194,16 @@ export async function createItemMasterRecord(input: CreateItemMasterInput): Prom
       storeImages: input.storeImages || [],
       attributesJson: input.attributes ? JSON.stringify(input.attributes) : null,
       statusHistoryJson: input.statusHistory ? JSON.stringify(input.statusHistory) : null,
+      manufacturerCode: input.manufacturerCode || null,
+      supplierItemCode: input.supplierItemCode || null,
+      supplierEmail: input.supplierEmail || null,
+      leadTimeDays: input.leadTimeDays ?? null,
+      mrq: input.mrq ?? null,
+      serialTracked: input.serialTracked === true,
+      batchTracked: input.batchTracked === true,
+      warrantyPeriodMonths: input.warrantyPeriodMonths ?? null,
+      warrantyStartRule: input.warrantyStartRule || 'DELIVERY_DATE',
+      taxPercent: input.taxPercent ?? null,
     },
     include: ITEM_INCLUDE,
   });
@@ -189,6 +230,16 @@ export interface UpdateItemMasterInput {
   statusHistory?: PersistentProduct['statusHistory'];
   lowStockThreshold?: number;
   reorderQuantity?: number;
+  manufacturerCode?: string;
+  supplierItemCode?: string;
+  supplierEmail?: string;
+  leadTimeDays?: number;
+  mrq?: number;
+  serialTracked?: boolean;
+  batchTracked?: boolean;
+  warrantyPeriodMonths?: number;
+  warrantyStartRule?: string;
+  taxPercent?: number;
 }
 
 export async function updateItemMasterRecord(id: string, patch: UpdateItemMasterInput): Promise<PersistentProduct | null> {
@@ -212,6 +263,16 @@ export async function updateItemMasterRecord(id: string, patch: UpdateItemMaster
   if (patch.statusHistory !== undefined) data.statusHistoryJson = JSON.stringify(patch.statusHistory);
   if (patch.lowStockThreshold !== undefined) data.lowStockThreshold = patch.lowStockThreshold;
   if (patch.reorderQuantity !== undefined) data.reorderQuantity = patch.reorderQuantity;
+  if (patch.manufacturerCode !== undefined) data.manufacturerCode = patch.manufacturerCode || null;
+  if (patch.supplierItemCode !== undefined) data.supplierItemCode = patch.supplierItemCode || null;
+  if (patch.supplierEmail !== undefined) data.supplierEmail = patch.supplierEmail || null;
+  if (patch.leadTimeDays !== undefined) data.leadTimeDays = patch.leadTimeDays;
+  if (patch.mrq !== undefined) data.mrq = patch.mrq;
+  if (patch.serialTracked !== undefined) data.serialTracked = patch.serialTracked;
+  if (patch.batchTracked !== undefined) data.batchTracked = patch.batchTracked;
+  if (patch.warrantyPeriodMonths !== undefined) data.warrantyPeriodMonths = patch.warrantyPeriodMonths;
+  if (patch.warrantyStartRule !== undefined) data.warrantyStartRule = patch.warrantyStartRule;
+  if (patch.taxPercent !== undefined) data.taxPercent = patch.taxPercent;
 
   try {
     const row = await prisma.itemMaster.update({ where: { id }, data, include: ITEM_INCLUDE });

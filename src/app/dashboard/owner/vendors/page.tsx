@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
-import { Building, Search, RefreshCw, FileText, CheckCircle2, AlertTriangle, XCircle, ShieldAlert, Eye, FileCheck, Ban, Download, TrendingUp, Clock, Star, Layers } from 'lucide-react';
+import { Building, Search, RefreshCw, FileText, CheckCircle2, AlertTriangle, XCircle, ShieldAlert, Eye, FileCheck, Ban, Download, TrendingUp, Clock, Star, Layers, Landmark, Save } from 'lucide-react';
 
 interface ComplianceDoc {
   id: string;
@@ -38,6 +38,15 @@ interface VendorRecord {
   docs: ComplianceDoc[];
   createdAt: string;
   approvedAt?: string;
+  // Supplier payment & contact fields
+  poEmail?: string;
+  apEmail?: string;
+  paymentTerms?: string;
+  currency?: string;
+  bankBsb?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  myobContactId?: string;
 }
 
 export default function AdminVendorsPage() {
@@ -55,6 +64,18 @@ export default function AdminVendorsPage() {
 
   // Toast Feedback State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Supplier Payment Details edit state
+  const [isPaymentEditOpen, setIsPaymentEditOpen] = useState(false);
+  const [payPoEmail, setPayPoEmail] = useState('');
+  const [payApEmail, setPayApEmail] = useState('');
+  const [payPaymentTerms, setPayPaymentTerms] = useState('');
+  const [payCurrency, setPayCurrency] = useState('AUD');
+  const [payBankBsb, setPayBankBsb] = useState('');
+  const [payBankAccountNumber, setPayBankAccountNumber] = useState('');
+  const [payBankAccountName, setPayBankAccountName] = useState('');
+  const [payMyobContactId, setPayMyobContactId] = useState('');
+  const [savingPayment, setSavingPayment] = useState(false);
 
   useEffect(() => {
     fetchVendors();
@@ -75,6 +96,63 @@ export default function AdminVendorsPage() {
       setToast({ message: 'Network error fetching vendors.', type: 'error' });
     } finally {
       setLoading(false);
+    }
+  }
+
+  function openPaymentEdit(v: VendorRecord) {
+    setPayPoEmail(v.poEmail || '');
+    setPayApEmail(v.apEmail || '');
+    setPayPaymentTerms(v.paymentTerms || '');
+    setPayCurrency(v.currency || 'AUD');
+    setPayBankBsb(v.bankBsb || '');
+    setPayBankAccountNumber(v.bankAccountNumber || '');
+    setPayBankAccountName(v.bankAccountName || '');
+    setPayMyobContactId(v.myobContactId || '');
+    setIsPaymentEditOpen(true);
+  }
+
+  async function handleSavePaymentDetails() {
+    if (!selectedVendor) return;
+    setSavingPayment(true);
+    try {
+      const res = await fetch('/api/admin/vendors', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendorId: selectedVendor.id,
+          poEmail: payPoEmail,
+          apEmail: payApEmail,
+          paymentTerms: payPaymentTerms,
+          currency: payCurrency,
+          bankBsb: payBankBsb,
+          bankAccountNumber: payBankAccountNumber,
+          bankAccountName: payBankAccountName,
+          myobContactId: payMyobContactId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToast({ message: 'Supplier payment details saved successfully.', type: 'success' });
+        setIsPaymentEditOpen(false);
+        setSelectedVendor(prev => prev ? {
+          ...prev,
+          poEmail: payPoEmail,
+          apEmail: payApEmail,
+          paymentTerms: payPaymentTerms,
+          currency: payCurrency,
+          bankBsb: payBankBsb,
+          bankAccountNumber: payBankAccountNumber,
+          bankAccountName: payBankAccountName,
+          myobContactId: payMyobContactId,
+        } : prev);
+        fetchVendors();
+      } else {
+        setToast({ message: data.error || 'Failed to save payment details.', type: 'error' });
+      }
+    } catch {
+      setToast({ message: 'Network error saving payment details.', type: 'error' });
+    } finally {
+      setSavingPayment(false);
     }
   }
 
@@ -501,6 +579,57 @@ export default function AdminVendorsPage() {
               )}
             </div>
 
+            {/* Supplier Payment & Contact Details Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-indigo-600" /> Supplier Payment & Contact Details
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => openPaymentEdit(selectedVendor)}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold px-3 py-1.5 rounded-xl text-[11px] font-mono flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Save className="w-3.5 h-3.5" /> Edit Details
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <div>
+                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">PO Delivery Email</span>
+                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.poEmail || <span className="text-slate-400 italic">Not set</span>}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">AP / Remittance Email</span>
+                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.apEmail || <span className="text-slate-400 italic">Not set</span>}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Payment Terms</span>
+                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.paymentTerms || <span className="text-slate-400 italic">Not set</span>}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Currency</span>
+                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.currency || 'AUD'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Bank BSB</span>
+                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.bankBsb || <span className="text-slate-400 italic">Not set</span>}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Bank Account Number</span>
+                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.bankAccountNumber || <span className="text-slate-400 italic">Not set</span>}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Bank Account Name</span>
+                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.bankAccountName || <span className="text-slate-400 italic">Not set</span>}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">MYOB Contact ID</span>
+                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.myobContactId || <span className="text-slate-400 italic">Not set</span>}</span>
+                </div>
+              </div>
+            </div>
+
             {/* State Machine Transition Controls */}
             <div className="pt-4 border-t border-slate-200 space-y-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
@@ -600,6 +729,120 @@ export default function AdminVendorsPage() {
                   </Button>
                 )}
               </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Payment Details Edit Modal */}
+      {selectedVendor && (
+        <Modal
+          isOpen={isPaymentEditOpen}
+          onClose={() => setIsPaymentEditOpen(false)}
+          title={`Edit Payment Details: ${selectedVendor.companyName || selectedVendor.user?.email}`}
+        >
+          <div className="space-y-5 text-xs font-sans">
+            <p className="text-slate-500 font-mono text-[11px]">
+              These details are used for automated PO emails, Monoova bank transfers, and MYOB contact linking.
+            </p>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider font-mono">Contact Emails</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="PO Delivery Email"
+                  type="email"
+                  value={payPoEmail}
+                  onChange={(e) => setPayPoEmail(e.target.value)}
+                  placeholder="orders@supplier.com"
+                  helperText="Purchase orders are emailed here"
+                />
+                <Input
+                  label="AP / Remittance Email"
+                  type="email"
+                  value={payApEmail}
+                  onChange={(e) => setPayApEmail(e.target.value)}
+                  placeholder="accounts@supplier.com"
+                  helperText="Remittance advices sent here"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider font-mono">Payment Settings</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Payment Terms"
+                  value={payPaymentTerms}
+                  onChange={(e) => setPayPaymentTerms(e.target.value)}
+                  placeholder="e.g. Net 30"
+                />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Currency</label>
+                  <select
+                    value={payCurrency}
+                    onChange={(e) => setPayCurrency(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-indigo-600"
+                  >
+                    <option value="AUD">AUD — Australian Dollar</option>
+                    <option value="USD">USD — US Dollar</option>
+                    <option value="EUR">EUR — Euro</option>
+                    <option value="GBP">GBP — British Pound</option>
+                    <option value="NZD">NZD — NZ Dollar</option>
+                    <option value="SGD">SGD — Singapore Dollar</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-4">
+              <div className="text-[11px] font-bold text-indigo-800 uppercase tracking-wider font-mono flex items-center gap-2">
+                <Landmark className="w-3.5 h-3.5" /> Bank Account Details (Monoova NPP Transfer)
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Bank BSB"
+                  value={payBankBsb}
+                  onChange={(e) => setPayBankBsb(e.target.value)}
+                  placeholder="e.g. 063-000"
+                />
+                <Input
+                  label="Bank Account Number"
+                  value={payBankAccountNumber}
+                  onChange={(e) => setPayBankAccountNumber(e.target.value)}
+                  placeholder="e.g. 12345678"
+                />
+              </div>
+              <Input
+                label="Bank Account Name"
+                value={payBankAccountName}
+                onChange={(e) => setPayBankAccountName(e.target.value)}
+                placeholder="e.g. Acme Supplies Pty Ltd"
+              />
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <Input
+                label="MYOB Contact ID"
+                value={payMyobContactId}
+                onChange={(e) => setPayMyobContactId(e.target.value)}
+                placeholder="MYOB supplier contact GUID"
+                helperText="Used for MYOB bill and payment linkage"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsPaymentEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                isLoading={savingPayment}
+                onClick={handleSavePaymentDetails}
+              >
+                Save Payment Details
+              </Button>
             </div>
           </div>
         </Modal>

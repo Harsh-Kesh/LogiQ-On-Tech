@@ -72,6 +72,16 @@ interface ItemMaster {
   uomName?: string;
   attributes?: Record<string, string>;
   statusHistory?: StatusHistoryItem[];
+  manufacturerCode?: string;
+  supplierItemCode?: string;
+  supplierEmail?: string;
+  leadTimeDays?: number;
+  mrq?: number;
+  serialTracked?: boolean;
+  batchTracked?: boolean;
+  warrantyPeriodMonths?: number;
+  warrantyStartRule?: string;
+  taxPercent?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -130,6 +140,18 @@ export default function MasterDataItemsPage() {
   ]);
   const [governanceError, setGovernanceError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Supply chain & warranty form state
+  const [manufacturerCode, setManufacturerCode] = useState('');
+  const [supplierItemCode, setSupplierItemCode] = useState('');
+  const [supplierEmail, setSupplierEmail] = useState('');
+  const [leadTimeDays, setLeadTimeDays] = useState('');
+  const [mrq, setMrq] = useState('');
+  const [serialTracked, setSerialTracked] = useState(false);
+  const [batchTracked, setBatchTracked] = useState(false);
+  const [warrantyPeriodMonths, setWarrantyPeriodMonths] = useState('');
+  const [warrantyStartRule, setWarrantyStartRule] = useState('DELIVERY_DATE');
+  const [taxPercent, setTaxPercent] = useState('');
 
   // Form State - New Category
   const [catName, setCatName] = useState('');
@@ -212,6 +234,16 @@ export default function MasterDataItemsPage() {
     setAdditionalVendors([]);
     setAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
     setGovernanceError('');
+    setManufacturerCode('');
+    setSupplierItemCode('');
+    setSupplierEmail('');
+    setLeadTimeDays('');
+    setMrq('');
+    setSerialTracked(false);
+    setBatchTracked(false);
+    setWarrantyPeriodMonths('');
+    setWarrantyStartRule('DELIVERY_DATE');
+    setTaxPercent('');
     setIsItemModalOpen(true);
   };
 
@@ -242,6 +274,16 @@ export default function MasterDataItemsPage() {
     }
 
     setGovernanceError('');
+    setManufacturerCode(item.manufacturerCode || '');
+    setSupplierItemCode(item.supplierItemCode || '');
+    setSupplierEmail(item.supplierEmail || '');
+    setLeadTimeDays(item.leadTimeDays !== undefined ? item.leadTimeDays.toString() : '');
+    setMrq(item.mrq !== undefined ? item.mrq.toString() : '');
+    setSerialTracked(item.serialTracked || false);
+    setBatchTracked(item.batchTracked || false);
+    setWarrantyPeriodMonths(item.warrantyPeriodMonths !== undefined ? item.warrantyPeriodMonths.toString() : '');
+    setWarrantyStartRule(item.warrantyStartRule || 'DELIVERY_DATE');
+    setTaxPercent(item.taxPercent !== undefined ? item.taxPercent.toString() : '');
     setIsItemModalOpen(true);
   };
 
@@ -319,6 +361,16 @@ export default function MasterDataItemsPage() {
       additionalVendors: additionalVendors
         .filter((v) => v.vendorName.trim() && v.costPrice.trim())
         .map((v) => ({ vendorName: v.vendorName, costPrice: v.costPrice })),
+      manufacturerCode: manufacturerCode.trim() || undefined,
+      supplierItemCode: supplierItemCode.trim() || undefined,
+      supplierEmail: supplierEmail.trim() || undefined,
+      leadTimeDays: leadTimeDays ? Number(leadTimeDays) : undefined,
+      mrq: mrq ? Number(mrq) : undefined,
+      serialTracked,
+      batchTracked,
+      warrantyPeriodMonths: warrantyPeriodMonths ? Number(warrantyPeriodMonths) : undefined,
+      warrantyStartRule,
+      taxPercent: taxPercent ? Number(taxPercent) : undefined,
     };
 
     try {
@@ -1250,10 +1302,49 @@ export default function MasterDataItemsPage() {
               ))}
             </div>
 
-            {/* SECTION 5: DESCRIPTION */}
+            {/* SECTION 5: SUPPLY CHAIN & WARRANTY */}
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <Shield className="w-4 h-4 text-indigo-600" />
+                <span>5. Supply Chain Codes & Warranty</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input label="Manufacturer Item Code" value={manufacturerCode} onChange={(e) => setManufacturerCode(e.target.value)} placeholder="e.g. MFG-00123" />
+                <Input label="Supplier Item Code" value={supplierItemCode} onChange={(e) => setSupplierItemCode(e.target.value)} placeholder="e.g. SUP-ABC-7" />
+                <Input label="Supplier Email (PO delivery)" type="email" value={supplierEmail} onChange={(e) => setSupplierEmail(e.target.value)} placeholder="orders@supplier.com" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input label="Lead Time (days)" type="number" min="0" value={leadTimeDays} onChange={(e) => setLeadTimeDays(e.target.value)} placeholder="7" />
+                <Input label="Min Reorder Qty (MRQ)" type="number" min="1" value={mrq} onChange={(e) => setMrq(e.target.value)} placeholder="e.g. 10" />
+                <Input label="Tax %" type="number" min="0" max="100" step="0.01" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} placeholder="10" helperText="e.g. 10 for 10% GST" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input label="Warranty Period (months)" type="number" min="0" value={warrantyPeriodMonths} onChange={(e) => setWarrantyPeriodMonths(e.target.value)} placeholder="12" />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Warranty Start Rule</label>
+                  <select value={warrantyStartRule} onChange={(e) => setWarrantyStartRule(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-indigo-600">
+                    <option value="DELIVERY_DATE">Delivery Date</option>
+                    <option value="INVOICE_DATE">Supplier Invoice Date</option>
+                    <option value="INSTALLATION_DATE">Installation / Commissioning Date</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-3 pt-5">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={serialTracked} onChange={(e) => setSerialTracked(e.target.checked)} className="w-4 h-4 rounded accent-indigo-600" />
+                    <span className="text-sm font-semibold text-slate-700">Serial Number Tracking</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={batchTracked} onChange={(e) => setBatchTracked(e.target.checked)} className="w-4 h-4 rounded accent-indigo-600" />
+                    <span className="text-sm font-semibold text-slate-700">Batch Number Tracking</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 6: DESCRIPTION */}
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-2">
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                5. Product Description & Packaging Notes
+                6. Product Description & Packaging Notes
               </label>
               <textarea
                 value={description}

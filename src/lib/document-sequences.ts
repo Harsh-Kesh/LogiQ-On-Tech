@@ -4,7 +4,7 @@ import { prisma } from './prisma';
 // A single Postgres transaction with SELECT ... FOR UPDATE ensures two
 // concurrent requests never receive the same number.
 
-export type SequenceKey = 'SO' | 'PO' | 'DN' | 'CI' | 'VI' | 'CP' | 'VP' | 'OI' | 'TC';
+export type SequenceKey = 'SO' | 'PO' | 'DN' | 'CI' | 'VI' | 'CP' | 'VP' | 'OI' | 'TC' | 'SFO';
 
 interface SequenceConfig {
   prefix: string;
@@ -22,6 +22,7 @@ export const SEQUENCE_CONFIGS: Record<SequenceKey, SequenceConfig> = {
   VP: { prefix: 'VPT', yearScope: true, padLength: 5 },
   OI: { prefix: 'ORQ', yearScope: true, padLength: 5 },
   TC: { prefix: 'TRC', yearScope: true, padLength: 5 },
+  SFO: { prefix: 'SFO', yearScope: true, padLength: 5 },
 };
 
 function formatNumber(prefix: string, year: number | null, value: number, pad: number): string {
