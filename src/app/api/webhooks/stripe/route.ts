@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 
-// Stripe requires the raw request body for signature verification.
-// Disabling Next.js body parsing lets us read it as an ArrayBuffer.
-export const config = { api: { bodyParser: false } };
 import Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
