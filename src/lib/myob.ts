@@ -1,7 +1,7 @@
-// MYOB AccountRight API client
-// Credentials: MYOB_CLIENT_ID, MYOB_CLIENT_SECRET, MYOB_COMPANY_FILE_ID,
-//              MYOB_USERNAME, MYOB_PASSWORD
-// Sandbox: https://api.myob.com (developer.myob.com sandbox company files)
+// MYOB Business API client — OAuth2 refresh token flow.
+// One-time setup: visit /api/auth/myob/connect as Platform Owner to authorise.
+// Credentials needed: MYOB_CLIENT_ID, MYOB_CLIENT_SECRET, MYOB_COMPANY_FILE_ID,
+//                     MYOB_REFRESH_TOKEN (obtained via /api/auth/myob/connect)
 
 const MYOB_BASE = 'https://api.myob.com/accountright';
 const MYOB_TOKEN_URL = 'https://secure.myob.com/oauth2/v1/token';
@@ -15,20 +15,20 @@ async function getAccessToken(): Promise<string> {
 
   const clientId = process.env.MYOB_CLIENT_ID;
   const clientSecret = process.env.MYOB_CLIENT_SECRET;
-  const username = process.env.MYOB_USERNAME;
-  const password = process.env.MYOB_PASSWORD;
+  const refreshToken = process.env.MYOB_REFRESH_TOKEN;
 
-  if (!clientId || !clientSecret || !username || !password) {
-    throw new Error('MYOB credentials not configured (MYOB_CLIENT_ID, MYOB_CLIENT_SECRET, MYOB_USERNAME, MYOB_PASSWORD).');
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error(
+      'MYOB credentials not configured. Set MYOB_CLIENT_ID, MYOB_CLIENT_SECRET and MYOB_REFRESH_TOKEN. ' +
+      'Visit /api/auth/myob/connect (as Platform Owner) to generate the refresh token.'
+    );
   }
 
   const body = new URLSearchParams({
-    grant_type: 'password',
+    grant_type: 'refresh_token',
     client_id: clientId,
     client_secret: clientSecret,
-    username,
-    password,
-    scope: 'CompanyFile',
+    refresh_token: refreshToken,
   });
 
   const res = await fetch(MYOB_TOKEN_URL, {
@@ -39,7 +39,7 @@ async function getAccessToken(): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`MYOB token fetch failed ${res.status}: ${text}`);
+    throw new Error(`MYOB token refresh failed ${res.status}: ${text}. Re-visit /api/auth/myob/connect to re-authorise.`);
   }
 
   const data = await res.json();
@@ -65,9 +65,6 @@ async function myobRequest(method: string, path: string, body?: object): Promise
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'x-myobapi-cftoken': Buffer.from(
-        `${process.env.MYOB_USERNAME}:${process.env.MYOB_PASSWORD}`
-      ).toString('base64'),
       'x-myobapi-key': process.env.MYOB_CLIENT_ID || '',
       'x-myobapi-version': 'v2',
     },
