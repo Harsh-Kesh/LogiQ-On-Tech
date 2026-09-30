@@ -6,8 +6,9 @@ import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { nextDocumentNumber } from '@/lib/document-sequences';
 import { createSalesOrder } from '@/lib/sales-orders';
-import { sendOrderConfirmationEmail } from '@/lib/email';
+import { sendOrderConfirmationEmail, sendTransactionalEmail } from '@/lib/email';
 import { logAuditEvent } from '@/lib/audit';
+import { createMyobPurchaseOrder } from '@/lib/myob';
 
 // Stripe requires the raw body for signature verification — Next.js App Router
 // provides it via req.arrayBuffer() as long as we do NOT call req.json() first.
@@ -149,6 +150,99 @@ export async function POST(req: Request) {
       salesOrder.totalValue,
       salesOrder.currency
     ).catch((err) => console.warn('Stripe webhook: confirmation email failed:', err));
+  }
+
+  // Phase 3 — Create MYOB Purchase Order + email PO to supplier
+  if (salesOrder) {
+    try {
+      // Find the vendor for this order (all items assumed same vendor via ItemMaster)
+      const firstSku = resolvedLines[0]?.sku;
+      const itemMaster = firstSku
+        ? await prisma.itemMaster.findFirst({
+            where: { sku: firstSku },
+            include: { vendor: true },
+          })
+        : null;
+
+      const vendor = itemMaster?.vendor;
+      const poNumber = await nextDocumentNumber('PO');
+
+      if (vendor?.myobContactId) {
+        const myobResult = await createMyobPurchaseOrder({
+          supplierContactId: vendor.myobContactId,
+          poNumber,
+          deliveryAddress,
+          currency: 'AUD',
+          lines: resolvedLines.map((l) => ({
+            itemCode: l.sku,
+            description: l.itemName,
+            quantity: l.qty,
+            unitPrice: l.unitPrice,
+            taxCode: 'GST',
+          })),
+          memo: `Storefront order ${orderNumber} — ${customerName}`,
+        });
+
+        await prisma.storefrontOrder.update({
+          where: { id: storefrontOrder.id },
+          data: {
+            myobPoGuid: myobResult.guid,
+            myobPoNumber: myobResult.poNumber,
+            status: 'PO_SENT',
+            poEmailSentTo: vendor.poEmail || undefined,
+            poEmailSentAt: new Date(),
+          },
+        });
+      } else {
+        // MYOB contact not configured — still create internal PO record and email supplier
+        await prisma.storefrontOrder.update({
+          where: { id: storefrontOrder.id },
+          data: {
+            myobPoNumber: poNumber,
+            status: 'PO_SENT',
+            poEmailSentTo: vendor?.poEmail || undefined,
+            poEmailSentAt: new Date(),
+          },
+        });
+      }
+
+      // Email PO to supplier
+      const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail;
+      if (supplierEmail) {
+        const poLines = resolvedLines.map((l) =>
+          `<tr><td style="padding:4px 8px;border:1px solid #e2e8f0">${l.sku}</td><td style="padding:4px 8px;border:1px solid #e2e8f0">${l.itemName}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center">${l.qty}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${l.unitPrice.toFixed(2)}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${(l.qty * l.unitPrice).toFixed(2)}</td></tr>`
+        ).join('');
+        await sendTransactionalEmail({
+          to: supplierEmail,
+          subject: `Purchase Order ${poNumber} — LogiQ-On Tech`,
+          html: `
+            <div style="font-family:sans-serif;max-width:680px;margin:0 auto">
+              <h2 style="color:#0f172a">Purchase Order — ${poNumber}</h2>
+              <p>Dear ${vendor?.companyName || 'Supplier'},</p>
+              <p>Please find below a Purchase Order from <strong>LogiQ-On Tech</strong>.</p>
+              <p><strong>Deliver to:</strong> ${deliveryAddress}</p>
+              <table style="width:100%;border-collapse:collapse;margin:16px 0">
+                <thead><tr style="background:#f1f5f9">
+                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">SKU</th>
+                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">Description</th>
+                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">Qty</th>
+                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Unit Price</th>
+                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Line Total</th>
+                </tr></thead>
+                <tbody>${poLines}</tbody>
+              </table>
+              <p><strong>Total (ex GST):</strong> AUD ${subtotal.toFixed(2)}<br/>
+              <strong>GST:</strong> AUD ${taxTotal.toFixed(2)}<br/>
+              <strong>Total (inc GST):</strong> AUD ${totalAmount.toFixed(2)}</p>
+              <p>Please send your invoice to <a href="mailto:${process.env.IMAP_USER || 'accounts@logiqon.com'}">${process.env.IMAP_USER || 'accounts@logiqon.com'}</a> quoting PO number <strong>${poNumber}</strong>.</p>
+              <p>Thank you,<br/>LogiQ-On Tech Procurement Team</p>
+            </div>`,
+        }).catch((err) => console.warn('PO email failed:', err));
+      }
+    } catch (err) {
+      console.error('Phase 3: MYOB PO creation failed for storefront order', storefrontOrder.id, err);
+      // Non-fatal — order is still paid, admin can retry from pipeline view
+    }
   }
 
   await logAuditEvent({

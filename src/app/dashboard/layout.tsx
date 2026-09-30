@@ -8,7 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Brand from '@/components/Brand';
 import HelpdeskLauncher from '@/components/HelpdeskLauncher';
-import { Shield, Building, Warehouse, FileText, LogOut, Lock, Users, Package, Boxes, Truck, ShoppingCart, Menu, X } from 'lucide-react';
+import { Shield, Building, Warehouse, FileText, LogOut, Lock, Users, Package, Boxes, Truck, ShoppingCart, Menu, X, GitBranch, Search, ShieldCheck } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -93,6 +93,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: 'Item Master Data', href: '/dashboard/owner/items', roleRequired: OWNER_ONLY, icon: Package },
         { name: 'Vendor Master Data', href: '/dashboard/owner/vendor-master', roleRequired: OWNER_ONLY, icon: Truck },
         { name: 'Customer Master Data', href: '/dashboard/owner/customer-master', roleRequired: OWNER_ONLY, icon: ShoppingCart },
+      ],
+    },
+    {
+      label: 'Supply Chain',
+      links: [
+        { name: 'Order Pipeline', href: '/dashboard/owner/pipeline', roleRequired: OWNER_ONLY, icon: GitBranch },
+        { name: 'Traceability', href: '/dashboard/owner/traceability', roleRequired: OWNER_ONLY, icon: Search },
+        { name: 'Warranties', href: '/dashboard/owner/warranties', roleRequired: OWNER_ONLY, icon: ShieldCheck },
       ],
     },
     {
