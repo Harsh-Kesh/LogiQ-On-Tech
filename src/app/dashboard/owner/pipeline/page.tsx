@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, CheckCircle, AlertTriangle, Clock, DollarSign, Package } from 'lucide-react';
+import { RefreshCw, AlertTriangle, DollarSign, FileText } from 'lucide-react';
 
 interface SFOrder {
   id: string;
@@ -44,6 +44,7 @@ export default function PipelinePage() {
   const [orders, setOrders] = useState<SFOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [simulatingId, setSimulatingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const fetchOrders = async () => {
@@ -54,6 +55,24 @@ export default function PipelinePage() {
   };
 
   useEffect(() => { fetchOrders(); }, []);
+
+  const handleSimulateInvoice = async (orderId: string) => {
+    if (!confirm('Simulate a supplier invoice arriving for this order? This will trigger the 3-way match immediately.')) return;
+    setSimulatingId(orderId);
+    const res = await fetch('/api/demo/simulate-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: orderId }),
+    });
+    setSimulatingId(null);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      alert(`Invoice simulated! ${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`);
+      fetchOrders();
+    } else {
+      alert(`Simulation failed: ${data.error || res.statusText}`);
+    }
+  };
 
   const handlePaySupplier = async (orderId: string) => {
     if (!confirm('Trigger Monoova NPP bank transfer to supplier now?')) return;
@@ -141,6 +160,16 @@ export default function PipelinePage() {
                     <span className="text-sm font-bold text-slate-900">
                       {order.currency} {Number(order.totalAmount).toFixed(2)}
                     </span>
+                    {order.status === 'PO_SENT' && (
+                      <button
+                        onClick={() => handleSimulateInvoice(order.id)}
+                        disabled={simulatingId === order.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        {simulatingId === order.id ? 'Simulating…' : 'Simulate Invoice'}
+                      </button>
+                    )}
                     {canPay && (
                       <button
                         onClick={() => handlePaySupplier(order.id)}
