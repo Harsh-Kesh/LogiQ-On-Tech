@@ -75,7 +75,7 @@ export default function PipelinePage() {
   };
 
   const handlePaySupplier = async (orderId: string) => {
-    if (!confirm('Trigger Monoova NPP bank transfer to supplier now?')) return;
+    if (!confirm('Trigger bank transfer to supplier now? (Airwallex or Monoova, whichever is configured)')) return;
     setPayingId(orderId);
     const res = await fetch('/api/payments/supplier', {
       method: 'POST',

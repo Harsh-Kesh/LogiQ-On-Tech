@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       billGuid: sfOrder.myobBillGuid,
       amount,
       paymentDate: new Date().toISOString().split('T')[0],
-      memo: `Payment for ${sfOrder.orderNumber} via Monoova NPP`,
+      memo: `Payment for ${sfOrder.orderNumber} via bank transfer`,
     }).catch((err) => console.warn('MYOB supplier payment record failed:', err.message));
   }
 
