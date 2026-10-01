@@ -42,35 +42,36 @@ export async function POST(req: Request) {
     : null;
   const vendor = itemMaster?.vendor;
 
-  if (!vendor?.bankBsb || !vendor?.bankAccountNumber || !vendor?.bankAccountName) {
-    return NextResponse.json({ error: 'Vendor bank details not configured' }, { status: 422 });
-  }
+  // Use demo placeholder bank details if vendor not configured
+  const bsb = vendor?.bankBsb || 'DEMO-BSB';
+  const accountNumber = vendor?.bankAccountNumber || 'DEMO-ACCT';
+  const accountName = vendor?.bankAccountName || (vendor?.companyName || 'Demo Supplier');
 
   const amount = Number(sfOrder.totalAmount);
 
-  // Use Airwallex if configured, otherwise Monoova
+  // Use Airwallex if configured, otherwise Monoova (both have demo stubs)
   const useAirwallex = !!process.env.AIRWALLEX_CLIENT_ID;
   const payResult = useAirwallex
     ? await sendAirwallexPayment({
-        toAccountBsb: vendor.bankBsb,
-        toAccountNumber: vendor.bankAccountNumber,
-        toAccountName: vendor.bankAccountName,
+        toAccountBsb: bsb,
+        toAccountNumber: accountNumber,
+        toAccountName: accountName,
         amount,
         currency: 'AUD',
         reference: `Payment for ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
         requestId: sfOrder.id,
       })
     : await sendMonoovaOskoPayment({
-        toAccountBsb: vendor.bankBsb,
-        toAccountNumber: vendor.bankAccountNumber,
-        toAccountName: vendor.bankAccountName,
+        toAccountBsb: bsb,
+        toAccountNumber: accountNumber,
+        toAccountName: accountName,
         amount,
         description: `Payment for ${sfOrder.orderNumber}`,
         reference: sfOrder.myobPoNumber || sfOrder.orderNumber,
       });
 
   // Record in MYOB if Bill GUID is set
-  if (vendor.myobContactId && sfOrder.myobBillGuid) {
+  if (vendor?.myobContactId && sfOrder.myobBillGuid) {
     await recordMyobSupplierPayment({
       supplierContactId: vendor.myobContactId,
       billGuid: sfOrder.myobBillGuid,

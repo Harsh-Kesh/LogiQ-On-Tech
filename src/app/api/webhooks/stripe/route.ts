@@ -242,8 +242,8 @@ export async function POST(req: Request) {
         });
       }
 
-      // Email PO to supplier
-      const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail;
+      // Email PO to supplier — fall back to IMAP inbox for demo so PO is visible somewhere
+      const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail || process.env.IMAP_USER;
       if (supplierEmail) {
         const poLines = resolvedLines.map((l) =>
           `<tr><td style="padding:4px 8px;border:1px solid #e2e8f0">${l.sku}</td><td style="padding:4px 8px;border:1px solid #e2e8f0">${l.itemName}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center">${l.qty}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${l.unitPrice.toFixed(2)}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${(l.qty * l.unitPrice).toFixed(2)}</td></tr>`

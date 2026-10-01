@@ -118,23 +118,26 @@ export async function runThreeWayMatch(
           console.error('Warranty record creation failed:', err.message)
         );
 
-        // Trigger payment if bank details are configured (Airwallex preferred, Monoova fallback)
-        if (vendor.bankBsb && vendor.bankAccountNumber && vendor.bankAccountName) {
+        // Trigger payment — use demo placeholders if vendor bank details not yet configured
+        if (true) {
+          const bsb = vendor.bankBsb || 'DEMO-BSB';
+          const acctNumber = vendor.bankAccountNumber || 'DEMO-ACCT';
+          const acctName = vendor.bankAccountName || vendor.companyName || 'Demo Supplier';
           const useAirwallex = !!process.env.AIRWALLEX_CLIENT_ID;
           const payResult = useAirwallex
             ? await sendAirwallexPayment({
-                toAccountBsb: vendor.bankBsb,
-                toAccountNumber: vendor.bankAccountNumber,
-                toAccountName: vendor.bankAccountName,
+                toAccountBsb: bsb,
+                toAccountNumber: acctNumber,
+                toAccountName: acctName,
                 amount: invTotal,
                 currency: 'AUD',
                 reference: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
                 requestId: sfOrder.id,
               })
             : await sendMonoovaOskoPayment({
-                toAccountBsb: vendor.bankBsb,
-                toAccountNumber: vendor.bankAccountNumber,
-                toAccountName: vendor.bankAccountName,
+                toAccountBsb: bsb,
+                toAccountNumber: acctNumber,
+                toAccountName: acctName,
                 amount: invTotal,
                 description: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
                 reference: sfOrder.myobPoNumber || sfOrder.orderNumber,

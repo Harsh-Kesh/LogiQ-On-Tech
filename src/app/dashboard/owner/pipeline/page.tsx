@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw } from 'lucide-react';
+import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings } from 'lucide-react';
 
 interface SFOrder {
   id: string;
@@ -48,6 +48,20 @@ export default function PipelinePage() {
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
+  const [settingUp, setSettingUp] = useState(false);
+
+  const handleSetupDemo = async () => {
+    if (!confirm('This will patch all vendors and items with demo data (bank details, warranty periods, supplier emails). Run once before the demo.')) return;
+    setSettingUp(true);
+    const res = await fetch('/api/demo/setup', { method: 'POST' });
+    setSettingUp(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      alert(`Demo setup complete!\n\n${(data.patched || []).join('\n')}`);
+    } else {
+      alert(`Setup failed: ${data.error || res.statusText}`);
+    }
+  };
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const fetchOrders = async () => {
@@ -157,6 +171,14 @@ export default function PipelinePage() {
           <p className="text-sm text-slate-500 mt-0.5">End-to-end supply chain status for every storefront order</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleSetupDemo}
+            disabled={settingUp}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-sm font-semibold transition disabled:opacity-60"
+          >
+            <Settings className="w-4 h-4" />
+            {settingUp ? 'Setting up…' : 'Setup Demo Data'}
+          </button>
           <button
             onClick={handleExportCsv}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition"
