@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download } from 'lucide-react';
+import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw } from 'lucide-react';
 
 interface SFOrder {
   id: string;
@@ -47,6 +47,7 @@ export default function PipelinePage() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
+  const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const fetchOrders = async () => {
@@ -73,6 +74,24 @@ export default function PipelinePage() {
       fetchOrders();
     } else {
       alert(`Simulation failed: ${data.error || res.statusText}`);
+    }
+  };
+
+  const handleRetryPo = async (orderId: string) => {
+    if (!confirm('Retry creating the MYOB Purchase Order for this order?')) return;
+    setRetryingPoId(orderId);
+    const res = await fetch('/api/myob/po', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: orderId }),
+    });
+    setRetryingPoId(null);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      alert(`PO created: ${data.poNumber}`);
+      fetchOrders();
+    } else {
+      alert(`Failed: ${data.error || res.statusText}`);
     }
   };
 
@@ -205,6 +224,16 @@ export default function PipelinePage() {
                     <span className="text-sm font-bold text-slate-900">
                       {order.currency} {Number(order.totalAmount).toFixed(2)}
                     </span>
+                    {order.status === 'SO_CREATED' && (
+                      <button
+                        onClick={() => handleRetryPo(order.id)}
+                        disabled={retryingPoId === order.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition disabled:opacity-60"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        {retryingPoId === order.id ? 'Retrying…' : 'Retry PO'}
+                      </button>
+                    )}
                     {order.status === 'PO_SENT' && (
                       <button
                         onClick={() => handleSimulateInvoice(order.id)}

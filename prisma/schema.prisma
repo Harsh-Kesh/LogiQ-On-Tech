@@ -1328,6 +1328,8 @@ model StorefrontOrder {
   myobBillGuid    String?
   myobBillNumber  String?
   myobPaymentGuid String?
+  myobInvoiceGuid String?
+  myobInvoiceNumber String?
   // Monoova (actual bank transfer)
   monoovaTxnId    String?
   monoovaStatus   String?

@@ -35,10 +35,20 @@ export async function createWarrantyRecords(
 
   const deliveryDate = new Date();
 
+  // Look up SalesOrder number for traceability
+  const salesOrder = sfOrder.salesOrderId
+    ? await prisma.salesOrder.findUnique({
+        where: { id: sfOrder.salesOrderId },
+        select: { salesOrderNumber: true },
+      })
+    : null;
+
   for (const item of sfOrder.items) {
+    // itemMasterId may not be set on StorefrontOrderItem — fall back to SKU lookup
     const itemMaster = item.itemMasterId
       ? await prisma.itemMaster.findUnique({ where: { id: item.itemMasterId } })
-      : null;
+      : await prisma.itemMaster.findFirst({ where: { sku: item.itemCode } });
+
     const warrantyMonths = itemMaster?.warrantyPeriodMonths;
     if (!warrantyMonths || warrantyMonths <= 0) continue;
 
@@ -54,11 +64,12 @@ export async function createWarrantyRecords(
     await prisma.warrantyRecord.create({
       data: {
         warrantyNumber,
-        itemMasterId: item.itemMasterId || undefined,
+        itemMasterId: itemMaster?.id || undefined,
         partNumber: item.itemCode,
         partDescription: item.itemName,
         customerName: sfOrder.customerName,
         salesOrderId: sfOrder.salesOrderId || undefined,
+        salesOrderNumber: salesOrder?.salesOrderNumber || undefined,
         supplierInvoiceId: suppInv.id,
         supplierInvoiceNumber: suppInv.vendorInvoiceNumber,
         vendorName: suppInv.vendorName,

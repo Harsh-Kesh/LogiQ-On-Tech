@@ -8,7 +8,7 @@ import { nextDocumentNumber } from '@/lib/document-sequences';
 import { createSalesOrder } from '@/lib/sales-orders';
 import { sendOrderConfirmationEmail, sendTransactionalEmail } from '@/lib/email';
 import { logAuditEvent } from '@/lib/audit';
-import { createMyobPurchaseOrder } from '@/lib/myob';
+import { createMyobPurchaseOrder, createMyobCustomerInvoice } from '@/lib/myob';
 
 // Stripe requires the raw body for signature verification — Next.js App Router
 // provides it via req.arrayBuffer() as long as we do NOT call req.json() first.
@@ -150,6 +150,42 @@ export async function POST(req: Request) {
       salesOrder.totalValue,
       salesOrder.currency
     ).catch((err) => console.warn('Stripe webhook: confirmation email failed:', err));
+  }
+
+  // Phase 3 — Step 4: Create MYOB Customer Invoice for this sale
+  if (salesOrder) {
+    try {
+      const firstSku = resolvedLines[0]?.sku;
+      const customerItemMaster = firstSku
+        ? await prisma.itemMaster.findFirst({ where: { sku: firstSku }, include: { vendor: true } })
+        : null;
+      // Use vendor's myobContactId as a proxy for the customer — in real usage the customer
+      // would have their own MYOB contact. For demo, we use the vendor contact or skip.
+      const myobCustomerContactId = (customerItemMaster?.vendor as any)?.myobCustomerContactId || null;
+
+      const invoiceResult = await createMyobCustomerInvoice({
+        customerContactId: myobCustomerContactId || 'DEMO-CUSTOMER',
+        invoiceNumber: salesOrder.salesOrderNumber,
+        invoiceDate: new Date().toISOString().split('T')[0],
+        deliveryAddress,
+        currency: 'AUD',
+        lines: resolvedLines.map((l) => ({
+          itemCode: l.sku,
+          description: l.itemName,
+          quantity: l.qty,
+          unitPrice: l.unitPrice,
+          taxCode: 'GST',
+        })),
+        memo: `Customer Invoice for ${orderNumber} — ${customerName}`,
+      });
+
+      await prisma.storefrontOrder.update({
+        where: { id: storefrontOrder.id },
+        data: { myobInvoiceGuid: invoiceResult.guid, myobInvoiceNumber: invoiceResult.invoiceNumber },
+      }).catch(() => {}); // field may not be in schema yet — non-fatal
+    } catch (err) {
+      console.warn('Phase 3 Step 4: MYOB Customer Invoice creation failed:', err);
+    }
   }
 
   // Phase 3 — Create MYOB Purchase Order + email PO to supplier

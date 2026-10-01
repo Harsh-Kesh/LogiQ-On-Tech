@@ -80,6 +80,52 @@ async function myobRequest(method: string, path: string, body?: object): Promise
   return res.json();
 }
 
+export interface MyobCustomerInvoiceParams {
+  customerContactId: string;  // MYOB Customer GUID
+  invoiceNumber: string;      // our internal SO/SFO number
+  invoiceDate: string;        // ISO date string
+  deliveryAddress: string;
+  currency: string;
+  lines: { itemCode: string; description: string; quantity: number; unitPrice: number; taxCode?: string }[];
+  memo?: string;
+}
+
+export interface MyobCustomerInvoiceResult {
+  guid: string;
+  invoiceNumber: string;
+}
+
+export async function createMyobCustomerInvoice(
+  params: MyobCustomerInvoiceParams
+): Promise<MyobCustomerInvoiceResult> {
+  if (!process.env.MYOB_CLIENT_ID) {
+    const fakeGuid = `DEMO-MYOB-INV-${Date.now()}`;
+    console.log(`[MYOB DEMO] Would create Customer Invoice ${params.invoiceNumber} for customer ${params.customerContactId}`);
+    return { guid: fakeGuid, invoiceNumber: params.invoiceNumber };
+  }
+
+  const body = {
+    Customer: { UID: params.customerContactId },
+    Number: params.invoiceNumber,
+    Date: params.invoiceDate,
+    ShipToAddress: params.deliveryAddress,
+    Memo: params.memo || `Customer Invoice ${params.invoiceNumber} — LogiQ-On Tech`,
+    Lines: params.lines.map((l) => ({
+      Type: 'Item',
+      Item: { DisplayID: l.itemCode },
+      Description: l.description,
+      ShipQuantity: l.quantity,
+      UnitPrice: l.unitPrice,
+      TaxCode: { Code: l.taxCode || 'GST' },
+    })),
+  };
+
+  const result = await myobRequest('POST', '/Sale/Invoice/Item', body);
+  const guid: string = result?.UID || result?.uid || '';
+  const invoiceNumber: string = result?.Number || params.invoiceNumber;
+  return { guid, invoiceNumber };
+}
+
 export interface MyobPoLine {
   itemCode: string;
   description: string;
