@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, AlertTriangle, DollarSign, FileText } from 'lucide-react';
+import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download } from 'lucide-react';
 
 interface SFOrder {
   id: string;
@@ -39,12 +39,14 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 const PAY_ELIGIBLE = new Set(['MATCHED', 'BILL_CREATED']);
+const DELIVER_ELIGIBLE = new Set(['SUPPLIER_PAID']);
 
 export default function PipelinePage() {
   const [orders, setOrders] = useState<SFOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
+  const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const fetchOrders = async () => {
@@ -72,6 +74,39 @@ export default function PipelinePage() {
     } else {
       alert(`Simulation failed: ${data.error || res.statusText}`);
     }
+  };
+
+  const handleSimulateDelivery = async (orderId: string) => {
+    if (!confirm('Simulate Sektor confirming delivery? This will mark the order as FULFILLED and email the customer.')) return;
+    setDeliveringId(orderId);
+    const res = await fetch('/api/demo/simulate-delivery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: orderId }),
+    });
+    setDeliveringId(null);
+    if (res.ok) {
+      alert('Delivery confirmed! Order is now FULFILLED and customer notified.');
+      fetchOrders();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(`Failed: ${data.error || res.statusText}`);
+    }
+  };
+
+  const handleExportCsv = () => {
+    const headers = ['Order #', 'Customer', 'Email', 'Total', 'Status', 'PO #', 'Bill #', 'Txn ID', 'Created'];
+    const rows = orders.map((o) => [
+      o.orderNumber, o.customerName, o.customerEmail,
+      `${o.currency} ${Number(o.totalAmount).toFixed(2)}`,
+      o.status, o.myobPoNumber || '', o.myobBillNumber || '',
+      o.monoovaTxnId || '', new Date(o.createdAt).toLocaleDateString('en-AU'),
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'pipeline.csv'; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handlePaySupplier = async (orderId: string) => {
@@ -102,13 +137,22 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-bold text-slate-900">Order Pipeline</h1>
           <p className="text-sm text-slate-500 mt-0.5">End-to-end supply chain status for every storefront order</p>
         </div>
-        <button
-          onClick={fetchOrders}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          <button
+            onClick={fetchOrders}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Status filter pills */}
@@ -137,6 +181,7 @@ export default function PipelinePage() {
           {displayed.map((order) => {
             const badge = STATUS_LABELS[order.status] || { label: order.status, color: 'bg-slate-100 text-slate-600' };
             const canPay = PAY_ELIGIBLE.has(order.status);
+            const canDeliver = DELIVER_ELIGIBLE.has(order.status);
             return (
               <div key={order.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -178,6 +223,16 @@ export default function PipelinePage() {
                       >
                         <DollarSign className="w-3.5 h-3.5" />
                         {payingId === order.id ? 'Processing…' : 'Pay Supplier'}
+                      </button>
+                    )}
+                    {canDeliver && (
+                      <button
+                        onClick={() => handleSimulateDelivery(order.id)}
+                        disabled={deliveringId === order.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        {deliveringId === order.id ? 'Confirming…' : 'Simulate Delivery'}
                       </button>
                     )}
                   </div>

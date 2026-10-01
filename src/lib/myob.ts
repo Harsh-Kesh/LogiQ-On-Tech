@@ -103,6 +103,11 @@ export interface MyobPoResult {
 }
 
 export async function createMyobPurchaseOrder(params: CreateMyobPoParams): Promise<MyobPoResult> {
+  if (!process.env.MYOB_CLIENT_ID) {
+    const fakeGuid = `DEMO-MYOB-PO-${Date.now()}`;
+    console.log(`[MYOB DEMO] Would create PO ${params.poNumber} for supplier ${params.supplierContactId}`);
+    return { guid: fakeGuid, poNumber: params.poNumber };
+  }
   const body = {
     Supplier: { UID: params.supplierContactId },
     Number: params.poNumber,
@@ -142,6 +147,12 @@ export interface MyobBillResult {
 }
 
 export async function createMyobBill(params: MyobBillParams): Promise<MyobBillResult> {
+  if (!process.env.MYOB_CLIENT_ID) {
+    const fakeGuid = `DEMO-MYOB-BILL-${Date.now()}`;
+    const fakeBillNumber = `DEMO-BILL-${params.invoiceNumber}`;
+    console.log(`[MYOB DEMO] Would create Bill for invoice ${params.invoiceNumber}, supplier ${params.supplierContactId}`);
+    return { guid: fakeGuid, billNumber: fakeBillNumber };
+  }
   const body = {
     Supplier: { UID: params.supplierContactId },
     SupplierInvoiceNumber: params.invoiceNumber,
@@ -178,6 +189,11 @@ export interface MyobPaymentResult {
 }
 
 export async function recordMyobSupplierPayment(params: MyobSupplierPaymentParams): Promise<MyobPaymentResult> {
+  if (!process.env.MYOB_CLIENT_ID) {
+    const fakeGuid = `DEMO-MYOB-PAY-${Date.now()}`;
+    console.log(`[MYOB DEMO] Would record supplier payment AUD ${params.amount} against bill ${params.billGuid}`);
+    return { guid: fakeGuid };
+  }
   const body = {
     Supplier: { UID: params.supplierContactId },
     Date: params.paymentDate,

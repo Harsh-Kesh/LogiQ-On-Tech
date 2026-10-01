@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { ShieldCheck, AlertTriangle, Clock, RefreshCw } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Clock, RefreshCw, Download } from 'lucide-react';
 
 interface WarrantyRecord {
   id: string;
@@ -58,6 +58,22 @@ export default function WarrantiesPage() {
   const expiringCount = records.filter((r) => r.remainingDays !== null && r.remainingDays >= 0 && r.remainingDays <= 30).length;
   const expiredCount = records.filter((r) => r.status === 'EXPIRED').length;
 
+  const handleExportCsv = () => {
+    const headers = ['Warranty #', 'Part #', 'Description', 'Serial', 'Customer', 'SO #', 'Vendor', 'Start Date', 'Expiry Date', 'Period (mo)', 'Days Remaining', 'Status'];
+    const rows = displayed.map((r) => [
+      r.warrantyNumber, r.partNumber, r.partDescription || '', r.serialNumber || '',
+      r.customerName || '', r.salesOrderNumber || '', r.vendorName || '',
+      r.warrantyStartDate ? new Date(r.warrantyStartDate).toLocaleDateString('en-AU') : '',
+      r.warrantyExpiryDate ? new Date(r.warrantyExpiryDate).toLocaleDateString('en-AU') : '',
+      r.warrantyPeriodMonths, r.remainingDays ?? '', r.status,
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'warranties.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -65,13 +81,22 @@ export default function WarrantiesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Warranty Management</h1>
           <p className="text-sm text-slate-500 mt-0.5">Track warranty periods and expiry alerts for all items</p>
         </div>
-        <button
-          onClick={fetchRecords}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          <button
+            onClick={fetchRecords}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Summary chips */}
