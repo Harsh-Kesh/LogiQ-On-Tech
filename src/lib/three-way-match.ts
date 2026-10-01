@@ -6,6 +6,7 @@
 import { prisma } from './prisma';
 import { createMyobBill } from './myob';
 import { sendMonoovaOskoPayment } from './monoova';
+import { sendAirwallexPayment } from './airwallex';
 import { createWarrantyRecords } from './warranty';
 
 const TOLERANCE_PCT = 0.02; // ±2%
@@ -117,16 +118,27 @@ export async function runThreeWayMatch(
           console.error('Warranty record creation failed:', err.message)
         );
 
-        // Trigger Monoova OSKO payment if bank details are configured
+        // Trigger payment if bank details are configured (Airwallex preferred, Monoova fallback)
         if (vendor.bankBsb && vendor.bankAccountNumber && vendor.bankAccountName) {
-          const payResult = await sendMonoovaOskoPayment({
-            toAccountBsb: vendor.bankBsb,
-            toAccountNumber: vendor.bankAccountNumber,
-            toAccountName: vendor.bankAccountName,
-            amount: invTotal,
-            description: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
-            reference: sfOrder.myobPoNumber || sfOrder.orderNumber,
-          });
+          const useAirwallex = !!process.env.AIRWALLEX_CLIENT_ID;
+          const payResult = useAirwallex
+            ? await sendAirwallexPayment({
+                toAccountBsb: vendor.bankBsb,
+                toAccountNumber: vendor.bankAccountNumber,
+                toAccountName: vendor.bankAccountName,
+                amount: invTotal,
+                currency: 'AUD',
+                reference: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
+                requestId: sfOrder.id,
+              })
+            : await sendMonoovaOskoPayment({
+                toAccountBsb: vendor.bankBsb,
+                toAccountNumber: vendor.bankAccountNumber,
+                toAccountName: vendor.bankAccountName,
+                amount: invTotal,
+                description: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
+                reference: sfOrder.myobPoNumber || sfOrder.orderNumber,
+              });
 
           await prisma.storefrontOrder.update({
             where: { id: storefrontOrderId },
