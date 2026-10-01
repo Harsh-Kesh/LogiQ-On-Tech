@@ -31,8 +31,10 @@ export interface MonoovaOskoResult {
 
 export async function sendMonoovaOskoPayment(params: MonoovaOskoParams): Promise<MonoovaOskoResult> {
   const sourceAccountId = process.env.MONOOVA_SOURCE_ACCOUNT_ID;
-  if (!sourceAccountId) {
-    throw new Error('MONOOVA_SOURCE_ACCOUNT_ID environment variable is not set.');
+  if (!sourceAccountId || !process.env.MONOOVA_USERNAME || !process.env.MONOOVA_PASSWORD) {
+    const fakeId = `DEMO-MNV-${Date.now()}`;
+    console.log(`[Monoova DEMO] Would transfer AUD ${params.amount} to ${params.toAccountName}. Fake txn: ${fakeId}`);
+    return { transactionId: fakeId, status: 'DEMO_SUCCESS', uniqueReference: params.reference || fakeId };
   }
 
   const body = {

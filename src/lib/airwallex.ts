@@ -59,6 +59,13 @@ export interface AirwallexPaymentResult {
 export async function sendAirwallexPayment(
   params: AirwallexPaymentParams
 ): Promise<AirwallexPaymentResult> {
+  // Demo stub: if no credentials configured, simulate success for end-to-end demos
+  if (!process.env.AIRWALLEX_CLIENT_ID || !process.env.AIRWALLEX_API_KEY) {
+    const fakeId = `DEMO-AW-${Date.now()}`;
+    console.log(`[Airwallex DEMO] Would transfer AUD ${params.amount} to ${params.toAccountName} (BSB ${params.toAccountBsb} / ${params.toAccountNumber}). Fake txn: ${fakeId}`);
+    return { transactionId: fakeId, status: 'DEMO_SUCCESS' };
+  }
+
   const token = await getAccessToken();
 
   const body = {
