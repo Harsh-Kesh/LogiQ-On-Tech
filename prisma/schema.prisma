@@ -1452,3 +1452,19 @@ model OutboundOrderPickStep {
   @@map("outbound_order_pick_steps")
 }
 
+// Every transactional email the platform sends is logged here so admins
+// can review them in the Email Inbox (/dashboard/owner/emails).
+model EmailLog {
+  id       String   @id @default(uuid())
+  to       String
+  cc       String?
+  subject  String
+  html     String   @db.Text
+  sentAt   DateTime @default(now())
+  mode     String   @default("simulated") // "smtp" | "simulated"
+  orderId  String?  // optional link to StorefrontOrder.id
+
+  @@index([sentAt])
+  @@map("email_logs")
+}
+

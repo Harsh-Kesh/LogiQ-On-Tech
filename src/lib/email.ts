@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { prisma } from '@/lib/prisma';
 
 export interface EmailOptions {
   to: string;
@@ -6,6 +7,7 @@ export interface EmailOptions {
   subject: string;
   html: string;
   text?: string;
+  orderId?: string;  // optional StorefrontOrder.id for linking
 }
 
 export async function sendTransactionalEmail(options: EmailOptions): Promise<{ success: boolean; messageId?: string; mode: 'smtp' | 'simulated' }> {
@@ -34,6 +36,9 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<{ s
       });
 
       console.log(`✉️ Real Email Dispatched via SMTP to ${options.to}. MessageId: ${info.messageId}`);
+      prisma.emailLog.create({
+        data: { to: options.to, cc: options.cc, subject: options.subject, html: options.html, mode: 'smtp', orderId: options.orderId },
+      }).catch(() => {});
       return { success: true, messageId: info.messageId, mode: 'smtp' };
     } catch (error: any) {
       console.warn(`⚠️ SMTP dispatch error to ${options.to}, falling back to simulated log:`, error.message);
@@ -48,6 +53,10 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<{ s
   console.log(`From: ${from}`);
   console.log(`Subject: ${options.subject}`);
   console.log(`=================================================================`);
+
+  prisma.emailLog.create({
+    data: { to: options.to, cc: options.cc, subject: options.subject, html: options.html, mode: 'simulated', orderId: options.orderId },
+  }).catch(() => {});
 
   return { success: true, messageId: `sim_${Date.now()}`, mode: 'simulated' };
 }

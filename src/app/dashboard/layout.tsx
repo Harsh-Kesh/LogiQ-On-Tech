@@ -8,7 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Brand from '@/components/Brand';
 import HelpdeskLauncher from '@/components/HelpdeskLauncher';
-import { Shield, Building, Warehouse, FileText, LogOut, Lock, Users, Package, Boxes, Truck, ShoppingCart, Menu, X, GitBranch, Search, ShieldCheck } from 'lucide-react';
+import { Shield, Building, Warehouse, FileText, LogOut, Lock, Users, Package, Boxes, Truck, ShoppingCart, Menu, X, GitBranch, Search, ShieldCheck, Inbox } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -99,6 +99,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: 'Supply Chain',
       links: [
         { name: 'Order Pipeline', href: '/dashboard/owner/pipeline', roleRequired: OWNER_ONLY, icon: GitBranch },
+        { name: 'Email Inbox', href: '/dashboard/owner/emails', roleRequired: OWNER_ONLY, icon: Inbox },
         { name: 'Traceability', href: '/dashboard/owner/traceability', roleRequired: OWNER_ONLY, icon: Search },
         { name: 'Warranties', href: '/dashboard/owner/warranties', roleRequired: OWNER_ONLY, icon: ShieldCheck },
       ],

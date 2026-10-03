@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings, Rss } from 'lucide-react';
+import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings, Rss, Inbox } from 'lucide-react';
+import Link from 'next/link';
 
 interface SFOrder {
   id: string;
@@ -43,14 +44,28 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 const PAY_ELIGIBLE = new Set(['MATCHED', 'BILL_CREATED']);
-const DELIVER_ELIGIBLE = new Set(['SUPPLIER_PAID']);
+const SEKTOR_STAGE_ELIGIBLE = new Set(['SUPPLIER_PAID']);
+
+const SEKTOR_STAGES = ['PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'] as const;
+const SEKTOR_STAGE_LABELS: Record<string, string> = {
+  PROCESSING: 'Processing',
+  DISPATCHED: 'Dispatched',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
+  DELIVERED: 'Delivered → Fulfilled',
+};
+function nextSektorStage(current: string | null): string {
+  if (!current) return 'PROCESSING';
+  const idx = SEKTOR_STAGES.indexOf(current as any);
+  if (idx === -1 || idx === SEKTOR_STAGES.length - 1) return 'DELIVERED';
+  return SEKTOR_STAGES[idx + 1];
+}
 
 export default function PipelinePage() {
   const [orders, setOrders] = useState<SFOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
-  const [deliveringId, setDeliveringId] = useState<string | null>(null);
+  const [sektorStageId, setSektorStageId] = useState<string | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
   const [syncingSektor, setSyncingSektor] = useState(false);
@@ -128,20 +143,25 @@ export default function PipelinePage() {
     }
   };
 
-  const handleSimulateDelivery = async (orderId: string) => {
-    if (!confirm('Simulate Sektor confirming delivery? This will mark the order as FULFILLED and email the customer.')) return;
-    setDeliveringId(orderId);
-    const res = await fetch('/api/demo/simulate-delivery', {
+  const handleSimulateSektorStage = async (order: SFOrder) => {
+    const next = nextSektorStage(order.sektorStatus);
+    const label = SEKTOR_STAGE_LABELS[next] || next;
+    if (!confirm(`Simulate Sektor status → ${label}?\n\nThis will update the order status and email the customer.`)) return;
+    setSektorStageId(order.id);
+    const res = await fetch('/api/demo/simulate-sektor-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storefrontOrderId: orderId }),
+      body: JSON.stringify({ storefrontOrderId: order.id }),
     });
-    setDeliveringId(null);
+    setSektorStageId(null);
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      alert('Delivery confirmed! Order is now FULFILLED and customer notified.');
+      const msg = data.fulfilled
+        ? `Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`
+        : `Sektor status advanced to: ${data.stage}\nNext stage: ${data.nextStage || '—'}`;
+      alert(msg);
       fetchOrders();
     } else {
-      const data = await res.json().catch(() => ({}));
       alert(`Failed: ${data.error || res.statusText}`);
     }
   };
@@ -190,6 +210,13 @@ export default function PipelinePage() {
           <p className="text-sm text-slate-500 mt-0.5">End-to-end supply chain status for every storefront order</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/owner/emails"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-sm font-semibold transition"
+          >
+            <Inbox className="w-4 h-4" />
+            Email Inbox
+          </Link>
           <button
             onClick={handleSyncSektor}
             disabled={syncingSektor}
@@ -250,7 +277,7 @@ export default function PipelinePage() {
           {displayed.map((order) => {
             const badge = STATUS_LABELS[order.status] || { label: order.status, color: 'bg-slate-100 text-slate-600' };
             const canPay = PAY_ELIGIBLE.has(order.status);
-            const canDeliver = DELIVER_ELIGIBLE.has(order.status);
+            const canSektorStage = SEKTOR_STAGE_ELIGIBLE.has(order.status);
             return (
               <div key={order.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -304,14 +331,20 @@ export default function PipelinePage() {
                         {payingId === order.id ? 'Processing…' : 'Pay Supplier'}
                       </button>
                     )}
-                    {canDeliver && (
+                    {canSektorStage && (
                       <button
-                        onClick={() => handleSimulateDelivery(order.id)}
-                        disabled={deliveringId === order.id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                        onClick={() => handleSimulateSektorStage(order)}
+                        disabled={sektorStageId === order.id}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition disabled:opacity-60 ${
+                          nextSektorStage(order.sektorStatus) === 'DELIVERED'
+                            ? 'bg-emerald-600 hover:bg-emerald-700'
+                            : 'bg-sky-600 hover:bg-sky-700'
+                        }`}
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        {deliveringId === order.id ? 'Confirming…' : 'Simulate Delivery'}
+                        {sektorStageId === order.id
+                          ? 'Updating…'
+                          : `Sektor: ${SEKTOR_STAGE_LABELS[nextSektorStage(order.sektorStatus)] || 'Next Stage'}`}
                       </button>
                     )}
                   </div>
@@ -356,6 +389,33 @@ export default function PipelinePage() {
                   })}
                 </div>
 
+                {/* Sektor delivery stage progress (visible once SUPPLIER_PAID) */}
+                {(order.status === 'SUPPLIER_PAID' || order.status === 'FULFILLED') && (
+                  <div className="mt-2 flex items-center gap-1 overflow-x-auto pb-0.5 text-[10px] font-semibold text-slate-400">
+                    <span className="text-slate-400 mr-1 shrink-0">Sektor:</span>
+                    {SEKTOR_STAGES.map((stage, i) => {
+                      const currentIdx = order.sektorStatus ? SEKTOR_STAGES.indexOf(order.sektorStatus as any) : -1;
+                      const stageIdx = SEKTOR_STAGES.indexOf(stage);
+                      const done = stageIdx <= currentIdx;
+                      const isCurrent = stageIdx === currentIdx;
+                      const SEKTOR_COLORS: Record<string, string> = {
+                        PROCESSING: done || isCurrent ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400',
+                        DISPATCHED: done || isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400',
+                        OUT_FOR_DELIVERY: done || isCurrent ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400',
+                        DELIVERED: done || isCurrent ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400',
+                      };
+                      return (
+                        <span key={stage} className="flex items-center gap-1 shrink-0">
+                          <span className={`px-2 py-0.5 rounded ${SEKTOR_COLORS[stage] || 'bg-slate-100 text-slate-400'}`}>
+                            {SEKTOR_STAGE_LABELS[stage] || stage}
+                          </span>
+                          {i < SEKTOR_STAGES.length - 1 && <span className="text-slate-300">→</span>}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Reference numbers */}
                 <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
                   {order.myobSoNumber && <span>SO: <strong className="text-indigo-700">{order.myobSoNumber}</strong></span>}
@@ -363,16 +423,7 @@ export default function PipelinePage() {
                   {order.myobBillNumber && <span>Bill: <strong className="text-slate-700">{order.myobBillNumber}</strong></span>}
                   {order.myobInvoiceNumber && <span>Inv: <strong className="text-emerald-700">{order.myobInvoiceNumber}</strong></span>}
                   {order.monoovaTxnId && <span>Payment Ref: <strong className="text-slate-700">{order.monoovaTxnId}</strong></span>}
-                  {order.sektorStatus && (
-                    <span className="flex items-center gap-1">
-                      Sektor: <strong className={
-                        order.sektorStatus === 'DELIVERED' ? 'text-emerald-700' :
-                        order.sektorStatus === 'OUT_FOR_DELIVERY' ? 'text-blue-700' :
-                        order.sektorStatus === 'DISPATCHED' ? 'text-indigo-700' : 'text-amber-700'
-                      }>{order.sektorStatus}</strong>
-                      {order.sektorTrackingNumber && <span className="text-slate-400">({order.sektorTrackingNumber})</span>}
-                    </span>
-                  )}
+                  {order.sektorTrackingNumber && <span>Tracking: <strong className="text-slate-700">{order.sektorTrackingNumber}</strong></span>}
                   <span className="ml-auto">{new Date(order.createdAt).toLocaleDateString('en-AU')}</span>
                 </div>
               </div>
