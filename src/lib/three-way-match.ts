@@ -68,7 +68,12 @@ export async function runThreeWayMatch(
       },
     });
 
-    // Create MYOB Bill if vendor has MYOB contact
+    // Always create warranty records when matched (no MYOB dependency)
+    await createWarrantyRecords(storefrontOrderId, supplierInvoiceId).catch((err) =>
+      console.error('Warranty record creation failed:', err.message)
+    );
+
+    // Create MYOB Bill + trigger payment — works in demo mode via stubs
     try {
       const firstItem = sfOrder.items[0];
       const itemMaster = firstItem
@@ -79,89 +84,81 @@ export async function runThreeWayMatch(
         : null;
       const vendor = itemMaster?.vendor;
 
-      if (vendor?.myobContactId && sfOrder.myobPoGuid) {
-        const billResult = await createMyobBill({
-          supplierContactId: vendor.myobContactId,
-          purchaseOrderGuid: sfOrder.myobPoGuid,
-          invoiceNumber: suppInv.vendorInvoiceNumber,
-          invoiceDate: suppInv.invoiceDate.toISOString().split('T')[0],
-          deliveryAddress: sfOrder.deliveryAddress,
-          lines: sfOrder.items.map((item) => ({
-            itemCode: item.itemCode,
-            description: item.itemName,
-            quantity: item.quantity,
-            unitPrice: Number(item.unitPrice),
-            taxCode: 'GST',
-          })),
-          memo: `Supplier Bill for ${sfOrder.orderNumber}`,
-        });
+      const billResult = await createMyobBill({
+        // Fall back to demo placeholders so the stub always succeeds
+        supplierContactId: vendor?.myobContactId || 'DEMO-MYOB-VENDOR',
+        purchaseOrderGuid: sfOrder.myobPoGuid || 'DEMO-MYOB-PO',
+        invoiceNumber: suppInv.vendorInvoiceNumber,
+        invoiceDate: suppInv.invoiceDate.toISOString().split('T')[0],
+        deliveryAddress: sfOrder.deliveryAddress,
+        lines: sfOrder.items.map((item) => ({
+          itemCode: item.itemCode,
+          description: item.itemName,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+          taxCode: 'GST',
+        })),
+        memo: `Supplier Bill for ${sfOrder.orderNumber}`,
+      });
 
-        await prisma.storefrontOrder.update({
-          where: { id: storefrontOrderId },
-          data: {
-            myobBillGuid: billResult.guid,
-            myobBillNumber: billResult.billNumber,
-            status: 'BILL_CREATED',
-          },
-        });
+      await prisma.storefrontOrder.update({
+        where: { id: storefrontOrderId },
+        data: {
+          myobBillGuid: billResult.guid,
+          myobBillNumber: billResult.billNumber,
+          status: 'BILL_CREATED',
+        },
+      });
 
-        await prisma.supplierInvoice.update({
-          where: { id: supplierInvoiceId },
-          data: {
-            myobBillGuid: billResult.guid,
-            myobBillNumber: billResult.billNumber,
-          },
-        });
+      await prisma.supplierInvoice.update({
+        where: { id: supplierInvoiceId },
+        data: {
+          myobBillGuid: billResult.guid,
+          myobBillNumber: billResult.billNumber,
+        },
+      });
 
-        // Create warranty records for items with a warranty period
-        await createWarrantyRecords(storefrontOrderId, supplierInvoiceId).catch((err) =>
-          console.error('Warranty record creation failed:', err.message)
-        );
-
-        // Trigger payment — use demo placeholders if vendor bank details not yet configured
-        if (true) {
-          const bsb = vendor.bankBsb || 'DEMO-BSB';
-          const acctNumber = vendor.bankAccountNumber || 'DEMO-ACCT';
-          const acctName = vendor.bankAccountName || vendor.companyName || 'Demo Supplier';
-          const useAirwallex = !!process.env.AIRWALLEX_CLIENT_ID;
-          const payResult = useAirwallex
-            ? await sendAirwallexPayment({
-                toAccountBsb: bsb,
-                toAccountNumber: acctNumber,
-                toAccountName: acctName,
-                amount: invTotal,
-                currency: 'AUD',
-                reference: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
-                requestId: sfOrder.id,
-              })
-            : await sendMonoovaOskoPayment({
-                toAccountBsb: bsb,
-                toAccountNumber: acctNumber,
-                toAccountName: acctName,
-                amount: invTotal,
-                description: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
-                reference: sfOrder.myobPoNumber || sfOrder.orderNumber,
-              });
-
-          await prisma.storefrontOrder.update({
-            where: { id: storefrontOrderId },
-            data: {
-              monoovaTxnId: payResult.transactionId,
-              monoovaStatus: payResult.status,
-              supplierPaidAt: new Date(),
-              status: 'SUPPLIER_PAID',
-            },
+      // Trigger payment — use demo placeholders if vendor bank details not yet configured
+      const bsb = vendor?.bankBsb || 'DEMO-BSB';
+      const acctNumber = vendor?.bankAccountNumber || 'DEMO-ACCT';
+      const acctName = vendor?.bankAccountName || vendor?.companyName || 'Demo Supplier';
+      const useAirwallex = !!process.env.AIRWALLEX_CLIENT_ID;
+      const payResult = useAirwallex
+        ? await sendAirwallexPayment({
+            toAccountBsb: bsb,
+            toAccountNumber: acctNumber,
+            toAccountName: acctName,
+            amount: invTotal,
+            currency: 'AUD',
+            reference: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
+            requestId: sfOrder.id,
+          })
+        : await sendMonoovaOskoPayment({
+            toAccountBsb: bsb,
+            toAccountNumber: acctNumber,
+            toAccountName: acctName,
+            amount: invTotal,
+            description: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
+            reference: sfOrder.myobPoNumber || sfOrder.orderNumber,
           });
 
-          await prisma.supplierInvoice.update({
-            where: { id: supplierInvoiceId },
-            data: { monoovaTxnId: payResult.transactionId },
-          });
-        }
-      }
+      await prisma.storefrontOrder.update({
+        where: { id: storefrontOrderId },
+        data: {
+          monoovaTxnId: payResult.transactionId,
+          monoovaStatus: payResult.status,
+          supplierPaidAt: new Date(),
+          status: 'SUPPLIER_PAID',
+        },
+      });
+
+      await prisma.supplierInvoice.update({
+        where: { id: supplierInvoiceId },
+        data: { monoovaTxnId: payResult.transactionId },
+      });
     } catch (err: any) {
       console.error('Three-way match: MYOB Bill/Monoova payment failed:', err.message);
-      // Match is still recorded — admin can trigger payment manually
+      // Match + warranty still recorded — admin can trigger payment manually
     }
   } else {
     // Flag for admin review

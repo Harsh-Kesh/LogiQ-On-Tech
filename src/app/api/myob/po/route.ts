@@ -1,13 +1,14 @@
-// Manual retry: create MYOB PO for a StorefrontOrder that's stuck at SO_CREATED.
-// Used when the Stripe webhook's automatic PO creation failed (e.g. vendor not configured yet).
+// Manual retry: create MYOB PO for a StorefrontOrder stuck at SO_CREATED or PAID.
+// For PAID orders the SalesOrder + MYOB SO are created first if missing.
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { createMyobPurchaseOrder } from '@/lib/myob';
+import { createMyobPurchaseOrder, createMyobSalesOrder } from '@/lib/myob';
 import { nextDocumentNumber } from '@/lib/document-sequences';
 import { sendTransactionalEmail } from '@/lib/email';
+import { createSalesOrder } from '@/lib/sales-orders';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -25,11 +26,56 @@ export async function POST(req: Request) {
     include: { items: true },
   });
 
-  if (sfOrder.status !== 'SO_CREATED') {
+  if (sfOrder.status !== 'SO_CREATED' && sfOrder.status !== 'PAID') {
     return NextResponse.json(
-      { error: `Order must be SO_CREATED to retry PO (current: ${sfOrder.status})` },
+      { error: `Order must be SO_CREATED or PAID to create PO (current: ${sfOrder.status})` },
       { status: 422 }
     );
+  }
+
+  // For PAID orders: create SalesOrder + MYOB SO first if they don't exist
+  if (sfOrder.status === 'PAID' && !sfOrder.salesOrderId) {
+    try {
+      const soLines = sfOrder.items.map((l, i) => ({
+        id: `sol_retry_${sfOrder.id}_${i}`,
+        itemCode: l.itemCode,
+        itemName: l.itemName,
+        quantity: l.quantity,
+        sellingPrice: Number(l.unitPrice),
+        taxPercent: Number(l.taxPercent ?? 10),
+        lineTotal: Number(l.lineTotal),
+      }));
+      const subtotal = soLines.reduce((s, l) => s + l.quantity * l.sellingPrice, 0);
+      const taxTotal = soLines.reduce((s, l) => s + l.quantity * l.sellingPrice * (l.taxPercent / 100), 0);
+      const so = await createSalesOrder({
+        customerName: sfOrder.customerName,
+        customerEmail: sfOrder.customerEmail,
+        deliveryLocation: sfOrder.deliveryAddress || '',
+        paymentTerms: 'Prepaid',
+        currency: 'AUD',
+        lines: soLines,
+        subtotal,
+        taxTotal,
+        totalValue: subtotal + taxTotal,
+        source: 'ONLINE_STORE',
+        createdBy: 'admin-retry',
+        status: 'DRAFT',
+      });
+      const myobSo = await createMyobSalesOrder({
+        customerContactId: 'DEMO-CUSTOMER',
+        soNumber: so.salesOrderNumber,
+        orderDate: new Date().toISOString().split('T')[0],
+        deliveryAddress: sfOrder.deliveryAddress || '',
+        lines: sfOrder.items.map((l) => ({ itemCode: l.itemCode, description: l.itemName, quantity: l.quantity, unitPrice: Number(l.unitPrice), taxCode: 'GST' })),
+        memo: `Retry SO for ${sfOrder.orderNumber}`,
+      });
+      await prisma.storefrontOrder.update({
+        where: { id: storefrontOrderId },
+        data: { salesOrderId: so.id, myobSoGuid: myobSo.guid, myobSoNumber: myobSo.soNumber, status: 'SO_CREATED' },
+      });
+    } catch (err) {
+      console.error('[myob/po] SO creation for PAID order failed:', err);
+    }
   }
 
   // Find vendor from first line item

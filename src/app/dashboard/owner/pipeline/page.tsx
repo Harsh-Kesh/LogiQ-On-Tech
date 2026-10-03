@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings, Rss, Inbox } from 'lucide-react';
+import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings, Rss, Inbox, PlusCircle, ShieldAlert, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface SFOrder {
@@ -45,6 +45,10 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 const PAY_ELIGIBLE = new Set(['MATCHED', 'BILL_CREATED']);
 const SEKTOR_STAGE_ELIGIBLE = new Set(['SUPPLIER_PAID']);
+const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
+
+interface DemoProduct { sku: string; itemName: string; sellingPrice: string | null; storeDescription: string | null; taxPercent: number | null }
+interface PlaceOrderItem { sku: string; quantity: number }
 
 const SEKTOR_STAGES = ['PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'] as const;
 const SEKTOR_STAGE_LABELS: Record<string, string> = {
@@ -67,8 +71,18 @@ export default function PipelinePage() {
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
   const [sektorStageId, setSektorStageId] = useState<string | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
+  const [forceMatchId, setForceMatchId] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
   const [syncingSektor, setSyncingSektor] = useState(false);
+
+  // Place Demo Order modal
+  const [showPlaceOrder, setShowPlaceOrder] = useState(false);
+  const [demoProducts, setDemoProducts] = useState<DemoProduct[]>([]);
+  const [poCustomerName, setPoCustomerName] = useState('ACME Warehouse Pty Ltd');
+  const [poCustomerEmail, setPoCustomerEmail] = useState('warehouse@acme.com.au');
+  const [poDeliveryAddress, setPoDeliveryAddress] = useState('123 Logistics Rd, Dandenong VIC 3175');
+  const [poItems, setPoItems] = useState<PlaceOrderItem[]>([]);
+  const [placingOrder, setPlacingOrder] = useState(false);
 
   const handleSyncSektor = async () => {
     if (!confirm('Sync product data from Sektor catalog feed? This will update supplier codes, cost prices, and lead times on all matched items.')) return;
@@ -97,6 +111,71 @@ export default function PipelinePage() {
     }
   };
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  const openPlaceOrderModal = async () => {
+    if (!demoProducts.length) {
+      const res = await fetch('/api/demo/place-order');
+      if (res.ok) setDemoProducts(await res.json());
+    }
+    setPoItems([]);
+    setShowPlaceOrder(true);
+  };
+
+  const togglePoItem = (sku: string) => {
+    setPoItems((prev) =>
+      prev.some((i) => i.sku === sku) ? prev.filter((i) => i.sku !== sku) : [...prev, { sku, quantity: 1 }]
+    );
+  };
+
+  const setPoQty = (sku: string, qty: number) => {
+    setPoItems((prev) => prev.map((i) => (i.sku === sku ? { ...i, quantity: Math.max(1, qty) } : i)));
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!poCustomerName.trim() || !poCustomerEmail.trim() || !poDeliveryAddress.trim() || !poItems.length) {
+      alert('Please fill in all customer details and select at least one item.');
+      return;
+    }
+    setPlacingOrder(true);
+    const res = await fetch('/api/demo/place-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: poCustomerName,
+        customerEmail: poCustomerEmail,
+        deliveryAddress: poDeliveryAddress,
+        items: poItems,
+      }),
+    });
+    setPlacingOrder(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setShowPlaceOrder(false);
+      alert(`Demo order placed!\nOrder: ${data.orderNumber}\nStatus: ${data.orderStatus}\nTotal: AUD ${data.totalAmount}`);
+      fetchOrders();
+    } else {
+      alert(`Failed: ${data.error || res.statusText}`);
+    }
+  };
+
+  const handleForceMatch = async (orderId: string, status: string) => {
+    const label = status === 'MATCH_EXCEPTION' ? 'override the exception and force-match' : 'force the order through bill/payment';
+    if (!confirm(`This will ${label} for this order. Continue?`)) return;
+    setForceMatchId(orderId);
+    const res = await fetch('/api/demo/force-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: orderId }),
+    });
+    setForceMatchId(null);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      alert(`Force match complete!\nNew status: ${data.orderStatus}\n${data.notes || ''}`);
+      fetchOrders();
+    } else {
+      alert(`Failed: ${data.error || res.statusText}`);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -209,7 +288,14 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-bold text-slate-900">Order Pipeline</h1>
           <p className="text-sm text-slate-500 mt-0.5">End-to-end supply chain status for every storefront order</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <button
+            onClick={openPlaceOrderModal}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition shadow-sm"
+          >
+            <PlusCircle className="w-4 h-4" />
+            Place Demo Order
+          </button>
           <Link
             href="/dashboard/owner/emails"
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-sm font-semibold transition"
@@ -278,6 +364,7 @@ export default function PipelinePage() {
             const badge = STATUS_LABELS[order.status] || { label: order.status, color: 'bg-slate-100 text-slate-600' };
             const canPay = PAY_ELIGIBLE.has(order.status);
             const canSektorStage = SEKTOR_STAGE_ELIGIBLE.has(order.status);
+            const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
             return (
               <div key={order.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -301,6 +388,17 @@ export default function PipelinePage() {
                     <span className="text-sm font-bold text-slate-900">
                       {order.currency} {Number(order.totalAmount).toFixed(2)}
                     </span>
+                    {order.status === 'PAID' && (
+                      <button
+                        onClick={() => handleRetryPo(order.id)}
+                        disabled={retryingPoId === order.id}
+                        title="Order is stuck at PAID — create Sales Order + Purchase Order"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition disabled:opacity-60"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        {retryingPoId === order.id ? 'Creating…' : 'Fix: Create SO + PO'}
+                      </button>
+                    )}
                     {order.status === 'SO_CREATED' && (
                       <button
                         onClick={() => handleRetryPo(order.id)}
@@ -309,6 +407,17 @@ export default function PipelinePage() {
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         {retryingPoId === order.id ? 'Retrying…' : 'Retry PO'}
+                      </button>
+                    )}
+                    {canForceMatch && (
+                      <button
+                        onClick={() => handleForceMatch(order.id, order.status)}
+                        disabled={forceMatchId === order.id}
+                        title={order.status === 'MATCH_EXCEPTION' ? 'Override the match exception and force through' : 'Force bill creation, payment, and warranty records'}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        {forceMatchId === order.id ? 'Forcing…' : order.status === 'MATCH_EXCEPTION' ? 'Override Match' : 'Force Through'}
                       </button>
                     )}
                     {order.status === 'PO_SENT' && (
@@ -429,6 +538,105 @@ export default function PipelinePage() {
               </div>
             );
           })}
+        </div>
+      )}
+      {/* Place Demo Order modal */}
+      {showPlaceOrder && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowPlaceOrder(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Place Demo Order</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Bypasses Stripe — order goes straight to PO_SENT</p>
+              </div>
+              <button onClick={() => setShowPlaceOrder(false)} className="p-1 rounded-lg hover:bg-slate-100">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Customer Name</label>
+                <input type="text" value={poCustomerName} onChange={(e) => setPoCustomerName(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Customer Email</label>
+                <input type="email" value={poCustomerEmail} onChange={(e) => setPoCustomerEmail(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Delivery Address</label>
+                <input type="text" value={poDeliveryAddress} onChange={(e) => setPoDeliveryAddress(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <label className="block text-xs font-semibold text-slate-700 mb-2">Products</label>
+              {demoProducts.length === 0 ? (
+                <p className="text-xs text-slate-400">Loading products… (run Setup Demo Data first if empty)</p>
+              ) : (
+                <div className="space-y-2">
+                  {demoProducts.map((p) => {
+                    const selected = poItems.some((i) => i.sku === p.sku);
+                    const item = poItems.find((i) => i.sku === p.sku);
+                    return (
+                      <div key={p.sku}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${selected ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-slate-300'}`}
+                        onClick={() => togglePoItem(p.sku)}
+                      >
+                        <input type="checkbox" checked={selected} readOnly className="accent-green-600 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold text-slate-800">{p.sku}</div>
+                          <div className="text-xs text-slate-500 truncate">{p.itemName}</div>
+                        </div>
+                        <div className="text-xs font-semibold text-slate-700 shrink-0">
+                          AUD {p.sellingPrice ? Number(p.sellingPrice).toFixed(2) : '—'}
+                        </div>
+                        {selected && (
+                          <input
+                            type="number"
+                            min={1}
+                            value={item?.quantity ?? 1}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setPoQty(p.sku, parseInt(e.target.value) || 1)}
+                            className="w-14 text-xs text-center border border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {poItems.length > 0 && (
+              <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                <strong>Order total (inc 10% GST):</strong>{' '}
+                AUD {demoProducts
+                  .filter((p) => poItems.some((i) => i.sku === p.sku))
+                  .reduce((s, p) => {
+                    const item = poItems.find((i) => i.sku === p.sku);
+                    return s + (Number(p.sellingPrice) || 0) * (item?.quantity ?? 1);
+                  }, 0).toFixed(2)}
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowPlaceOrder(false)}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition">
+                Cancel
+              </button>
+              <button
+                onClick={handlePlaceOrder}
+                disabled={placingOrder || !poItems.length || !poCustomerName.trim() || !poCustomerEmail.trim()}
+                className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition disabled:opacity-50"
+              >
+                {placingOrder ? 'Placing…' : `Place Order (${poItems.length} item${poItems.length !== 1 ? 's' : ''})`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -71,6 +71,32 @@ export async function POST(req: Request) {
 
   await prisma.storefrontOrder.update({ where: { id: storefrontOrderId }, data: orderStatusUpdate });
 
+  // On final delivery: update warranty records' delivery date (start of warranty clock)
+  if (isFinal && sfOrder.salesOrderId) {
+    const warrantyRecords = await prisma.warrantyRecord.findMany({
+      where: { salesOrderId: sfOrder.salesOrderId, status: { not: 'CLOSED' } },
+    });
+    for (const wr of warrantyRecords) {
+      if (wr.warrantyStartRule === 'DELIVERY_DATE') {
+        const newStart = now;
+        const newExpiry = new Date(newStart);
+        newExpiry.setMonth(newExpiry.getMonth() + wr.warrantyPeriodMonths);
+        const remainingDays = Math.ceil((newExpiry.getTime() - now.getTime()) / 86_400_000);
+        const newStatus = remainingDays <= 30 ? 'EXPIRING_SOON' : remainingDays <= 180 ? 'FINAL_SIX_MONTHS' : 'ACTIVE';
+        await prisma.warrantyRecord.update({
+          where: { id: wr.id },
+          data: {
+            deliveryDate: now,
+            warrantyStartDate: newStart,
+            warrantyExpiryDate: newExpiry,
+            remainingDays,
+            status: newStatus as any,
+          },
+        });
+      }
+    }
+  }
+
   // On final delivery: convert MYOB Sales Order → Customer Invoice
   let myobInvoiceNumber: string | null = null;
   if (isFinal && sfOrder.myobSoGuid) {
