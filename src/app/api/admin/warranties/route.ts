@@ -10,8 +10,28 @@ export async function GET() {
   }
 
   const records = await prisma.warrantyRecord.findMany({
-    orderBy: { warrantyExpiryDate: 'asc' },
+    orderBy: [{ status: 'asc' }, { warrantyExpiryDate: 'asc' }],
     take: 500,
+    select: {
+      id: true,
+      warrantyNumber: true,
+      partNumber: true,
+      partDescription: true,
+      serialNumber: true,
+      customerName: true,
+      salesOrderNumber: true,
+      vendorName: true,
+      warrantyStartDate: true,
+      warrantyStartRule: true,
+      warrantyExpiryDate: true,
+      warrantyPeriodMonths: true,
+      remainingDays: true,
+      status: true,
+      overrideReason: true,
+      overriddenBy: true,
+      closedAt: true,
+      closedBy: true,
+    },
   });
 
   return NextResponse.json(records);
