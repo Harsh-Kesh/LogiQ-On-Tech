@@ -243,11 +243,23 @@ export async function POST(req: Request) {
       }
 
       // Email PO to supplier — fall back to IMAP inbox for demo so PO is visible somewhere
+      // Look up all item masters for this order so we can include Sektor codes on the PO
+      const allSkus = resolvedLines.map((l) => l.sku);
+      const allItemMasters = await prisma.itemMaster.findMany({ where: { sku: { in: allSkus } } });
+      const sektorCodeBySku = new Map(allItemMasters.map((im) => [im.sku, im.supplierItemCode]));
+
       const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail || process.env.IMAP_USER;
       if (supplierEmail) {
-        const poLines = resolvedLines.map((l) =>
-          `<tr><td style="padding:4px 8px;border:1px solid #e2e8f0">${l.sku}</td><td style="padding:4px 8px;border:1px solid #e2e8f0">${l.itemName}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center">${l.qty}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${l.unitPrice.toFixed(2)}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${(l.qty * l.unitPrice).toFixed(2)}</td></tr>`
-        ).join('');
+        const poLines = resolvedLines.map((l) => {
+          const sektorCode = sektorCodeBySku.get(l.sku);
+          return `<tr>
+            <td style="padding:4px 8px;border:1px solid #e2e8f0">${sektorCode || l.sku}<br/><span style="font-size:11px;color:#94a3b8">Our ref: ${l.sku}</span></td>
+            <td style="padding:4px 8px;border:1px solid #e2e8f0">${l.itemName}</td>
+            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center">${l.qty}</td>
+            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${l.unitPrice.toFixed(2)}</td>
+            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${(l.qty * l.unitPrice).toFixed(2)}</td>
+          </tr>`;
+        }).join('');
         await sendTransactionalEmail({
           to: supplierEmail,
           subject: `Purchase Order ${poNumber} — LogiQ-On Tech`,
@@ -259,7 +271,7 @@ export async function POST(req: Request) {
               <p><strong>Deliver to:</strong> ${deliveryAddress}</p>
               <table style="width:100%;border-collapse:collapse;margin:16px 0">
                 <thead><tr style="background:#f1f5f9">
-                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">SKU</th>
+                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">Supplier Code</th>
                   <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">Description</th>
                   <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">Qty</th>
                   <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Unit Price</th>

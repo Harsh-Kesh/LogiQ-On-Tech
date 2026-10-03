@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings } from 'lucide-react';
+import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings, Rss } from 'lucide-react';
 
 interface SFOrder {
   id: string;
@@ -50,6 +50,21 @@ export default function PipelinePage() {
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
+  const [syncingSektor, setSyncingSektor] = useState(false);
+
+  const handleSyncSektor = async () => {
+    if (!confirm('Sync product data from Sektor catalog feed? This will update supplier codes, cost prices, and lead times on all matched items.')) return;
+    setSyncingSektor(true);
+    const res = await fetch('/api/sektor/sync', { method: 'POST' });
+    setSyncingSektor(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      const mode = data.demo ? '(DEMO MODE — simulated feed)' : '(Live Sektor API)';
+      alert(`Sektor sync complete ${mode}\n\nUpdated: ${data.syncedCount}\nNo change: ${data.noChangeCount}\nSkipped: ${data.skippedCount}`);
+    } else {
+      alert(`Sync failed: ${data.error || res.statusText}`);
+    }
+  };
 
   const handleSetupDemo = async () => {
     if (!confirm('This will patch all vendors and items with demo data (bank details, warranty periods, supplier emails). Run once before the demo.')) return;
@@ -172,6 +187,15 @@ export default function PipelinePage() {
           <p className="text-sm text-slate-500 mt-0.5">End-to-end supply chain status for every storefront order</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleSyncSektor}
+            disabled={syncingSektor}
+            title="Pull latest product data from Sektor catalog API (simulated in demo mode)"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-sm font-semibold transition disabled:opacity-60"
+          >
+            <Rss className="w-4 h-4" />
+            {syncingSektor ? 'Syncing…' : 'Sync Sektor Feed'}
+          </button>
           <button
             onClick={handleSetupDemo}
             disabled={settingUp}

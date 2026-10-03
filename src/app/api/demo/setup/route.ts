@@ -34,7 +34,28 @@ export async function POST(req: Request) {
     results.push(`Vendor patched: ${vendor.companyName}`);
   }
 
-  // 2. Set warranty periods on published store items
+  // 2. Set Sektor supplier item codes on published store items (simulated distributor catalog codes)
+  const sektorCodeMap: Record<string, string> = {
+    'LQ-SCN-00101': 'SEKT-ZBR-DS2208-SR',   // Zebra DS2208 Barcode Scanner
+    'LQ-PRT-00102': 'SEKT-ZBR-ZD421-TLP',   // Zebra ZD421 Label Printer
+    'LQ-MOB-00103': 'SEKT-HNW-CT47-AN',     // Honeywell CT47 Mobile Computer
+    'LQ-RFD-00104': 'SEKT-HNW-IT70-UHF',    // Honeywell IT70 RFID Tags
+    'LQ-RFD-00109': 'SEKT-ZBR-FX9600-4P',   // Zebra FX9600 RFID Portal Reader
+    'LQ-SCN-00110': 'SEKT-ZBR-DS457-FM',    // Zebra DS457 Fixed Mount Scanner
+    'LQ-SCN-00113': 'SEKT-ZBR-CS6080-WR',   // Zebra CS6080 Ring Scanner
+    'LQ-PRT-00114': 'SEKT-HNW-PX4E-IND',    // Honeywell PX4E Industrial Printer
+    'LQ-MOB-00115': 'SEKT-HNW-CN80G-CF',    // Honeywell CN80G Cold Storage Terminal
+  };
+
+  for (const [sku, sektorCode] of Object.entries(sektorCodeMap)) {
+    const updated = await prisma.itemMaster.updateMany({
+      where: { sku },
+      data: { supplierItemCode: sektorCode },
+    });
+    if (updated.count > 0) results.push(`Item ${sku}: Sektor code set → ${sektorCode}`);
+  }
+
+  // 4. Set warranty periods on published store items
   const warrantyMap: Record<string, number> = {
     'LQ-SCN-00101': 12, // Barcode Scanner — 12 months
     'LQ-PRT-00102': 12, // Label Printer — 12 months
@@ -59,7 +80,7 @@ export async function POST(req: Request) {
     if (updated.count > 0) results.push(`Item ${sku}: warranty set to ${months} months`);
   }
 
-  // 3. Set supplierEmail on items that don't have vendor poEmail yet
+  // 5. Set supplierEmail on items that don't have vendor poEmail yet
   await prisma.itemMaster.updateMany({
     where: { supplierEmail: null },
     data: { supplierEmail: imap },
