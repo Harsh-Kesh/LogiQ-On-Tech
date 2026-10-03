@@ -30,8 +30,13 @@ interface SektorCatalogEntry {
   manufacturerPartNumber: string;
 }
 
-// Simulated Sektor catalog — mirrors what their API would return for our 9 products.
+// Simulated Sektor catalog — mirrors what their API would return for our 5 demo products.
 // In production this comes from GET https://api.sektor.com.au/v2/catalog?apiKey=...
+// The feed provides:
+//   - sektorCode   : Sektor's own catalog identifier (goes on POs to the supplier)
+//   - costPriceAud : what LogiQ pays Sektor — stored as ItemMaster.costPrice
+//   - rrpAud       : Sektor's recommended retail price (LogiQ uses as a reference)
+//   - LogiQ then sets their OWN sellingPrice (margin/markup) in the Item Master UI
 const DEMO_SEKTOR_CATALOG: SektorCatalogEntry[] = [
   {
     sektorCode: 'SEKT-ZBR-DS2208-SR',
@@ -39,7 +44,7 @@ const DEMO_SEKTOR_CATALOG: SektorCatalogEntry[] = [
     productName: 'Zebra DS2208 Barcode Scanner Serial/USB',
     brand: 'Zebra Technologies',
     costPriceAud: 185.00,
-    rrpAud: 299.00,
+    rrpAud: 269.00,
     leadTimeDays: 5,
     availableQty: 480,
     manufacturerPartNumber: 'DS2208-SR6U2100AZW',
@@ -50,7 +55,7 @@ const DEMO_SEKTOR_CATALOG: SektorCatalogEntry[] = [
     productName: 'Zebra ZD421 Thermal Label Printer USB+Ethernet',
     brand: 'Zebra Technologies',
     costPriceAud: 420.00,
-    rrpAud: 649.00,
+    rrpAud: 589.00,
     leadTimeDays: 7,
     availableQty: 210,
     manufacturerPartNumber: 'ZD4A022-D01E00EZ',
@@ -61,7 +66,7 @@ const DEMO_SEKTOR_CATALOG: SektorCatalogEntry[] = [
     productName: 'Honeywell CT47 Android Rugged Mobile Computer 4G',
     brand: 'Honeywell',
     costPriceAud: 1150.00,
-    rrpAud: 1799.00,
+    rrpAud: 1649.00,
     leadTimeDays: 10,
     availableQty: 95,
     manufacturerPartNumber: 'CT47-X0N-38D100G',
@@ -72,7 +77,7 @@ const DEMO_SEKTOR_CATALOG: SektorCatalogEntry[] = [
     productName: 'Honeywell IT70 UHF RFID Adhesive Label Tags (1000pk)',
     brand: 'Honeywell',
     costPriceAud: 62.00,
-    rrpAud: 99.00,
+    rrpAud: 89.00,
     leadTimeDays: 3,
     availableQty: 3200,
     manufacturerPartNumber: 'IT70-240-002',
@@ -83,54 +88,10 @@ const DEMO_SEKTOR_CATALOG: SektorCatalogEntry[] = [
     productName: 'Zebra FX9600 4-Port UHF RFID Fixed Reader',
     brand: 'Zebra Technologies',
     costPriceAud: 2850.00,
-    rrpAud: 4499.00,
+    rrpAud: 4199.00,
     leadTimeDays: 14,
     availableQty: 42,
     manufacturerPartNumber: 'FX9600-82325A50-WW',
-  },
-  {
-    sektorCode: 'SEKT-ZBR-DS457-FM',
-    ourSku: 'LQ-SCN-00110',
-    productName: 'Zebra DS457 Fixed Mount Barcode Scanner',
-    brand: 'Zebra Technologies',
-    costPriceAud: 340.00,
-    rrpAud: 549.00,
-    leadTimeDays: 7,
-    availableQty: 175,
-    manufacturerPartNumber: 'DS457-SR20009ZZWW',
-  },
-  {
-    sektorCode: 'SEKT-ZBR-CS6080-WR',
-    ourSku: 'LQ-SCN-00113',
-    productName: 'Zebra CS6080 Bluetooth Ring Scanner',
-    brand: 'Zebra Technologies',
-    costPriceAud: 275.00,
-    rrpAud: 449.00,
-    leadTimeDays: 5,
-    availableQty: 260,
-    manufacturerPartNumber: 'CS6080-SR000000AZZWW',
-  },
-  {
-    sektorCode: 'SEKT-HNW-PX4E-IND',
-    ourSku: 'LQ-PRT-00114',
-    productName: 'Honeywell PX4E Industrial Thermal Label Printer',
-    brand: 'Honeywell',
-    costPriceAud: 890.00,
-    rrpAud: 1349.00,
-    leadTimeDays: 10,
-    availableQty: 68,
-    manufacturerPartNumber: 'PX4E010000000130',
-  },
-  {
-    sektorCode: 'SEKT-HNW-CN80G-CF',
-    ourSku: 'LQ-MOB-00115',
-    productName: 'Honeywell CN80G Cold Freezer Mobile Computer -30C',
-    brand: 'Honeywell',
-    costPriceAud: 2200.00,
-    rrpAud: 3499.00,
-    leadTimeDays: 14,
-    availableQty: 38,
-    manufacturerPartNumber: 'CN80G-L0N-2EN220E',
   },
 ];
 

@@ -607,6 +607,11 @@ export default function MasterDataItemsPage() {
             <span className="font-mono text-xs font-bold text-indigo-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
               {item.sku}
             </span>
+            {item.supplierItemCode && (
+              <span className="font-mono text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md" title="Sektor supplier catalog code">
+                {item.supplierItemCode}
+              </span>
+            )}
             <span className="font-mono text-[11px] text-slate-500">EAN: {item.barcode}</span>
           </div>
         </div>
