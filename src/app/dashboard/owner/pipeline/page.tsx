@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings, Rss, Inbox, PlusCircle, ShieldAlert, X } from 'lucide-react';
+import { RefreshCw, AlertTriangle, DollarSign, FileText, Truck, Download, RotateCcw, Settings, Inbox, PlusCircle, ShieldAlert, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface SFOrder {
@@ -69,11 +69,10 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
-  const [sektorStageId, setSektorStageId] = useState<string | null>(null);
+  const [deliveryStageId, setDeliveryStageId] = useState<string | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
   const [forceMatchId, setForceMatchId] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
-  const [syncingSektor, setSyncingSektor] = useState(false);
 
   // Place Demo Order modal
   const [showPlaceOrder, setShowPlaceOrder] = useState(false);
@@ -84,19 +83,6 @@ export default function PipelinePage() {
   const [poItems, setPoItems] = useState<PlaceOrderItem[]>([]);
   const [placingOrder, setPlacingOrder] = useState(false);
 
-  const handleSyncSektor = async () => {
-    if (!confirm('Sync product data from Sektor catalog feed? This will update supplier codes, cost prices, and lead times on all matched items.')) return;
-    setSyncingSektor(true);
-    const res = await fetch('/api/sektor/sync', { method: 'POST' });
-    setSyncingSektor(false);
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) {
-      const mode = data.demo ? '(DEMO MODE — simulated feed)' : '(Live Sektor API)';
-      alert(`Sektor sync complete ${mode}\n\nUpdated: ${data.syncedCount}\nNo change: ${data.noChangeCount}\nSkipped: ${data.skippedCount}`);
-    } else {
-      alert(`Sync failed: ${data.error || res.statusText}`);
-    }
-  };
 
   const handleSetupDemo = async () => {
     if (!confirm('This will patch all vendors and items with demo data (bank details, warranty periods, supplier emails). Run once before the demo.')) return;
@@ -222,22 +208,22 @@ export default function PipelinePage() {
     }
   };
 
-  const handleSimulateSektorStage = async (order: SFOrder) => {
+  const handleSimulateDeliveryStage = async (order: SFOrder) => {
     const next = nextSektorStage(order.sektorStatus);
     const label = SEKTOR_STAGE_LABELS[next] || next;
-    if (!confirm(`Simulate Sektor status → ${label}?\n\nThis will update the order status and email the customer.`)) return;
-    setSektorStageId(order.id);
+    if (!confirm(`Simulate delivery status → ${label}?\n\nThis will update the order status and email the customer.`)) return;
+    setDeliveryStageId(order.id);
     const res = await fetch('/api/demo/simulate-sektor-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ storefrontOrderId: order.id }),
     });
-    setSektorStageId(null);
+    setDeliveryStageId(null);
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
       const msg = data.fulfilled
         ? `Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`
-        : `Sektor status advanced to: ${data.stage}\nNext stage: ${data.nextStage || '—'}`;
+        : `Delivery advanced to: ${data.stage}\nNext stage: ${data.nextStage || '—'}`;
       alert(msg);
       fetchOrders();
     } else {
@@ -304,15 +290,6 @@ export default function PipelinePage() {
             Email Inbox
           </Link>
           <button
-            onClick={handleSyncSektor}
-            disabled={syncingSektor}
-            title="Pull latest product data from Sektor catalog API (simulated in demo mode)"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-sm font-semibold transition disabled:opacity-60"
-          >
-            <Rss className="w-4 h-4" />
-            {syncingSektor ? 'Syncing…' : 'Sync Sektor Feed'}
-          </button>
-          <button
             onClick={handleSetupDemo}
             disabled={settingUp}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-sm font-semibold transition disabled:opacity-60"
@@ -363,7 +340,7 @@ export default function PipelinePage() {
           {displayed.map((order) => {
             const badge = STATUS_LABELS[order.status] || { label: order.status, color: 'bg-slate-100 text-slate-600' };
             const canPay = PAY_ELIGIBLE.has(order.status);
-            const canSektorStage = SEKTOR_STAGE_ELIGIBLE.has(order.status);
+            const canDeliveryStage = SEKTOR_STAGE_ELIGIBLE.has(order.status);
             const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
             return (
               <div key={order.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
@@ -440,10 +417,10 @@ export default function PipelinePage() {
                         {payingId === order.id ? 'Processing…' : 'Pay Supplier'}
                       </button>
                     )}
-                    {canSektorStage && (
+                    {canDeliveryStage && (
                       <button
-                        onClick={() => handleSimulateSektorStage(order)}
-                        disabled={sektorStageId === order.id}
+                        onClick={() => handleSimulateDeliveryStage(order)}
+                        disabled={deliveryStageId === order.id}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition disabled:opacity-60 ${
                           nextSektorStage(order.sektorStatus) === 'DELIVERED'
                             ? 'bg-emerald-600 hover:bg-emerald-700'
@@ -451,9 +428,9 @@ export default function PipelinePage() {
                         }`}
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        {sektorStageId === order.id
+                        {deliveryStageId === order.id
                           ? 'Updating…'
-                          : `Sektor: ${SEKTOR_STAGE_LABELS[nextSektorStage(order.sektorStatus)] || 'Next Stage'}`}
+                          : `Delivery: ${SEKTOR_STAGE_LABELS[nextSektorStage(order.sektorStatus)] || 'Next Stage'}`}
                       </button>
                     )}
                   </div>
@@ -498,10 +475,10 @@ export default function PipelinePage() {
                   })}
                 </div>
 
-                {/* Sektor delivery stage progress (visible once SUPPLIER_PAID) */}
+                {/* Delivery stage progress (visible once SUPPLIER_PAID) */}
                 {(order.status === 'SUPPLIER_PAID' || order.status === 'FULFILLED') && (
                   <div className="mt-2 flex items-center gap-1 overflow-x-auto pb-0.5 text-[10px] font-semibold text-slate-400">
-                    <span className="text-slate-400 mr-1 shrink-0">Sektor:</span>
+                    <span className="text-slate-400 mr-1 shrink-0">Delivery:</span>
                     {SEKTOR_STAGES.map((stage, i) => {
                       const currentIdx = order.sektorStatus ? SEKTOR_STAGES.indexOf(order.sektorStatus as any) : -1;
                       const stageIdx = SEKTOR_STAGES.indexOf(stage);

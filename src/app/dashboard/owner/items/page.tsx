@@ -132,9 +132,13 @@ export default function MasterDataItemsPage() {
   const [storeImageError, setStoreImageError] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [uomId, setUomId] = useState('');
-  const [registeredVendors, setRegisteredVendors] = useState<string[]>([]);
+  const [registeredVendors, setRegisteredVendors] = useState<Array<{ id: string; companyName: string; poEmail?: string; apEmail?: string }>>([]);
+  const [primaryVendorId, setPrimaryVendorId] = useState('');
   const [primaryVendorName, setPrimaryVendorName] = useState('');
   const [additionalVendors, setAdditionalVendors] = useState<Array<{ vendorName: string; costPrice: string }>>([]);
+  const [pricingMode, setPricingMode] = useState<'price' | 'margin' | 'markup'>('price');
+  const [marginInput, setMarginInput] = useState('');
+  const [markupInput, setMarkupInput] = useState('');
   const [attrPairs, setAttrPairs] = useState<Array<{ key: string; value: string }>>([
     { key: 'IP Rating', value: 'IP65' },
   ]);
@@ -198,13 +202,9 @@ export default function MasterDataItemsPage() {
       setCategories(catData.categories || []);
       setUoms(uomData.uoms || []);
       setRegisteredVendors(
-        Array.from(
-          new Set(
-            (vndData.vendors || [])
-              .filter((v: any) => v.status === 'APPROVED' && v.companyName)
-              .map((v: any) => v.companyName as string)
-          )
-        )
+        (vndData.vendors || [])
+          .filter((v: any) => v.status === 'APPROVED' && v.companyName)
+          .map((v: any) => ({ id: v.id, companyName: v.companyName as string, poEmail: v.poEmail || '', apEmail: v.apEmail || '' }))
       );
     } catch (e) {
       setToast({ message: 'Failed to load Master Data.', type: 'error' });
@@ -230,8 +230,12 @@ export default function MasterDataItemsPage() {
     setStoreImageError('');
     setCategoryId('');
     setUomId('');
+    setPrimaryVendorId('');
     setPrimaryVendorName('');
     setAdditionalVendors([]);
+    setPricingMode('price');
+    setMarginInput('');
+    setMarkupInput('');
     setAttrPairs([{ key: 'IP Rating', value: 'IP65' }]);
     setGovernanceError('');
     setManufacturerCode('');
@@ -264,8 +268,12 @@ export default function MasterDataItemsPage() {
     setStoreImageError('');
     setCategoryId(item.categoryId || '');
     setUomId(item.uomId || '');
+    setPrimaryVendorId(item.vendorId || '');
     setPrimaryVendorName(item.vendorName || '');
     setAdditionalVendors([]);
+    setPricingMode('price');
+    setMarginInput('');
+    setMarkupInput('');
 
     if (item.attributes && typeof item.attributes === 'object' && Object.keys(item.attributes).length > 0) {
       setAttrPairs(Object.entries(item.attributes).map(([key, value]) => ({ key, value: String(value) })));
@@ -315,7 +323,7 @@ export default function MasterDataItemsPage() {
     e.preventDefault();
     setGovernanceError('');
 
-    if (!primaryVendorName.trim()) {
+    if (!primaryVendorId) {
       setGovernanceError('Data Governance Lock: Every item must be allocated to a Primary Vendor.');
       return;
     }
@@ -357,6 +365,7 @@ export default function MasterDataItemsPage() {
       categoryId,
       uomId,
       attributes: attributesObj,
+      vendorId: primaryVendorId,
       primaryVendorName,
       additionalVendors: additionalVendors
         .filter((v) => v.vendorName.trim() && v.costPrice.trim())
@@ -608,7 +617,7 @@ export default function MasterDataItemsPage() {
               {item.sku}
             </span>
             {item.supplierItemCode && (
-              <span className="font-mono text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md" title="Sektor supplier catalog code">
+              <span className="font-mono text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md" title="Supplier catalog code">
                 {item.supplierItemCode}
               </span>
             )}
@@ -1129,11 +1138,16 @@ export default function MasterDataItemsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Select
                   label="Primary Vendor *"
-                  value={primaryVendorName}
-                  onChange={(e) => setPrimaryVendorName(e.target.value)}
+                  value={primaryVendorId}
+                  onChange={(e) => {
+                    const vendor = registeredVendors.find((v) => v.id === e.target.value);
+                    setPrimaryVendorId(e.target.value);
+                    setPrimaryVendorName(vendor?.companyName || '');
+                    if (vendor?.poEmail) setSupplierEmail(vendor.poEmail);
+                  }}
                   options={[
                     { value: '', label: '-- Select registered vendor --' },
-                    ...registeredVendors.map((v) => ({ value: v, label: v })),
+                    ...registeredVendors.map((v) => ({ value: v.id, label: v.companyName })),
                   ]}
                   required
                 />
@@ -1165,7 +1179,7 @@ export default function MasterDataItemsPage() {
                             }}
                             options={[
                               { value: '', label: '-- Select vendor --' },
-                              ...registeredVendors.filter((v) => v !== primaryVendorName).map((v) => ({ value: v, label: v })),
+                              ...registeredVendors.filter((v) => v.id !== primaryVendorId).map((v) => ({ value: v.companyName, label: v.companyName })),
                             ]}
                           />
                         </div>
@@ -1204,16 +1218,78 @@ export default function MasterDataItemsPage() {
                 + Add Another Vendor
               </button>
 
-              <div className="pt-2 border-t border-slate-200">
-                <Input
-                  label="Retail Selling Price ($ AUD)"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
-                  placeholder="249.99"
-                />
+              <div className="pt-2 border-t border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Retail Selling Price ($ AUD) *</label>
+                  <div className="flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-bold">
+                    {(['price', 'margin', 'markup'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setPricingMode(mode)}
+                        className={`px-2.5 py-1 transition-colors ${pricingMode === mode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        {mode === 'price' ? 'Enter Price' : mode === 'margin' ? 'By Margin %' : 'By Markup %'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {pricingMode === 'price' && (
+                  <Input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={sellingPrice}
+                    onChange={(e) => setSellingPrice(e.target.value)}
+                    placeholder="249.99"
+                  />
+                )}
+
+                {pricingMode === 'margin' && (
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="99.9"
+                      value={marginInput}
+                      onChange={(e) => {
+                        const m = parseFloat(e.target.value);
+                        setMarginInput(e.target.value);
+                        const cost = parseFloat(costPrice || '0');
+                        if (!isNaN(m) && m > 0 && m < 100 && cost > 0) {
+                          setSellingPrice((cost / (1 - m / 100)).toFixed(2));
+                        }
+                      }}
+                      placeholder="e.g. 40 for 40% margin"
+                      helperText="Selling Price = Cost ÷ (1 − Margin%)"
+                    />
+                    {sellingPrice && <p className="text-xs font-semibold text-slate-700">→ Selling Price: <span className="text-indigo-700">${parseFloat(sellingPrice).toFixed(2)}</span></p>}
+                  </div>
+                )}
+
+                {pricingMode === 'markup' && (
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={markupInput}
+                      onChange={(e) => {
+                        const mu = parseFloat(e.target.value);
+                        setMarkupInput(e.target.value);
+                        const cost = parseFloat(costPrice || '0');
+                        if (!isNaN(mu) && mu >= 0 && cost > 0) {
+                          setSellingPrice((cost * (1 + mu / 100)).toFixed(2));
+                        }
+                      }}
+                      placeholder="e.g. 67 for 67% markup"
+                      helperText="Selling Price = Cost × (1 + Markup%)"
+                    />
+                    {sellingPrice && <p className="text-xs font-semibold text-slate-700">→ Selling Price: <span className="text-indigo-700">${parseFloat(sellingPrice).toFixed(2)}</span></p>}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

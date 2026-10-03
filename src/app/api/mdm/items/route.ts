@@ -110,6 +110,7 @@ export async function POST(req: Request) {
       uomId,
       attributes,
       imageUrl,
+      vendorId: bodyVendorId,
       primaryVendorName,
       additionalVendors,
       publishToStore,
@@ -134,7 +135,7 @@ export async function POST(req: Request) {
     // Every item must be supplied by a registered vendor — there is no such thing as
     // "LogiQ-On internal stock" here, since all warehouse stock is vendor-owned consigned
     // inventory (see the procurement model this app follows).
-    if (!primaryVendorName || !String(primaryVendorName).trim()) {
+    if (!bodyVendorId && (!primaryVendorName || !String(primaryVendorName).trim())) {
       return NextResponse.json({ error: 'Data Governance Lock: A Primary Vendor is required for every item.' }, { status: 400 });
     }
 
@@ -206,12 +207,19 @@ export async function POST(req: Request) {
 
     const itemId = `item_${Date.now()}`;
 
-    // Resolve vendor ownership. The stock behind this item is either supplied by a
-    // registered vendor (the "primary" allocation — an item can additionally be sourced
-    // from other vendors too, recorded below in Vendor Master Data at their own cost) or
-    // it's LogiQ's own internal stock, in which case no vendor is assigned at all.
-    const resolvedVendorName = primaryVendorName && String(primaryVendorName).trim() ? String(primaryVendorName).trim() : undefined;
-    const resolvedVendorId = resolvedVendorName ? await resolveVendorIdByCompanyName(resolvedVendorName) : null;
+    // Resolve vendor ownership. Prefer a directly-supplied vendorId over a name lookup —
+    // the UI now sends the actual DB id when a vendor is selected from the dropdown.
+    let resolvedVendorId: string | null = null;
+    let resolvedVendorName: string | undefined = undefined;
+
+    if (bodyVendorId && String(bodyVendorId).trim()) {
+      resolvedVendorId = String(bodyVendorId).trim();
+      const vendor = await prisma.vendor.findUnique({ where: { id: resolvedVendorId }, select: { companyName: true } });
+      resolvedVendorName = vendor?.companyName || undefined;
+    } else if (primaryVendorName && String(primaryVendorName).trim()) {
+      resolvedVendorName = String(primaryVendorName).trim();
+      resolvedVendorId = await resolveVendorIdByCompanyName(resolvedVendorName);
+    }
 
     const finalStoreImages = Array.isArray(storeImages) ? storeImages.filter((s: any) => typeof s === 'string' && s) : [];
     if (publishToStore === true) {
