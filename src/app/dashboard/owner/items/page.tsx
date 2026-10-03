@@ -184,7 +184,7 @@ export default function MasterDataItemsPage() {
     setLoading(true);
     try {
       const [itemsRes, catRes, uomRes, vndRes] = await Promise.all([
-        fetch('/api/mdm/items?publishedOnly=true'),
+        fetch('/api/mdm/items'),
         fetch('/api/mdm/categories'),
         fetch('/api/mdm/uom'),
         fetch('/api/admin/vendors'),
