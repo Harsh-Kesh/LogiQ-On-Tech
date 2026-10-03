@@ -42,8 +42,14 @@ export async function GET(req: Request) {
   const attrKey = searchParams.get('attrKey');
   const attrValue = (searchParams.get('attrValue') || '').toLowerCase().trim();
 
+  const publishedOnly = searchParams.get('publishedOnly') === 'true';
+
   const persistentProducts = await loadPersistentProducts();
   let items = Object.values(persistentProducts);
+
+  if (publishedOnly) {
+    items = items.filter((i) => i.publishToStore === true);
+  }
 
   if (search) {
     items = items.filter(
