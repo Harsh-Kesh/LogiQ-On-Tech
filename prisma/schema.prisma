@@ -1260,6 +1260,7 @@ model WarrantyRecord {
   updatedAt             DateTime       @updatedAt
 
   notifications         WarrantyNotification[]
+  evidence              WarrantyEvidence[]
 
   @@index([status])
   @@index([warrantyExpiryDate])
@@ -1267,6 +1268,20 @@ model WarrantyRecord {
   @@index([serialNumber])
   @@index([salesOrderId])
   @@map("warranty_records")
+}
+
+model WarrantyEvidence {
+  id          String         @id @default(uuid())
+  warrantyId  String
+  warranty    WarrantyRecord @relation(fields: [warrantyId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileType    String         // MIME type e.g. application/pdf, image/jpeg
+  fileData    String         @db.Text // base64-encoded file content
+  uploadedBy  String?
+  uploadedAt  DateTime       @default(now())
+
+  @@index([warrantyId])
+  @@map("warranty_evidence")
 }
 
 model WarrantyNotification {

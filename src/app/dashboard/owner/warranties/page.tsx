@@ -2,8 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback } from 'react';
-import { ShieldCheck, AlertTriangle, Clock, RefreshCw, Download, X, Calendar, XCircle } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { ShieldCheck, AlertTriangle, Clock, RefreshCw, Download, X, Calendar, XCircle, Paperclip, Trash2, Upload } from 'lucide-react';
 
 interface WarrantyRecord {
   id: string;
@@ -24,6 +24,15 @@ interface WarrantyRecord {
   overriddenBy: string | null;
   closedAt: string | null;
   closedBy: string | null;
+  _count: { evidence: number };
+}
+
+interface EvidenceFile {
+  id: string;
+  fileName: string;
+  fileType: string;
+  uploadedBy: string | null;
+  uploadedAt: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -82,6 +91,13 @@ export default function WarrantiesPage() {
   const [overrideDate, setOverrideDate] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
   const [overriding, setOverriding] = useState(false);
+
+  // Evidence modal state
+  const [evidenceRecord, setEvidenceRecord] = useState<WarrantyRecord | null>(null);
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -168,6 +184,69 @@ export default function WarrantiesPage() {
       const d = await res.json().catch(() => ({}));
       alert(`Failed: ${d.error || res.statusText}`);
     }
+  };
+
+  // ── Evidence files ──────────────────────────────────────────────────────────
+
+  const openEvidenceModal = async (rec: WarrantyRecord) => {
+    setEvidenceRecord(rec);
+    setEvidenceLoading(true);
+    const res = await fetch(`/api/admin/warranties/${rec.id}/evidence`);
+    if (res.ok) setEvidenceFiles(await res.json());
+    setEvidenceLoading(false);
+  };
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!evidenceRecord || !e.target.files?.length) return;
+    const file = e.target.files[0];
+    if (file.size > 10_000_000) { alert('File must be under 10 MB'); return; }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const res = await fetch(`/api/admin/warranties/${evidenceRecord.id}/evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type, fileData: base64 }),
+      });
+      setUploading(false);
+      if (res.ok) {
+        const created = await res.json();
+        setEvidenceFiles((prev) => [...prev, created]);
+        // Update the count in the records list
+        setRecords((prev) => prev.map((r) =>
+          r.id === evidenceRecord.id ? { ...r, _count: { evidence: r._count.evidence + 1 } } : r
+        ));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(`Upload failed: ${d.error || res.statusText}`);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleDeleteEvidence = async (evidenceId: string) => {
+    if (!evidenceRecord) return;
+    if (!confirm('Delete this file?')) return;
+    const res = await fetch(`/api/admin/warranties/${evidenceRecord.id}/evidence/${evidenceId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setEvidenceFiles((prev) => prev.filter((f) => f.id !== evidenceId));
+      setRecords((prev) => prev.map((r) =>
+        r.id === evidenceRecord.id ? { ...r, _count: { evidence: Math.max(0, r._count.evidence - 1) } } : r
+      ));
+    }
+  };
+
+  const handleDownloadEvidence = async (evidenceId: string, fileName: string) => {
+    if (!evidenceRecord) return;
+    const res = await fetch(`/api/admin/warranties/${evidenceRecord.id}/evidence/${evidenceId}`);
+    if (!res.ok) return;
+    const { fileData, fileType } = await res.json();
+    const blob = new Blob([Uint8Array.from(atob(fileData), (c) => c.charCodeAt(0))], { type: fileType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -295,26 +374,36 @@ export default function WarrantiesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {canAct && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => openOverrideModal(rec)}
-                            title="Override warranty start date (e.g. installation date)"
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-[11px] font-semibold transition"
-                          >
-                            <Calendar className="w-3 h-3" />
-                            Start Date
-                          </button>
-                          <button
-                            onClick={() => openCloseModal(rec)}
-                            title="Close this warranty record"
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 hover:bg-red-50 text-slate-600 hover:text-red-700 border border-slate-200 hover:border-red-200 text-[11px] font-semibold transition"
-                          >
-                            <XCircle className="w-3 h-3" />
-                            Close
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          onClick={() => openEvidenceModal(rec)}
+                          title="View or upload evidence files"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-semibold transition"
+                        >
+                          <Paperclip className="w-3 h-3" />
+                          Evidence{rec._count.evidence > 0 ? ` (${rec._count.evidence})` : ''}
+                        </button>
+                        {canAct && (
+                          <>
+                            <button
+                              onClick={() => openOverrideModal(rec)}
+                              title="Override warranty start date (e.g. installation date)"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-[11px] font-semibold transition"
+                            >
+                              <Calendar className="w-3 h-3" />
+                              Start Date
+                            </button>
+                            <button
+                              onClick={() => openCloseModal(rec)}
+                              title="Close this warranty record"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 hover:bg-red-50 text-slate-600 hover:text-red-700 border border-slate-200 hover:border-red-200 text-[11px] font-semibold transition"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              Close
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -361,6 +450,62 @@ export default function WarrantiesPage() {
               </button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Evidence files modal */}
+      {evidenceRecord && (
+        <Modal title={`Evidence Files — ${evidenceRecord.warrantyNumber}`} onClose={() => setEvidenceRecord(null)}>
+          <p className="text-sm text-slate-500 mb-4">
+            Attach supporting documents: supplier invoice PDF, delivery confirmation, warranty certificate, MYOB tax invoice.
+          </p>
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleUploadFile}
+            accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv" />
+          <div className="mb-4">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition disabled:opacity-60 w-full justify-center"
+            >
+              <Upload className="w-4 h-4" />
+              {uploading ? 'Uploading…' : 'Upload File'}
+            </button>
+            <p className="text-[11px] text-slate-400 text-center mt-1">PDF, JPG, PNG, DOCX, XLSX · max 10 MB</p>
+          </div>
+          {evidenceLoading ? (
+            <div className="text-center py-6 text-slate-400 text-sm">Loading files…</div>
+          ) : evidenceFiles.length === 0 ? (
+            <div className="text-center py-6 text-slate-400 text-sm">No evidence files uploaded yet</div>
+          ) : (
+            <ul className="space-y-2">
+              {evidenceFiles.map((f) => (
+                <li key={f.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-800 truncate">{f.fileName}</div>
+                    <div className="text-[10px] text-slate-400">
+                      {f.fileType} · {f.uploadedBy || 'owner'} · {new Date(f.uploadedAt).toLocaleDateString('en-AU')}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => handleDownloadEvidence(f.id, f.fileName)}
+                      title="Download"
+                      className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 text-slate-500 hover:text-indigo-600 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEvidence(f.id)}
+                      title="Delete"
+                      className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 text-slate-500 hover:text-red-600 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </Modal>
       )}
 

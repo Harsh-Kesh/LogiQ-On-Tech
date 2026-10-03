@@ -16,6 +16,7 @@ export interface ParsedInvoice {
   taxAmount?: number;
   totalAmount?: number;
   lines?: ParsedInvoiceLine[];
+  serialNumbers?: string[];  // one per line item, in order of appearance
 }
 
 export interface ParsedInvoiceLine {
@@ -89,5 +90,14 @@ export async function parseInvoicePdf(buffer: Buffer): Promise<ParsedInvoice> {
     }
   }
 
-  return { invoiceNumber, invoiceDate, dueDate, supplierName, poNumber, subtotal, taxAmount, totalAmount, lines };
+  // Serial numbers — match common patterns: S/N, SN:, Serial No:, Serial:
+  const serialNumbers: string[] = [];
+  const snRe = /(?:s\/n|sn|serial\s*(?:no|number|#)?)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-]{3,29})/gi;
+  let snMatch;
+  while ((snMatch = snRe.exec(text)) !== null) {
+    const sn = snMatch[1].trim();
+    if (!serialNumbers.includes(sn)) serialNumbers.push(sn);
+  }
+
+  return { invoiceNumber, invoiceDate, dueDate, supplierName, poNumber, subtotal, taxAmount, totalAmount, lines, serialNumbers };
 }

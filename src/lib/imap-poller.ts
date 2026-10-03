@@ -149,6 +149,23 @@ export async function pollSupplierInvoices(): Promise<PollResult> {
           await runThreeWayMatch(storefrontOrder.id, suppInvoice.id).catch((err) =>
             result.errors.push(`3-way match failed for ${storefrontOrder!.id}: ${err.message}`)
           );
+
+          // Write serial numbers to warranty records created by the match, in document order
+          if (parsed.serialNumbers && parsed.serialNumbers.length > 0) {
+            const warranties = await prisma.warrantyRecord.findMany({
+              where: { supplierInvoiceId: suppInvoice.id },
+              orderBy: { createdAt: 'asc' },
+            });
+            for (let i = 0; i < warranties.length; i++) {
+              const sn = parsed.serialNumbers[i];
+              if (sn && !warranties[i].serialNumber) {
+                await prisma.warrantyRecord.update({
+                  where: { id: warranties[i].id },
+                  data: { serialNumber: sn },
+                });
+              }
+            }
+          }
         }
 
         result.invoicesCreated++;

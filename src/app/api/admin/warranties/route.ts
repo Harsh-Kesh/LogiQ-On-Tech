@@ -31,6 +31,7 @@ export async function GET() {
       overriddenBy: true,
       closedAt: true,
       closedBy: true,
+      _count: { select: { evidence: true } },
     },
   });
 
