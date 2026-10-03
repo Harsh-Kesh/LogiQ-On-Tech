@@ -1323,14 +1323,16 @@ model StorefrontOrder {
   salesOrderId    String?               @unique
   salesOrder      SalesOrder?           @relation(fields: [salesOrderId], references: [id])
   // MYOB references (all financial entries go through MYOB)
-  myobPoGuid      String?
+  myobSoGuid      String?   // MYOB Sales Order (created at payment)
+  myobSoNumber    String?
+  myobPoGuid      String?   // MYOB Purchase Order (to Sektor)
   myobPoNumber    String?
-  myobBillGuid    String?
+  myobBillGuid    String?   // MYOB Bill (Sektor invoice approved)
   myobBillNumber  String?
-  myobPaymentGuid String?
-  myobInvoiceGuid String?
+  myobPaymentGuid String?   // MYOB Supplier Payment record
+  myobInvoiceGuid String?   // MYOB Customer Invoice (converted from SO at fulfillment)
   myobInvoiceNumber String?
-  // Monoova (actual bank transfer)
+  // Bank transfer (Airwallex / Monoova)
   monoovaTxnId    String?
   monoovaStatus   String?
   supplierPaidAt  DateTime?
@@ -1342,6 +1344,11 @@ model StorefrontOrder {
   threeWayMatchResult       String?
   threeWayMatchNotes        String?
   matchedAt                 DateTime?
+  // Sektor delivery status updates
+  sektorStatus          String?   // e.g. PROCESSING, SHIPPED, OUT_FOR_DELIVERY, DELIVERED
+  sektorStatusUpdatedAt DateTime?
+  sektorTrackingNumber  String?
+  fulfilledAt           DateTime?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 

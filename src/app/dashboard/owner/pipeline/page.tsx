@@ -14,12 +14,15 @@ interface SFOrder {
   currency: string;
   status: string;
   paidAt: string | null;
+  myobSoNumber: string | null;
   myobPoNumber: string | null;
   myobBillNumber: string | null;
   myobInvoiceNumber: string | null;
   monoovaTxnId: string | null;
   supplierPaidAt: string | null;
   threeWayMatchResult: string | null;
+  sektorStatus: string | null;
+  sektorTrackingNumber: string | null;
   createdAt: string;
 }
 
@@ -355,10 +358,21 @@ export default function PipelinePage() {
 
                 {/* Reference numbers */}
                 <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
-                  {order.myobInvoiceNumber && <span>Invoice: <strong className="text-slate-700">{order.myobInvoiceNumber}</strong></span>}
+                  {order.myobSoNumber && <span>SO: <strong className="text-indigo-700">{order.myobSoNumber}</strong></span>}
                   {order.myobPoNumber && <span>PO: <strong className="text-slate-700">{order.myobPoNumber}</strong></span>}
                   {order.myobBillNumber && <span>Bill: <strong className="text-slate-700">{order.myobBillNumber}</strong></span>}
+                  {order.myobInvoiceNumber && <span>Inv: <strong className="text-emerald-700">{order.myobInvoiceNumber}</strong></span>}
                   {order.monoovaTxnId && <span>Payment Ref: <strong className="text-slate-700">{order.monoovaTxnId}</strong></span>}
+                  {order.sektorStatus && (
+                    <span className="flex items-center gap-1">
+                      Sektor: <strong className={
+                        order.sektorStatus === 'DELIVERED' ? 'text-emerald-700' :
+                        order.sektorStatus === 'OUT_FOR_DELIVERY' ? 'text-blue-700' :
+                        order.sektorStatus === 'DISPATCHED' ? 'text-indigo-700' : 'text-amber-700'
+                      }>{order.sektorStatus}</strong>
+                      {order.sektorTrackingNumber && <span className="text-slate-400">({order.sektorTrackingNumber})</span>}
+                    </span>
+                  )}
                   <span className="ml-auto">{new Date(order.createdAt).toLocaleDateString('en-AU')}</span>
                 </div>
               </div>

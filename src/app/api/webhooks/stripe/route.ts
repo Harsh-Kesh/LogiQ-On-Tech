@@ -8,7 +8,7 @@ import { nextDocumentNumber } from '@/lib/document-sequences';
 import { createSalesOrder } from '@/lib/sales-orders';
 import { sendOrderConfirmationEmail, sendTransactionalEmail } from '@/lib/email';
 import { logAuditEvent } from '@/lib/audit';
-import { createMyobPurchaseOrder, createMyobCustomerInvoice } from '@/lib/myob';
+import { createMyobPurchaseOrder, createMyobSalesOrder } from '@/lib/myob';
 
 // Stripe requires the raw body for signature verification — Next.js App Router
 // provides it via req.arrayBuffer() as long as we do NOT call req.json() first.
@@ -140,35 +140,15 @@ export async function POST(req: Request) {
     // An admin can manually link / re-trigger the SO creation.
   }
 
-  // Send order confirmation email
-  if (salesOrder) {
-    await sendOrderConfirmationEmail(
-      customerEmail,
-      customerName,
-      salesOrder.salesOrderNumber,
-      salesOrder.lines,
-      salesOrder.totalValue,
-      salesOrder.currency
-    ).catch((err) => console.warn('Stripe webhook: confirmation email failed:', err));
-  }
-
-  // Phase 3 — Step 4: Create MYOB Customer Invoice for this sale
+  // Create MYOB Sales Order (goods paid but not yet shipped — SO stays open until delivery)
+  let myobSoNumber: string | null = null;
   if (salesOrder) {
     try {
-      const firstSku = resolvedLines[0]?.sku;
-      const customerItemMaster = firstSku
-        ? await prisma.itemMaster.findFirst({ where: { sku: firstSku }, include: { vendor: true } })
-        : null;
-      // Use vendor's myobContactId as a proxy for the customer — in real usage the customer
-      // would have their own MYOB contact. For demo, we use the vendor contact or skip.
-      const myobCustomerContactId = (customerItemMaster?.vendor as any)?.myobCustomerContactId || null;
-
-      const invoiceResult = await createMyobCustomerInvoice({
-        customerContactId: myobCustomerContactId || 'DEMO-CUSTOMER',
-        invoiceNumber: salesOrder.salesOrderNumber,
-        invoiceDate: new Date().toISOString().split('T')[0],
+      const soResult = await createMyobSalesOrder({
+        customerContactId: 'DEMO-CUSTOMER',
+        soNumber: salesOrder.salesOrderNumber,
+        orderDate: new Date().toISOString().split('T')[0],
         deliveryAddress,
-        currency: 'AUD',
         lines: resolvedLines.map((l) => ({
           itemCode: l.sku,
           description: l.itemName,
@@ -176,16 +156,78 @@ export async function POST(req: Request) {
           unitPrice: l.unitPrice,
           taxCode: 'GST',
         })),
-        memo: `Customer Invoice for ${orderNumber} — ${customerName}`,
+        memo: `Sales Order ${orderNumber} — ${customerName} — prepaid online`,
       });
-
+      myobSoNumber = soResult.soNumber;
       await prisma.storefrontOrder.update({
         where: { id: storefrontOrder.id },
-        data: { myobInvoiceGuid: invoiceResult.guid, myobInvoiceNumber: invoiceResult.invoiceNumber },
-      }).catch(() => {}); // field may not be in schema yet — non-fatal
+        data: { myobSoGuid: soResult.guid, myobSoNumber: soResult.soNumber },
+      }).catch(() => {});
     } catch (err) {
-      console.warn('Phase 3 Step 4: MYOB Customer Invoice creation failed:', err);
+      console.warn('MYOB Sales Order creation failed (non-fatal):', err);
     }
+  }
+
+  // Send order confirmation email with MYOB SO number
+  if (salesOrder) {
+    const itemRows = resolvedLines.map((l) =>
+      `<tr>
+        <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9">${l.itemName}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${l.qty}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;text-align:right">AUD ${(l.qty * l.unitPrice * 1.1).toFixed(2)}</td>
+      </tr>`
+    ).join('');
+
+    await sendTransactionalEmail({
+      to: customerEmail,
+      subject: `Order Confirmed — ${orderNumber}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a">
+          <div style="background:#0f172a;padding:24px 32px;border-radius:8px 8px 0 0">
+            <h1 style="color:#ffffff;margin:0;font-size:20px">Order Confirmed</h1>
+          </div>
+          <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px">
+            <p style="margin:0 0 16px">Hi <strong>${customerName}</strong>,</p>
+            <p style="margin:0 0 24px">Thank you for your order. We've received your payment and your order is now being processed.</p>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+              <tr style="background:#f8fafc">
+                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase">Order #</td>
+                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase">Sales Order #</td>
+                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase">Deliver To</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 12px;font-weight:700">${orderNumber}</td>
+                <td style="padding:8px 12px;font-weight:700;color:#4f46e5">${myobSoNumber || salesOrder.salesOrderNumber}</td>
+                <td style="padding:8px 12px;font-size:13px">${deliveryAddress}</td>
+              </tr>
+            </table>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+              <thead>
+                <tr style="background:#f8fafc">
+                  <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748b">Item</th>
+                  <th style="padding:8px 12px;text-align:center;font-size:12px;color:#64748b">Qty</th>
+                  <th style="padding:8px 12px;text-align:right;font-size:12px;color:#64748b">Total (inc GST)</th>
+                </tr>
+              </thead>
+              <tbody>${itemRows}</tbody>
+              <tfoot>
+                <tr style="background:#f8fafc">
+                  <td colspan="2" style="padding:8px 12px;font-weight:700;text-align:right">Total Paid</td>
+                  <td style="padding:8px 12px;font-weight:700;text-align:right">AUD ${totalAmount.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <p style="margin:0 0 8px;font-size:13px;color:#475569">We will email you as your order progresses. You can expect:</p>
+            <ol style="font-size:13px;color:#475569;margin:0 0 24px;padding-left:20px">
+              <li>Order confirmed ✓ <em>(this email)</em></li>
+              <li>Order dispatched by supplier — with tracking details</li>
+              <li>Out for delivery notification</li>
+              <li>Delivery confirmed + tax invoice</li>
+            </ol>
+            <p style="margin:0;font-size:13px;color:#64748b">If you have any questions please reply to this email.<br/>Thank you,<br/><strong>LogiQ-On Tech</strong></p>
+          </div>
+        </div>`,
+    }).catch((err) => console.warn('Stripe webhook: confirmation email failed:', err));
   }
 
   // Phase 3 — Create MYOB Purchase Order + email PO to supplier
@@ -216,7 +258,7 @@ export async function POST(req: Request) {
             unitPrice: l.unitPrice,
             taxCode: 'GST',
           })),
-          memo: `Storefront order ${orderNumber} — ${customerName}`,
+          memo: `PO for SO ${myobSoNumber || salesOrder.salesOrderNumber} — ${orderNumber} — ${customerName}`,
         });
 
         await prisma.storefrontOrder.update({

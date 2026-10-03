@@ -80,10 +80,93 @@ async function myobRequest(method: string, path: string, body?: object): Promise
   return res.json();
 }
 
+// ─── MYOB Sales Order (created at payment — goods not yet shipped) ────────────
+
+export interface MyobSalesOrderParams {
+  customerContactId: string;  // MYOB Customer GUID (or 'DEMO-CUSTOMER' in demo)
+  soNumber: string;           // our internal order number used as reference
+  orderDate: string;          // ISO date string
+  deliveryAddress: string;
+  lines: { itemCode: string; description: string; quantity: number; unitPrice: number; taxCode?: string }[];
+  memo?: string;
+}
+
+export interface MyobSalesOrderResult {
+  guid: string;
+  soNumber: string;  // MYOB-assigned SO number
+}
+
+export async function createMyobSalesOrder(params: MyobSalesOrderParams): Promise<MyobSalesOrderResult> {
+  if (!process.env.MYOB_CLIENT_ID) {
+    const fakeGuid = `DEMO-MYOB-SO-${Date.now()}`;
+    const fakeSoNumber = `SO-DEMO-${params.soNumber}`;
+    console.log(`[MYOB DEMO] Would create Sales Order ${fakeSoNumber} for customer ${params.customerContactId}`);
+    return { guid: fakeGuid, soNumber: fakeSoNumber };
+  }
+
+  const body = {
+    Customer: { UID: params.customerContactId },
+    Number: params.soNumber,
+    Date: params.orderDate,
+    ShipToAddress: params.deliveryAddress,
+    Memo: params.memo || `Sales Order ${params.soNumber} — LogiQ-On Tech`,
+    Lines: params.lines.map((l) => ({
+      Type: 'Item',
+      Item: { DisplayID: l.itemCode },
+      Description: l.description,
+      ShipQuantity: l.quantity,
+      UnitPrice: l.unitPrice,
+      TaxCode: { Code: l.taxCode || 'GST' },
+    })),
+  };
+
+  const result = await myobRequest('POST', '/Sale/Order/Item', body);
+  return {
+    guid: result?.UID || result?.uid || '',
+    soNumber: result?.Number || params.soNumber,
+  };
+}
+
+// ─── Convert MYOB Sales Order → Customer Invoice (called at FULFILLED) ────────
+
+export interface MyobSalesOrderToInvoiceResult {
+  guid: string;
+  invoiceNumber: string;
+}
+
+export async function convertMyobSalesOrderToInvoice(
+  soGuid: string,
+  invoiceDate: string,
+  memo?: string
+): Promise<MyobSalesOrderToInvoiceResult> {
+  if (!process.env.MYOB_CLIENT_ID) {
+    const fakeGuid = `DEMO-MYOB-INV-${Date.now()}`;
+    const fakeInvNumber = `INV-DEMO-${Date.now()}`;
+    console.log(`[MYOB DEMO] Would convert Sales Order ${soGuid} → Customer Invoice`);
+    return { guid: fakeGuid, invoiceNumber: fakeInvNumber };
+  }
+
+  // MYOB converts a Sales Order to an Invoice by POSTing to /Sale/Invoice/Item
+  // with a reference to the originating order UID.
+  const body = {
+    Order: { UID: soGuid },
+    Date: invoiceDate,
+    Memo: memo || 'Customer Invoice — goods delivered',
+  };
+
+  const result = await myobRequest('POST', '/Sale/Invoice/Item', body);
+  return {
+    guid: result?.UID || result?.uid || '',
+    invoiceNumber: result?.Number || `INV-${Date.now()}`,
+  };
+}
+
+// ─── Customer Invoice (direct, kept for backwards compat) ─────────────────────
+
 export interface MyobCustomerInvoiceParams {
-  customerContactId: string;  // MYOB Customer GUID
-  invoiceNumber: string;      // our internal SO/SFO number
-  invoiceDate: string;        // ISO date string
+  customerContactId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
   deliveryAddress: string;
   currency: string;
   lines: { itemCode: string; description: string; quantity: number; unitPrice: number; taxCode?: string }[];
@@ -100,10 +183,9 @@ export async function createMyobCustomerInvoice(
 ): Promise<MyobCustomerInvoiceResult> {
   if (!process.env.MYOB_CLIENT_ID) {
     const fakeGuid = `DEMO-MYOB-INV-${Date.now()}`;
-    console.log(`[MYOB DEMO] Would create Customer Invoice ${params.invoiceNumber} for customer ${params.customerContactId}`);
+    console.log(`[MYOB DEMO] Would create Customer Invoice ${params.invoiceNumber}`);
     return { guid: fakeGuid, invoiceNumber: params.invoiceNumber };
   }
-
   const body = {
     Customer: { UID: params.customerContactId },
     Number: params.invoiceNumber,
@@ -119,11 +201,8 @@ export async function createMyobCustomerInvoice(
       TaxCode: { Code: l.taxCode || 'GST' },
     })),
   };
-
   const result = await myobRequest('POST', '/Sale/Invoice/Item', body);
-  const guid: string = result?.UID || result?.uid || '';
-  const invoiceNumber: string = result?.Number || params.invoiceNumber;
-  return { guid, invoiceNumber };
+  return { guid: result?.UID || '', invoiceNumber: result?.Number || params.invoiceNumber };
 }
 
 export interface MyobPoLine {
