@@ -16,6 +16,7 @@ interface SFOrder {
   paidAt: string | null;
   myobPoNumber: string | null;
   myobBillNumber: string | null;
+  myobInvoiceNumber: string | null;
   monoovaTxnId: string | null;
   supplierPaidAt: string | null;
   threeWayMatchResult: string | null;
@@ -330,9 +331,10 @@ export default function PipelinePage() {
 
                 {/* Reference numbers */}
                 <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
+                  {order.myobInvoiceNumber && <span>Invoice: <strong className="text-slate-700">{order.myobInvoiceNumber}</strong></span>}
                   {order.myobPoNumber && <span>PO: <strong className="text-slate-700">{order.myobPoNumber}</strong></span>}
                   {order.myobBillNumber && <span>Bill: <strong className="text-slate-700">{order.myobBillNumber}</strong></span>}
-                  {order.monoovaTxnId && <span>Monoova: <strong className="text-slate-700">{order.monoovaTxnId}</strong></span>}
+                  {order.monoovaTxnId && <span>Payment Ref: <strong className="text-slate-700">{order.monoovaTxnId}</strong></span>}
                   <span className="ml-auto">{new Date(order.createdAt).toLocaleDateString('en-AU')}</span>
                 </div>
               </div>
