@@ -31,10 +31,19 @@ export async function POST(req: Request) {
   }
 
   if (event.type !== 'checkout.session.completed') {
-    // ACK all other events — we don't process them yet
     return NextResponse.json({ received: true });
   }
 
+  try {
+    return await handleCheckoutCompleted(event);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[stripe-webhook] Unhandled error:', message, err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handleCheckoutCompleted(event: Stripe.Event) {
   const session = event.data.object as Stripe.Checkout.Session;
   const sessionId = session.id;
 
