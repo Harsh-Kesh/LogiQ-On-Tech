@@ -254,7 +254,7 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
         <Row label="MYOB PO #" value={sfOrder.myobPoNumber} />
         <Row label="PO Sent To" value={sfOrder.poEmailSentTo} />
         <Row label="PO Sent At" value={fmtDt(sfOrder.poEmailSentAt)} />
-        <Row label="Sektor Status" value={
+        <Row label="Delivery Status" value={
           sfOrder.sektorStatus ? (
             <span className="px-2 py-0.5 rounded bg-violet-100 text-violet-700 font-bold text-[10px]">
               {sfOrder.sektorStatus}

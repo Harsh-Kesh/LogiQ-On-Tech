@@ -1392,7 +1392,7 @@ export default function MasterDataItemsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Input label="Manufacturer Item Code" value={manufacturerCode} onChange={(e) => setManufacturerCode(e.target.value)} placeholder="e.g. MFG-00123" />
                 <Input label="Supplier Item Code" value={supplierItemCode} onChange={(e) => setSupplierItemCode(e.target.value)} placeholder="e.g. SUP-ABC-7" />
-                <Input label="Supplier Email (PO delivery)" type="email" value={supplierEmail} onChange={(e) => setSupplierEmail(e.target.value)} placeholder="orders@supplier.com" />
+                <Input label="Supplier Email (PO delivery)" type="email" value={supplierEmail} onChange={(e) => setSupplierEmail(e.target.value)} placeholder="orders@supplier.com" helperText="Auto-filled from vendor record — editable if different" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Input label="Lead Time (days)" type="number" min="0" value={leadTimeDays} onChange={(e) => setLeadTimeDays(e.target.value)} placeholder="7" />
