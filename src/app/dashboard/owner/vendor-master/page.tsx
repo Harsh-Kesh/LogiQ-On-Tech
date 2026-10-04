@@ -26,8 +26,6 @@ interface Supplier {
   user?: { email: string; fullName?: string };
 }
 
-const PAYMENT_TERMS = ['Net 30', 'Net 60', 'EOM', 'Prepaid', 'COD', '7 Days', '14 Days'];
-
 function Field({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
   if (!value) return null;
   return (
@@ -62,8 +60,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
   const [poEmail, setPoEmail] = useState(initial?.poEmail ?? '');
   const [apEmail, setApEmail] = useState(initial?.apEmail ?? '');
   const [address, setAddress] = useState(initial?.businessRegisteredAddress ?? '');
-  const [paymentTerms, setPaymentTerms] = useState(initial?.paymentTerms ?? '');
-  const [currency, setCurrency] = useState(initial?.currency ?? 'AUD');
   const [bankBsb, setBankBsb] = useState(initial?.bankBsb ?? '');
   const [bankAccNum, setBankAccNum] = useState(initial?.bankAccountNumber ?? '');
   const [bankAccName, setBankAccName] = useState(initial?.bankAccountName ?? '');
@@ -86,8 +82,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
             vendorId: initial!.id,
             poEmail: poEmail.trim() || null,
             apEmail: apEmail.trim() || null,
-            paymentTerms: paymentTerms.trim() || null,
-            currency: currency.trim() || 'AUD',
             bankBsb: bankBsb.trim() || null,
             bankAccountNumber: bankAccNum.trim() || null,
             bankAccountName: bankAccName.trim() || null,
@@ -104,8 +98,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           poEmail: poEmail.trim() || undefined,
           apEmail: apEmail.trim() || undefined,
           businessRegisteredAddress: address.trim() || undefined,
-          paymentTerms: paymentTerms.trim() || undefined,
-          currency: currency.trim() || 'AUD',
           bankBsb: bankBsb.trim() || undefined,
           bankAccountNumber: bankAccNum.trim() || undefined,
           bankAccountName: bankAccName.trim() || undefined,
@@ -121,8 +113,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
             poEmail: poEmail.trim(),
             apEmail: apEmail.trim() || null,
             businessRegisteredAddress: address.trim() || null,
-            paymentTerms: paymentTerms.trim() || null,
-            currency: currency.trim() || 'AUD',
             bankBsb: bankBsb.trim() || null,
             bankAccountNumber: bankAccNum.trim() || null,
             bankAccountName: bankAccName.trim() || null,
@@ -137,8 +127,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           abnAcn: j.vendor?.abnAcn ?? abnAcn.trim(),
           status: 'APPROVED',
           businessRegisteredAddress: address.trim() || undefined,
-          paymentTerms: paymentTerms.trim() || undefined,
-          currency: currency.trim() || 'AUD',
           poEmail: poEmail.trim() || undefined,
           apEmail: apEmail.trim() || undefined,
           bankBsb: bankBsb.trim() || undefined,
@@ -209,39 +197,16 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
             </div>
           </div>
 
-          {/* SECTION 4: HOW WE PAY THIS SUPPLIER */}
+          {/* SECTION 3: BANK DETAILS FOR PAYMENT */}
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-indigo-600" />
-              <span>3. How We Pay This Supplier</span>
+              <span>3. Bank Details for Payment</span>
             </div>
             <p className="text-[11px] text-slate-500 -mt-1">
               Optional. Fill this in only if LogiQ-On should pay this supplier automatically by bank
               transfer once an order is confirmed received. Leave blank to pay them manually instead.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Agreed Payment Terms</label>
-                <select
-                  value={paymentTerms}
-                  onChange={(e) => setPaymentTerms(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20"
-                >
-                  <option value="">— Select —</option>
-                  {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Currency</label>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20"
-                >
-                  {['AUD', 'USD', 'NZD', 'EUR', 'GBP', 'SGD'].map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
             <Input label="Supplier's Bank BSB" value={bankBsb} onChange={(e) => setBankBsb(e.target.value)} placeholder="e.g. 063-000" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Supplier's Account Number" value={bankAccNum} onChange={(e) => setBankAccNum(e.target.value)} placeholder="e.g. 12345678" />
