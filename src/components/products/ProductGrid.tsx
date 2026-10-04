@@ -109,7 +109,7 @@ export default function ProductGrid({ products, supplementary = [], hideTypeFilt
                 )}
                 {product.quantityAvailable <= 0 && (
                   <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide bg-rose-50 text-rose-700 border border-rose-200 px-2 py-1 rounded-full">
-                    Out of Stock
+                    Enquire
                   </span>
                 )}
               </Link>

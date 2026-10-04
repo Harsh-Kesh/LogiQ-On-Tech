@@ -114,7 +114,7 @@ export default function ProductDetailPage() {
               )}
               {!inStock && (
                 <span className="absolute top-4 right-4 text-xs font-bold uppercase tracking-wide bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1 rounded-full">
-                  Out of Stock
+                  Enquire
                 </span>
               )}
             </div>
@@ -158,7 +158,7 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-2 mb-6">
               <span className={`w-2 h-2 rounded-full ${inStock ? 'bg-emerald-500' : 'bg-rose-500'}`} />
               <span className={`text-xs font-bold ${inStock ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {inStock ? `In Stock (${product.quantityAvailable.toLocaleString()} available)` : 'Out of Stock — Backorders Accepted'}
+                {inStock ? 'In Stock' : 'Out of Stock — Backorders Accepted'}
               </span>
             </div>
 
