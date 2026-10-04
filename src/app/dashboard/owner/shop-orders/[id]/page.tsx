@@ -9,6 +9,7 @@ import {
   DollarSign, RotateCcw, ShieldAlert, AlertTriangle,
 } from 'lucide-react';
 import PaySupplierModal from '@/components/orders/PaySupplierModal';
+import MarkFulfilledModal from '@/components/orders/MarkFulfilledModal';
 
 interface OrderItem {
   id: string;
@@ -79,7 +80,7 @@ export default function ShopOrderDetailPage() {
 
   const [showPayModal, setShowPayModal] = useState(false);
   const [simulatingId, setSimulatingId] = useState(false);
-  const [deliveryStageId, setDeliveryStageId] = useState(false);
+  const [showFulfillModal, setShowFulfillModal] = useState(false);
   const [retryingPoId, setRetryingPoId] = useState(false);
   const [forceMatchId, setForceMatchId] = useState(false);
 
@@ -135,24 +136,6 @@ export default function ShopOrderDetailPage() {
     const data = await res.json().catch(() => ({}));
     if (res.ok) { alert(`Invoice simulated! ${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`); load(); }
     else alert(`Simulation failed: ${data.error || res.statusText}`);
-  };
-
-  const handleMarkFulfilled = async () => {
-    if (!order || !confirm('Mark this order as fulfilled?\n\nWe don\'t receive real delivery updates, so this confirms the goods have reached the customer — it emails them their tax invoice.')) return;
-    setDeliveryStageId(true);
-    const res = await fetch('/api/demo/simulate-sektor-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storefrontOrderId: order.id }),
-    });
-    setDeliveryStageId(false);
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) {
-      alert(`Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`);
-      load();
-    } else {
-      alert(`Failed: ${data.error || res.statusText}`);
-    }
   };
 
   if (loading) {
@@ -228,8 +211,8 @@ export default function ShopOrderDetailPage() {
         )}
         {canFulfill && (
           <ActionButton
-            onClick={handleMarkFulfilled}
-            loading={deliveryStageId}
+            onClick={() => setShowFulfillModal(true)}
+            loading={false}
             icon={Truck}
             color="#059669"
             label="Mark as Fulfilled"
@@ -418,6 +401,15 @@ export default function ShopOrderDetailPage() {
           orderId={order.id}
           onClose={() => setShowPayModal(false)}
           onPaid={() => { setShowPayModal(false); load(); }}
+        />
+      )}
+
+      {showFulfillModal && (
+        <MarkFulfilledModal
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          onClose={() => setShowFulfillModal(false)}
+          onFulfilled={() => { setShowFulfillModal(false); load(); }}
         />
       )}
     </div>

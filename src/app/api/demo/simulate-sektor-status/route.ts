@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { storefrontOrderId } = await req.json();
+  const { storefrontOrderId, deliveryDate: deliveryDateInput } = await req.json();
   if (!storefrontOrderId) {
     return NextResponse.json({ error: 'storefrontOrderId required' }, { status: 400 });
   }
@@ -37,13 +37,20 @@ export async function POST(req: Request) {
   }
 
   const now = new Date();
+  // The owner picks the actual date goods reached the customer — this may well be
+  // earlier than today if they're only getting around to marking it now. The
+  // warranty clock starts from THIS date, not from when the button was clicked.
+  const deliveryDate = deliveryDateInput ? new Date(deliveryDateInput) : now;
+  if (isNaN(deliveryDate.getTime())) {
+    return NextResponse.json({ error: 'Invalid deliveryDate' }, { status: 400 });
+  }
   const trackingNumber = sfOrder.sektorTrackingNumber || `TRACK-${Date.now()}`;
 
   await prisma.storefrontOrder.update({
     where: { id: storefrontOrderId },
     data: {
       status: 'FULFILLED',
-      fulfilledAt: now,
+      fulfilledAt: deliveryDate,
       sektorStatus: 'DELIVERED',
       sektorStatusUpdatedAt: now,
       sektorTrackingNumber: trackingNumber,
@@ -57,7 +64,7 @@ export async function POST(req: Request) {
     });
     for (const wr of warrantyRecords) {
       if (wr.warrantyStartRule === 'DELIVERY_DATE') {
-        const newStart = now;
+        const newStart = deliveryDate;
         const newExpiry = new Date(newStart);
         newExpiry.setMonth(newExpiry.getMonth() + wr.warrantyPeriodMonths);
         const remainingDays = Math.ceil((newExpiry.getTime() - now.getTime()) / 86_400_000);
@@ -65,7 +72,7 @@ export async function POST(req: Request) {
         await prisma.warrantyRecord.update({
           where: { id: wr.id },
           data: {
-            deliveryDate: now,
+            deliveryDate: newStart,
             warrantyStartDate: newStart,
             warrantyExpiryDate: newExpiry,
             remainingDays,
@@ -80,7 +87,7 @@ export async function POST(req: Request) {
   let myobInvoiceNumber: string | null = null;
   if (sfOrder.myobSoGuid) {
     try {
-      const invoiceDate = now.toISOString().split('T')[0];
+      const invoiceDate = deliveryDate.toISOString().split('T')[0];
       const inv = await convertMyobSalesOrderToInvoice(
         sfOrder.myobSoGuid,
         invoiceDate,
@@ -97,7 +104,7 @@ export async function POST(req: Request) {
   }
 
   // Send delivery + tax invoice email to customer
-  const invoiceDate = now.toISOString().split('T')[0];
+  const invoiceDate = deliveryDate.toISOString().split('T')[0];
   const totalInc = Number(sfOrder.totalAmount);
   const totalEx = +(totalInc / 1.1).toFixed(2);
   const gst = +(totalInc - totalEx).toFixed(2);
@@ -164,13 +171,14 @@ export async function POST(req: Request) {
     action: 'ORDER_MARKED_FULFILLED',
     module: 'GOVERNANCE',
     targetId: storefrontOrderId,
-    payloadJson: { orderNumber: sfOrder.orderNumber, trackingNumber, myobInvoiceNumber },
+    payloadJson: { orderNumber: sfOrder.orderNumber, trackingNumber, myobInvoiceNumber, deliveryDate: deliveryDate.toISOString() },
   }).catch(() => {});
 
   return NextResponse.json({
     success: true,
     trackingNumber,
     myobInvoiceNumber,
+    deliveryDate: deliveryDate.toISOString(),
     fulfilled: true,
   });
 }

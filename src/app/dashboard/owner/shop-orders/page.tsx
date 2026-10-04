@@ -10,6 +10,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import PaySupplierModal from '@/components/orders/PaySupplierModal';
+import MarkFulfilledModal from '@/components/orders/MarkFulfilledModal';
 
 interface Order {
   id: string;
@@ -72,7 +73,7 @@ export default function ShopOrdersPage() {
 
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
-  const [deliveryStageId, setDeliveryStageId] = useState<string | null>(null);
+  const [fulfillOrder, setFulfillOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
   const [forceMatchId, setForceMatchId] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
@@ -150,24 +151,6 @@ export default function ShopOrdersPage() {
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
       alert(`PO created: ${data.poNumber}`);
-      load();
-    } else {
-      alert(`Failed: ${data.error || res.statusText}`);
-    }
-  };
-
-  const handleMarkFulfilled = async (order: Order) => {
-    if (!confirm('Mark this order as fulfilled?\n\nWe don\'t receive real delivery updates, so this confirms the goods have reached the customer — it emails them their tax invoice.')) return;
-    setDeliveryStageId(order.id);
-    const res = await fetch('/api/demo/simulate-sektor-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storefrontOrderId: order.id }),
-    });
-    setDeliveryStageId(null);
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) {
-      alert(`Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`);
       load();
     } else {
       alert(`Failed: ${data.error || res.statusText}`);
@@ -382,12 +365,11 @@ export default function ShopOrdersPage() {
                     )}
                     {canFulfill && (
                       <button
-                        onClick={() => handleMarkFulfilled(order)}
-                        disabled={deliveryStageId === order.id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                        onClick={() => setFulfillOrder({ id: order.id, orderNumber: order.orderNumber })}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition"
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        {deliveryStageId === order.id ? 'Marking…' : 'Mark as Fulfilled'}
+                        Mark as Fulfilled
                       </button>
                     )}
                     <Link
@@ -454,6 +436,15 @@ export default function ShopOrdersPage() {
           orderId={payOrderId}
           onClose={() => setPayOrderId(null)}
           onPaid={() => { setPayOrderId(null); load(); }}
+        />
+      )}
+
+      {fulfillOrder && (
+        <MarkFulfilledModal
+          orderId={fulfillOrder.id}
+          orderNumber={fulfillOrder.orderNumber}
+          onClose={() => setFulfillOrder(null)}
+          onFulfilled={() => { setFulfillOrder(null); load(); }}
         />
       )}
     </div>
