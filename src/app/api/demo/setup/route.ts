@@ -65,31 +65,52 @@ const DEMO_PRODUCTS: Record<string, {
 
 const DEMO_SKUS = Object.keys(DEMO_PRODUCTS);
 
+// Known demo vendors — fallback PO emails are real-looking EXTERNAL addresses.
+// Never the internal logiqon.* domain: that is a platform login/IMAP credential,
+// not a supplier mailbox, and a PO sent there is a PO sent to ourselves.
+const DEMO_SUPPLIER_PO_EMAILS: Record<string, string> = {
+  'Apex Hardware & Logistics Ltd': 'orders@apexhardware.com.au',
+  'Smith Logistics Pty Ltd': 'orders@smithlogistics.com.au',
+  'Jonathan Logistics Hub': 'orders@jonathanlogisticshub.com.au',
+};
+
+function isInternalDomain(email: string | null | undefined): boolean {
+  return !!email && /@logiqon\.(tech|com)$/i.test(email.trim());
+}
+
+function fallbackSupplierEmail(companyName: string): string {
+  if (DEMO_SUPPLIER_PO_EMAILS[companyName]) return DEMO_SUPPLIER_PO_EMAILS[companyName];
+  const slug = companyName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'supplier';
+  return `orders@${slug}.com.au`;
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'PLATFORM_OWNER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const imap = process.env.IMAP_USER || 'demo@logiqon.com';
   const results: string[] = [];
 
-  // 1. Patch vendors with demo bank details + emails
+  // 1. Patch vendors with demo bank details + emails. PO/AP email is only ever
+  // filled in or corrected — never pointed at our own logiqon.* domain.
   const vendors = await prisma.vendor.findMany();
   for (const vendor of vendors) {
     const isApex = vendor.companyName?.toLowerCase().includes('apex');
+    const poEmail = vendor.poEmail && !isInternalDomain(vendor.poEmail) ? vendor.poEmail : fallbackSupplierEmail(vendor.companyName);
+    const apEmail = vendor.apEmail && !isInternalDomain(vendor.apEmail) ? vendor.apEmail : poEmail;
     await prisma.vendor.update({
       where: { id: vendor.id },
       data: {
         bankBsb: vendor.bankBsb || '012-003',
         bankAccountNumber: vendor.bankAccountNumber || (isApex ? '987654321' : '123456789'),
         bankAccountName: vendor.bankAccountName || vendor.companyName,
-        poEmail: vendor.poEmail || imap,
-        apEmail: vendor.apEmail || imap,
+        poEmail,
+        apEmail,
         myobContactId: vendor.myobContactId || `DEMO-MYOB-VENDOR-${vendor.id.slice(0, 8)}`,
       },
     });
-    results.push(`Vendor patched: ${vendor.companyName}`);
+    results.push(`Vendor patched: ${vendor.companyName} — PO email: ${poEmail}`);
   }
 
   // 2. Unpublish all items that are NOT in the 5-product demo catalog
@@ -116,7 +137,6 @@ export async function POST(req: Request) {
         warrantyPeriodMonths: cfg.warrantyMonths,
         warrantyStartRule: 'DELIVERY_DATE',
         serialTracked: true,
-        supplierEmail: imap,
         taxPercent: 10,
       },
     });
@@ -130,12 +150,8 @@ export async function POST(req: Request) {
     }
   }
 
-  // 4. Set supplierEmail fallback on any remaining items
-  await prisma.itemMaster.updateMany({
-    where: { supplierEmail: null },
-    data: { supplierEmail: imap },
-  });
-  results.push('supplierEmail fallback set on remaining items');
+  // Item-level supplierEmail is left alone — the PO flow already falls back
+  // to the linked vendor's poEmail (set above) when it is not set per-item.
 
   return NextResponse.json({ success: true, patched: results });
 }

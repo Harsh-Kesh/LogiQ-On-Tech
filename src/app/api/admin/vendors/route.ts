@@ -108,35 +108,44 @@ export async function POST(req: Request) {
 
   const body = await req.json();
   const {
-    companyName, abnAcn, contactName, loginEmail, poEmail, apEmail,
+    companyName, abnAcn, poEmail, apEmail,
     businessRegisteredAddress, paymentTerms, currency,
     bankBsb, bankAccountNumber, bankAccountName, myobContactId,
   } = body;
 
+  // Only the platform owner ever logs in to manage suppliers — there is no supplier
+  // self-service portal — so company name and PO email are the only real requirements.
+  // Everything else (ABN/ACN, address, payment terms, bank details) can be added later.
   if (!companyName?.trim()) return NextResponse.json({ error: 'Company name is required.' }, { status: 400 });
-  if (!abnAcn?.trim()) return NextResponse.json({ error: 'ABN/ACN is required.' }, { status: 400 });
-  if (!contactName?.trim()) return NextResponse.json({ error: 'Contact person name is required.' }, { status: 400 });
-  if (!loginEmail?.trim()) return NextResponse.json({ error: 'Login email is required.' }, { status: 400 });
   if (!poEmail?.trim()) return NextResponse.json({ error: 'PO email is required.' }, { status: 400 });
 
-  const existing = await prisma.user.findUnique({ where: { email: loginEmail.trim().toLowerCase() } });
-  if (existing) return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
+  // Vendor requires a linked User record (schema constraint) even though suppliers
+  // never log in themselves — generate both silently so the owner never has to think
+  // about it. A unique placeholder avoids any collision with real accounts.
+  const placeholderSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const loginEmail = `supplier-${placeholderSuffix}@internal.logiqon.app`;
+  const contactName = `${companyName.trim()} (Supplier Contact)`;
 
-  const existingAbn = await prisma.vendor.findUnique({ where: { abnAcn: abnAcn.trim() } });
-  if (existingAbn) return NextResponse.json({ error: 'A supplier with this ABN/ACN already exists.' }, { status: 409 });
+  let finalAbnAcn = abnAcn?.trim();
+  if (finalAbnAcn) {
+    const existingAbn = await prisma.vendor.findUnique({ where: { abnAcn: finalAbnAcn } });
+    if (existingAbn) return NextResponse.json({ error: 'A supplier with this ABN/ACN already exists.' }, { status: 409 });
+  } else {
+    finalAbnAcn = `PENDING-${placeholderSuffix}`;
+  }
 
   const passwordHash = await bcrypt.hash('Password123!', 10);
 
   const newUser = await prisma.user.create({
     data: {
-      email: loginEmail.trim().toLowerCase(),
-      fullName: contactName.trim(),
+      email: loginEmail,
+      fullName: contactName,
       role: 'VENDOR',
       passwordHash,
       vendor: {
         create: {
           companyName: companyName.trim(),
-          abnAcn: abnAcn.trim(),
+          abnAcn: finalAbnAcn,
           status: 'APPROVED',
           approvedAt: new Date(),
           poEmail: poEmail.trim() || null,

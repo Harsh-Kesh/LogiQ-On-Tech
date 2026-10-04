@@ -52,9 +52,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const results: { vendorsUpdated: number; itemsUpdated: number; skipped: number } = {
+  const results: { vendorsUpdated: number; itemsUpdated: number; itemEmailsCleared: number; skipped: number } = {
     vendorsUpdated: 0,
     itemsUpdated: 0,
+    itemEmailsCleared: 0,
     skipped: 0,
   };
 
@@ -69,12 +70,31 @@ export async function POST(req: Request) {
     const knownFix = DEMO_SUPPLIER_PO_EMAILS[vendor.companyName];
     const needsFix = knownFix && (isOwnDomain(vendor.poEmail) || !vendor.poEmail);
     if (needsFix) {
-      await prisma.vendor.update({ where: { id: vendor.id }, data: { poEmail: knownFix } });
+      await prisma.vendor.update({ where: { id: vendor.id }, data: { poEmail: knownFix, apEmail: isOwnDomain(vendor.apEmail) ? knownFix : vendor.apEmail } });
       results.vendorsUpdated++;
     } else if (!vendor.poEmail && vendor.user?.email && !isOwnDomain(vendor.user.email)) {
       await prisma.vendor.update({ where: { id: vendor.id }, data: { poEmail: vendor.user.email } });
       results.vendorsUpdated++;
+    } else if (isOwnDomain(vendor.poEmail)) {
+      // A vendor with no known fix but a poEmail stuck on our own domain — clear it so the
+      // webhook's "no supplier email configured" warning fires instead of silently misdelivering.
+      await prisma.vendor.update({ where: { id: vendor.id }, data: { poEmail: null, apEmail: isOwnDomain(vendor.apEmail) ? null : vendor.apEmail } });
+      results.vendorsUpdated++;
     }
+  }
+
+  // 1b. Clear any item-level supplierEmail that was previously (wrongly) set to our own
+  // domain — e.g. by an older version of the demo seeding route. Once cleared, the PO flow
+  // falls back cleanly to the (now-corrected) vendor poEmail above.
+  const itemsWithBadEmail = await prisma.itemMaster.findMany({
+    where: { supplierEmail: { endsWith: '@logiqon.tech' } },
+  });
+  const itemsWithBadEmail2 = await prisma.itemMaster.findMany({
+    where: { supplierEmail: { endsWith: '@logiqon.com' } },
+  });
+  for (const item of [...itemsWithBadEmail, ...itemsWithBadEmail2]) {
+    await prisma.itemMaster.update({ where: { id: item.id }, data: { supplierEmail: null } });
+    results.itemEmailsCleared++;
   }
 
   // 2. Set supplier item codes (only where not already set)
@@ -93,6 +113,6 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     ...results,
-    message: `Set poEmail on ${results.vendorsUpdated} vendor(s), supplier codes on ${results.itemsUpdated} item(s), skipped ${results.skipped} already-set.`,
+    message: `Fixed poEmail on ${results.vendorsUpdated} vendor(s), supplier codes on ${results.itemsUpdated} item(s), cleared ${results.itemEmailsCleared} stale item email(s), skipped ${results.skipped} already-set.`,
   });
 }

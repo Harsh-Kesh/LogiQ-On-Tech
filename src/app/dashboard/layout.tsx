@@ -78,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: 'Master Data',
       links: [
         { name: 'Item Master Data', href: '/dashboard/owner/items', roleRequired: OWNER_ONLY, icon: Package },
-        { name: 'Supplier Directory', href: '/dashboard/owner/vendor-master', roleRequired: OWNER_ONLY, icon: Truck },
+        { name: 'Supplier Master Data', href: '/dashboard/owner/vendor-master', roleRequired: OWNER_ONLY, icon: Truck },
         { name: 'Customer Master Data', href: '/dashboard/owner/customer-master', roleRequired: OWNER_ONLY, icon: ShoppingCart },
       ],
     },

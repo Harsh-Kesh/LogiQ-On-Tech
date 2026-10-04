@@ -59,8 +59,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
 
   const [companyName, setCompanyName] = useState(initial?.companyName ?? '');
   const [abnAcn, setAbnAcn] = useState(initial?.abnAcn ?? '');
-  const [contactName, setContactName] = useState(initial?.user?.fullName ?? '');
-  const [loginEmail, setLoginEmail] = useState(initial?.user?.email ?? '');
   const [poEmail, setPoEmail] = useState(initial?.poEmail ?? '');
   const [apEmail, setApEmail] = useState(initial?.apEmail ?? '');
   const [address, setAddress] = useState(initial?.businessRegisteredAddress ?? '');
@@ -119,9 +117,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             companyName: companyName.trim(),
-            abnAcn: abnAcn.trim(),
-            contactName: contactName.trim(),
-            loginEmail: loginEmail.trim(),
+            abnAcn: abnAcn.trim() || undefined,
             poEmail: poEmail.trim(),
             apEmail: apEmail.trim() || null,
             businessRegisteredAddress: address.trim() || null,
@@ -138,7 +134,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
         onSave({
           id: j.vendor?.id ?? '',
           companyName: companyName.trim(),
-          abnAcn: abnAcn.trim(),
+          abnAcn: j.vendor?.abnAcn ?? abnAcn.trim(),
           status: 'APPROVED',
           businessRegisteredAddress: address.trim() || undefined,
           paymentTerms: paymentTerms.trim() || undefined,
@@ -148,7 +144,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           bankBsb: bankBsb.trim() || undefined,
           bankAccountNumber: bankAccNum.trim() || undefined,
           bankAccountName: bankAccName.trim() || undefined,
-          user: { email: loginEmail.trim(), fullName: contactName.trim() },
         });
       }
     } catch {
@@ -162,7 +157,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
       isOpen
       onClose={onClose}
       title={isEdit ? `Edit Supplier — ${initial!.companyName}` : 'Add New Supplier'}
-      subtitle="Company identity, procurement contacts, and optional payment details"
+      subtitle="Only company name and PO email are required — everything else can be added later"
       maxWidth="3xl"
     >
       <div className="space-y-6 text-xs font-sans max-w-3xl">
@@ -182,38 +177,16 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
             </div>
             <Input label="Business / Company Name" required value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g. Apex Hardware Pty Ltd" disabled={isEdit} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="ABN or ACN" required value={abnAcn} onChange={(e) => setAbnAcn(e.target.value)} placeholder="11 digit ABN or 9 digit ACN" disabled={isEdit} />
+              <Input label="ABN or ACN" value={abnAcn} onChange={(e) => setAbnAcn(e.target.value)} placeholder="Optional — can be added later" disabled={isEdit} />
               <Input label="Registered Business Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 12 Trade St, Melbourne VIC 3000" />
             </div>
           </div>
 
-          {/* SECTION 2: CONTACT PERSON & PLATFORM ACCESS (new only) */}
-          {!isEdit && (
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
-              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Mail className="w-4 h-4 text-indigo-600" />
-                <span>2. Contact Person & Platform Access</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Contact Person Full Name" required value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="e.g. James Wilson" />
-                <Input
-                  label="Login Email"
-                  type="email"
-                  required
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="e.g. james@apexhardware.com.au"
-                  helperText="A platform account is created with temporary password Password123! — share this with the supplier."
-                />
-              </div>
-            </div>
-          )}
-
-          {/* SECTION 3: PROCUREMENT EMAILS */}
+          {/* SECTION 2: PROCUREMENT EMAILS */}
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
               <Mail className="w-4 h-4 text-indigo-600" />
-              <span>{isEdit ? '2' : '3'}. Procurement Emails</span>
+              <span>2. Procurement Emails</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
@@ -240,7 +213,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-indigo-600" />
-              <span>{isEdit ? '3' : '4'}. How We Pay This Supplier</span>
+              <span>3. How We Pay This Supplier</span>
             </div>
             <p className="text-[11px] text-slate-500 -mt-1">
               Optional. Fill this in only if LogiQ-On should pay this supplier automatically by bank
@@ -314,10 +287,12 @@ function SupplierCard({ supplier, onEdit }: { supplier: Supplier; onEdit: () => 
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-sm leading-snug" style={{ color: '#0f172a' }}>{supplier.companyName}</p>
-          {supplier.user?.fullName && (
+          {supplier.user?.fullName && !supplier.user.fullName.includes('(Supplier Contact)') && (
             <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{supplier.user.fullName}</p>
           )}
-          <p className="text-[11px] font-mono mt-1" style={{ color: '#94a3b8' }}>ABN/ACN: {supplier.abnAcn}</p>
+          {!supplier.abnAcn?.startsWith('PENDING-') && (
+            <p className="text-[11px] font-mono mt-1" style={{ color: '#94a3b8' }}>ABN/ACN: {supplier.abnAcn}</p>
+          )}
         </div>
         <button
           onClick={onEdit}
@@ -462,7 +437,7 @@ export default function VendorMasterDataPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Truck className="w-5 h-5" style={{ color: '#1e3a8a' }} />
-            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Supplier Directory</h1>
+            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Supplier Master Data</h1>
           </div>
           <p className="text-sm" style={{ color: '#64748b' }}>
             {loading ? 'Loading…' : `${suppliers.length} supplier${suppliers.length !== 1 ? 's' : ''} — manage contacts, PO emails and payment details.`}
