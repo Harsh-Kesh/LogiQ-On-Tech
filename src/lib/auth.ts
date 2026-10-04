@@ -190,6 +190,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error(`Account registration rejected by Platform Owner. Reason: ${reason}`);
         }
 
+        if (user.role !== 'OWNER') {
+          throw new Error('Invalid email or password.');
+        }
+
         const isValidPassword = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValidPassword) {
           throw new Error('Invalid email or password.');

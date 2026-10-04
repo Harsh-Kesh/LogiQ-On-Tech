@@ -16,10 +16,7 @@ export default function MobileNav({ onNavigate }: { onNavigate: () => void }) {
           View Cart
         </Link>
         <Link href="/auth/login" className="btn btn-primary btn-block" onClick={onNavigate}>
-          Customer Login
-        </Link>
-        <Link href="/vendor-login" className="btn btn-ghost btn-block" onClick={onNavigate}>
-          Vendor Login
+          Login
         </Link>
         <Link href="/request-quote" className="btn btn-ghost btn-block" onClick={onNavigate}>
           Request a Quote
