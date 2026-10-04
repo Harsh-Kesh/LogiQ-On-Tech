@@ -38,8 +38,8 @@ jobs:
       - name: Build Next.js Staging Artifact
         run: npm run build
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/logiqon_test?schema=public"
-          NEXTAUTH_SECRET: "ci-secret-key-12345"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
 
       - name: Deploy to Staging Environment
         if: github.ref == 'refs/heads/dev'
