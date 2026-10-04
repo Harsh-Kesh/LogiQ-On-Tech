@@ -25,7 +25,7 @@ export default function PlatformOwnerDashboard() {
       const [productsRes, vendorsRes, ordersRes] = await Promise.all([
         fetch('/api/store/products').then((r) => (r.ok ? r.json() : null)),
         fetch('/api/admin/vendors').then((r) => (r.ok ? r.json() : null)),
-        fetch('/api/fulfillment/orders').then((r) => (r.ok ? r.json() : null)),
+        fetch('/api/storefront/orders').then((r) => (r.ok ? r.json() : null)),
       ]);
 
       const products = productsRes?.products ?? productsRes ?? [];
@@ -74,7 +74,7 @@ export default function PlatformOwnerDashboard() {
       value: stat(orderCount),
       unit: 'total',
       icon: ShoppingCart,
-      href: '/dashboard/owner/b2b-orders',
+      href: '/dashboard/owner/shop-orders',
       color: '#065f46',
       bg: '#ecfdf5',
       border: '#a7f3d0',

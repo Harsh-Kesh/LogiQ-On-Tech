@@ -71,7 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       label: 'Operations',
       links: [
-        { name: 'Orders', href: '/dashboard/owner/b2b-orders', roleRequired: OWNER_ONLY, icon: ShoppingCart },
+        { name: 'Shop Orders', href: '/dashboard/owner/shop-orders', roleRequired: OWNER_ONLY, icon: ShoppingCart },
       ],
     },
     {
