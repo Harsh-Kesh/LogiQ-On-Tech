@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 interface OrderDetails {
   orderNumber: string;
@@ -57,19 +57,24 @@ function ConfirmationContent() {
 
   if (loading) {
     return (
-      <div className="bg-surface pt-32 pb-20 min-h-screen">
-        <div className="container mx-auto px-margin-desktop max-w-2xl text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mx-auto mb-6" />
+      <div className="bg-surface min-h-screen flex items-center justify-center">
+        <div className="text-center px-6">
+          <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+          <div style={{
+            width: 52, height: 52, borderRadius: '50%',
+            border: '4px solid #e2e8f0', borderTopColor: '#1e3a8a',
+            animation: 'spin 0.8s linear infinite', margin: '0 auto 24px',
+          }} />
           <h1 className="text-2xl font-extrabold text-slate-950 mb-2">Confirming your order…</h1>
-          <p className="text-sm text-on-surface-variant">We're processing your payment. This takes just a moment.</p>
+          <p className="text-sm text-slate-500">We're processing your payment. This takes just a moment.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-surface pt-32 pb-20 min-h-screen">
-      <div className="container mx-auto px-margin-desktop max-w-2xl text-center">
+    <div className="bg-surface min-h-screen flex items-center justify-center">
+      <div className="text-center px-6 max-w-2xl w-full">
         <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-6">
           <CheckCircle2 className="w-8 h-8 text-emerald-600" />
         </div>
