@@ -125,7 +125,6 @@ export default function MasterDataItemsPage() {
   const [moq, setMoq] = useState('1');
   const [status, setStatus] = useState<'ACTIVE' | 'DRAFT' | 'DISCONTINUED'>('ACTIVE');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [publishToStore, setPublishToStore] = useState(false);
   const [storeDescription, setStoreDescription] = useState('');
   const [storeImages, setStoreImages] = useState<string[]>([]);
@@ -149,8 +148,6 @@ export default function MasterDataItemsPage() {
   const [manufacturerCode, setManufacturerCode] = useState('');
   const [supplierItemCode, setSupplierItemCode] = useState('');
   const [supplierEmail, setSupplierEmail] = useState('');
-  const [leadTimeDays, setLeadTimeDays] = useState('');
-  const [mrq, setMrq] = useState('');
   const [serialTracked, setSerialTracked] = useState(false);
   const [batchTracked, setBatchTracked] = useState(false);
   const [warrantyPeriodMonths, setWarrantyPeriodMonths] = useState('');
@@ -223,7 +220,6 @@ export default function MasterDataItemsPage() {
     setMoq('1');
     setStatus('ACTIVE');
     setDescription('');
-    setImageUrl('');
     setPublishToStore(false);
     setStoreDescription('');
     setStoreImages([]);
@@ -241,8 +237,6 @@ export default function MasterDataItemsPage() {
     setManufacturerCode('');
     setSupplierItemCode('');
     setSupplierEmail('');
-    setLeadTimeDays('');
-    setMrq('');
     setSerialTracked(false);
     setBatchTracked(false);
     setWarrantyPeriodMonths('');
@@ -261,7 +255,6 @@ export default function MasterDataItemsPage() {
     setMoq(item.moq ? item.moq.toString() : '1');
     setStatus(item.status);
     setDescription(item.description || '');
-    setImageUrl(item.imageUrl || '');
     setPublishToStore(item.publishToStore || false);
     setStoreDescription(item.storeDescription || '');
     setStoreImages(item.storeImages || []);
@@ -285,8 +278,6 @@ export default function MasterDataItemsPage() {
     setManufacturerCode(item.manufacturerCode || '');
     setSupplierItemCode(item.supplierItemCode || '');
     setSupplierEmail(item.supplierEmail || '');
-    setLeadTimeDays(item.leadTimeDays !== undefined ? item.leadTimeDays.toString() : '');
-    setMrq(item.mrq !== undefined ? item.mrq.toString() : '');
     setSerialTracked(item.serialTracked || false);
     setBatchTracked(item.batchTracked || false);
     setWarrantyPeriodMonths(item.warrantyPeriodMonths !== undefined ? item.warrantyPeriodMonths.toString() : '');
@@ -358,7 +349,6 @@ export default function MasterDataItemsPage() {
       moq: moq || '1',
       status,
       description,
-      imageUrl,
       publishToStore,
       storeDescription,
       storeImages,
@@ -373,8 +363,6 @@ export default function MasterDataItemsPage() {
       manufacturerCode: manufacturerCode.trim() || undefined,
       supplierItemCode: supplierItemCode.trim() || undefined,
       supplierEmail: supplierEmail.trim() || undefined,
-      leadTimeDays: leadTimeDays ? Number(leadTimeDays) : undefined,
-      mrq: mrq ? Number(mrq) : undefined,
       serialTracked,
       batchTracked,
       warrantyPeriodMonths: warrantyPeriodMonths ? Number(warrantyPeriodMonths) : undefined,
@@ -597,15 +585,6 @@ export default function MasterDataItemsPage() {
         <div className="space-y-1.5 py-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-extrabold text-slate-900 text-sm">{item.itemName}</span>
-            {item.vendorId ? (
-              <Badge variant="indigo" className="normal-case tracking-normal font-semibold">
-                <Building2 className="w-3 h-3" /> {item.vendorName || 'Vendor Partner'}
-              </Badge>
-            ) : (
-              <Badge variant="purple" className="normal-case tracking-normal font-semibold">
-                <Shield className="w-3 h-3" /> LogiQ-On Internal
-              </Badge>
-            )}
             {item.publishToStore && (
               <Badge variant="teal" className="normal-case tracking-normal font-semibold">
                 <Store className="w-3 h-3" /> Online Store
@@ -1083,21 +1062,6 @@ export default function MasterDataItemsPage() {
                   helperText="GS1 compliant 13-digit barcode"
                 />
               </div>
-
-              {/* Product Image URL */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 font-mono uppercase tracking-wider">Product Image URL (Optional)</label>
-                <Input
-                  placeholder="https://example.com/product-image.jpg"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                />
-                {imageUrl && (
-                  <div className="mt-2 w-20 h-20 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
-                    <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* SECTION 2: SYSTEM TAXONOMY & UOM */}
@@ -1399,8 +1363,6 @@ export default function MasterDataItemsPage() {
                 <Input label="Supplier Email (PO delivery)" type="email" value={supplierEmail} onChange={(e) => setSupplierEmail(e.target.value)} placeholder="orders@supplier.com" helperText="Auto-filled from vendor record — editable if different" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Input label="Lead Time (days)" type="number" min="0" value={leadTimeDays} onChange={(e) => setLeadTimeDays(e.target.value)} placeholder="7" />
-                <Input label="Min Reorder Qty (MRQ)" type="number" min="1" value={mrq} onChange={(e) => setMrq(e.target.value)} placeholder="e.g. 10" />
                 <Input label="Tax %" type="number" min="0" max="100" step="0.01" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} placeholder="10" helperText="e.g. 10 for 10% GST" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1614,9 +1576,6 @@ export default function MasterDataItemsPage() {
                       )}
                       {selectedItem.supplierItemCode && (
                         <div><span className="text-slate-400 block font-sans">Supplier Code:</span><span className="font-mono font-bold text-emerald-700">{selectedItem.supplierItemCode}</span></div>
-                      )}
-                      {selectedItem.leadTimeDays !== undefined && (
-                        <div><span className="text-slate-400 block font-sans">Lead Time:</span><span className="font-bold text-slate-900">{selectedItem.leadTimeDays} days</span></div>
                       )}
                     </div>
                   </div>

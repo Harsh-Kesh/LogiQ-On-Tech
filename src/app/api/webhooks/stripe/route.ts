@@ -255,6 +255,19 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
       const vendor = itemMaster?.vendor;
       const poNumber = await nextDocumentNumber('PO');
 
+      // Look up all item masters for this order so we can include supplier codes AND
+      // supplier cost prices on the PO — a purchase order states what WE pay THEM,
+      // never the customer's selling price.
+      const allSkus = resolvedLines.map((l) => l.sku);
+      const allItemMasters = await prisma.itemMaster.findMany({ where: { sku: { in: allSkus } } });
+      const supplierCodeBySku = new Map(allItemMasters.map((im) => [im.sku, im.supplierItemCode]));
+      const costPriceBySku = new Map(allItemMasters.map((im) => [im.sku, Number(im.costPrice)]));
+      const costOf = (sku: string, fallback: number) => costPriceBySku.get(sku) ?? fallback;
+
+      const poSubtotal = resolvedLines.reduce((s, l) => s + l.qty * costOf(l.sku, l.unitPrice), 0);
+      const poTaxTotal = resolvedLines.reduce((s, l) => s + l.qty * costOf(l.sku, l.unitPrice) * (l.taxPercent / 100), 0);
+      const poTotal = poSubtotal + poTaxTotal;
+
       // Resolve (or lazily create) this supplier's MYOB contact card. This card lives in
       // LogiQ-On's own MYOB company file purely so the PO is recorded against a named
       // supplier in our books — it is not a connection to the supplier's own MYOB account.
@@ -279,7 +292,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
             itemCode: l.sku,
             description: l.itemName,
             quantity: l.qty,
-            unitPrice: l.unitPrice,
+            unitPrice: costOf(l.sku, l.unitPrice),
             taxCode: 'GST',
           })),
           memo: `PO for SO ${myobSoNumber || salesOrder.salesOrderNumber} — ${orderNumber} — ${customerName}`,
@@ -310,17 +323,13 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
       }
 
       // Email PO to supplier
-      // Look up all item masters for this order so we can include supplier codes on the PO
-      const allSkus = resolvedLines.map((l) => l.sku);
-      const allItemMasters = await prisma.itemMaster.findMany({ where: { sku: { in: allSkus } } });
-      const supplierCodeBySku = new Map(allItemMasters.map((im) => [im.sku, im.supplierItemCode]));
-
       const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail;
       if (!supplierEmail) {
         console.warn(`[stripe-webhook] No supplier email for PO ${poNumber} (order ${orderNumber}). Set vendor.poEmail or itemMaster.supplierEmail to enable PO emails.`);
       } else {
         const poLines = resolvedLines.map((l) => {
           const supplierCode = supplierCodeBySku.get(l.sku);
+          const unitCost = costOf(l.sku, l.unitPrice);
           const supplierCodeCell = supplierCode
             ? `<strong>${supplierCode}</strong><br/><span style="font-size:11px;color:#94a3b8">Our ref: ${l.sku}</span>`
             : `<span style="color:#f59e0b;font-style:italic">Not configured</span><br/><span style="font-size:11px;color:#94a3b8">Our ref: ${l.sku}</span>`;
@@ -328,8 +337,8 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
             <td style="padding:4px 8px;border:1px solid #e2e8f0">${supplierCodeCell}</td>
             <td style="padding:4px 8px;border:1px solid #e2e8f0">${l.itemName}</td>
             <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center">${l.qty}</td>
-            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${l.unitPrice.toFixed(2)}</td>
-            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${(l.qty * l.unitPrice).toFixed(2)}</td>
+            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${unitCost.toFixed(2)}</td>
+            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${(l.qty * unitCost).toFixed(2)}</td>
           </tr>`;
         }).join('');
         await sendTransactionalEmail({
@@ -347,14 +356,14 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
                   <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">Supplier Code</th>
                   <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">Description</th>
                   <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">Qty</th>
-                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Unit Price</th>
+                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Unit Cost</th>
                   <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Line Total</th>
                 </tr></thead>
                 <tbody>${poLines}</tbody>
               </table>
-              <p><strong>Total (ex GST):</strong> AUD ${subtotal.toFixed(2)}<br/>
-              <strong>GST:</strong> AUD ${taxTotal.toFixed(2)}<br/>
-              <strong>Total (inc GST):</strong> AUD ${totalAmount.toFixed(2)}</p>
+              <p><strong>Total (ex GST):</strong> AUD ${poSubtotal.toFixed(2)}<br/>
+              <strong>GST:</strong> AUD ${poTaxTotal.toFixed(2)}<br/>
+              <strong>Total (inc GST):</strong> AUD ${poTotal.toFixed(2)}</p>
               <p>Please send your invoice to <a href="mailto:${process.env.IMAP_USER || 'accounts@logiqon.com'}">${process.env.IMAP_USER || 'accounts@logiqon.com'}</a> quoting PO number <strong>${poNumber}</strong>.</p>
               <p>Thank you,<br/>LogiQ-On Tech Procurement Team</p>
             </div>`,

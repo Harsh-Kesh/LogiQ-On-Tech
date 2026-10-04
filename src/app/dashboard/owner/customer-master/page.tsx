@@ -21,31 +21,31 @@ export default function CustomerMasterDataPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/sales-orders');
-      const data = res.ok ? await res.json() : {};
-      const orders: any[] = Array.isArray(data) ? data : Array.isArray(data.salesOrders) ? data.salesOrders : [];
+      const res = await fetch('/api/storefront/orders');
+      const data = res.ok ? await res.json() : [];
+      const orders: any[] = Array.isArray(data) ? data : Array.isArray(data.orders) ? data.orders : [];
 
-      // Aggregate by customer email for online store orders
-      const storeOrders = orders.filter((o) => o.source === 'ONLINE_STORE' || o.customerEmail);
+      // Only real, confirmed shop orders count — excludes cancelled and any
+      // stray sales-order records that never became an actual storefront order.
+      const validOrders = orders.filter((o) => o.customerEmail && o.status !== 'CANCELLED');
       const map = new Map<string, ShopCustomer>();
 
-      for (const o of storeOrders) {
-        const key = (o.customerEmail || o.customerName || '').toLowerCase().trim();
-        if (!key) continue;
+      for (const o of validOrders) {
+        const key = o.customerEmail.toLowerCase().trim();
         const existing = map.get(key);
         if (existing) {
           existing.orderCount += 1;
-          existing.totalSpend += o.totalValue || 0;
+          existing.totalSpend += Number(o.totalAmount) || 0;
           if (new Date(o.createdAt) > new Date(existing.lastOrderDate)) {
             existing.lastOrderDate = o.createdAt;
           }
         } else {
           map.set(key, {
-            email: o.customerEmail || '',
-            name: o.customerName || o.customerEmail || 'Unknown Customer',
-            location: o.deliveryLocation || '',
+            email: o.customerEmail,
+            name: o.customerName || o.customerEmail,
+            location: o.deliveryAddress || '',
             orderCount: 1,
-            totalSpend: o.totalValue || 0,
+            totalSpend: Number(o.totalAmount) || 0,
             currency: o.currency || 'AUD',
             lastOrderDate: o.createdAt || new Date().toISOString(),
           });

@@ -272,7 +272,10 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#0f172a' }}>Order Pipeline</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>End-to-end supply chain status for every storefront order</p>
+          <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>
+            Supplier fulfilment &amp; accounts payable operations — invoice matching, MYOB bills, supplier payment and delivery tracking.
+            For order details and customer info, see <Link href="/dashboard/owner/shop-orders" className="font-semibold hover:underline" style={{ color: '#1e3a8a' }}>Shop Orders</Link>.
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <button

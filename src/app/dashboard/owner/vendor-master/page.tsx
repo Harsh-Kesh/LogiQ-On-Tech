@@ -5,6 +5,9 @@ import {
   Truck, Search, RefreshCw, Plus, X, Mail, MapPin, CreditCard,
   Building2, Save, Edit2, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 interface Supplier {
   id: string;
@@ -155,125 +158,135 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
   };
 
   return (
-    /* Slide-over overlay */
-    <div className="fixed inset-0 z-50 flex" style={{ background: 'rgba(15,23,42,0.4)' }} onClick={onClose}>
-      <div className="ml-auto w-full max-w-lg h-full bg-white flex flex-col shadow-2xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {/* Panel header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: '#e2e8f0' }}>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#94a3b8' }}>
-              {isEdit ? 'Edit Supplier' : 'New Supplier'}
-            </p>
-            <h2 className="text-base font-extrabold" style={{ color: '#0f172a' }}>
-              {isEdit ? initial!.companyName : 'Add a supplier to your directory'}
-            </h2>
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={isEdit ? `Edit Supplier — ${initial!.companyName}` : 'Add New Supplier'}
+      subtitle="Company identity, procurement contacts, and optional payment details"
+      maxWidth="3xl"
+    >
+      <div className="space-y-6 text-xs font-sans max-w-3xl">
+        {error && (
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+            <X className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl transition-colors hover:bg-slate-100">
-            <X className="w-5 h-5" style={{ color: '#94a3b8' }} />
-          </button>
-        </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="flex-1 px-6 py-6 space-y-6">
-          {/* SECTION 1 — Identity */}
-          <section className="space-y-4">
-            <SectionLabel icon={<Building2 className="w-3.5 h-3.5" />}>Company Identity</SectionLabel>
-            <FI label="Business / Company Name" required value={companyName} onChange={setCompanyName} placeholder="e.g. Apex Hardware Pty Ltd" disabled={isEdit} />
-            <FI label="ABN or ACN" required value={abnAcn} onChange={setAbnAcn} placeholder="11 digit ABN or 9 digit ACN" mono disabled={isEdit} />
-            <FI label="Registered Business Address" value={address} onChange={setAddress} placeholder="e.g. 12 Trade St, Melbourne VIC 3000" />
-          </section>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* SECTION 1: COMPANY IDENTITY */}
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+            <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-indigo-600" />
+              <span>1. Company Identity</span>
+            </div>
+            <Input label="Business / Company Name" required value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g. Apex Hardware Pty Ltd" disabled={isEdit} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="ABN or ACN" required value={abnAcn} onChange={(e) => setAbnAcn(e.target.value)} placeholder="11 digit ABN or 9 digit ACN" disabled={isEdit} />
+              <Input label="Registered Business Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 12 Trade St, Melbourne VIC 3000" />
+            </div>
+          </div>
 
-          {/* SECTION 2 — Contact & Login (new only) */}
+          {/* SECTION 2: CONTACT PERSON & PLATFORM ACCESS (new only) */}
           {!isEdit && (
-            <section className="space-y-4">
-              <SectionLabel icon={<Mail className="w-3.5 h-3.5" />}>Contact Person & Platform Access</SectionLabel>
-              <FI label="Contact Person Full Name" required value={contactName} onChange={setContactName} placeholder="e.g. James Wilson" />
-              <div>
-                <FI label="Login Email" type="email" required value={loginEmail} onChange={setLoginEmail} placeholder="e.g. james@apexhardware.com.au" />
-                <p className="text-[11px] mt-1.5 leading-snug" style={{ color: '#94a3b8' }}>
-                  A platform account is created with a temporary password <span className="font-mono font-bold">Password123!</span> — share this with the supplier to log in and update their details.
-                </p>
+            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <Mail className="w-4 h-4 text-indigo-600" />
+                <span>2. Contact Person & Platform Access</span>
               </div>
-            </section>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Contact Person Full Name" required value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="e.g. James Wilson" />
+                <Input
+                  label="Login Email"
+                  type="email"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="e.g. james@apexhardware.com.au"
+                  helperText="A platform account is created with temporary password Password123! — share this with the supplier."
+                />
+              </div>
+            </div>
           )}
 
-          {/* SECTION 3 — Procurement emails */}
-          <section className="space-y-4">
-            <SectionLabel icon={<Mail className="w-3.5 h-3.5" />}>Procurement Emails</SectionLabel>
-            <div>
-              <FI label="PO Email (Purchase Orders)" type="email" required={!isEdit} value={poEmail} onChange={setPoEmail} placeholder="e.g. orders@apexhardware.com.au" />
-              <p className="text-[11px] mt-1.5 leading-snug" style={{ color: '#94a3b8' }}>
-                All purchase orders from LogiQ-On will be emailed to this address.
-              </p>
+          {/* SECTION 3: PROCUREMENT EMAILS */}
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+            <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <Mail className="w-4 h-4 text-indigo-600" />
+              <span>{isEdit ? '2' : '3'}. Procurement Emails</span>
             </div>
-            <div>
-              <FI label="AP Email (Accounts Payable)" type="email" value={apEmail} onChange={setApEmail} placeholder="e.g. accounts@apexhardware.com.au" />
-              <p className="text-[11px] mt-1.5 leading-snug" style={{ color: '#94a3b8' }}>
-                The email address the supplier sends their invoices from — used for three-way matching.
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="PO Email (Purchase Orders)"
+                type="email"
+                required={!isEdit}
+                value={poEmail}
+                onChange={(e) => setPoEmail(e.target.value)}
+                placeholder="e.g. orders@apexhardware.com.au"
+                helperText="All purchase orders from LogiQ-On are emailed here."
+              />
+              <Input
+                label="AP Email (Accounts Payable)"
+                type="email"
+                value={apEmail}
+                onChange={(e) => setApEmail(e.target.value)}
+                placeholder="e.g. accounts@apexhardware.com.au"
+                helperText="The address the supplier invoices from — used for 3-way matching."
+              />
             </div>
-          </section>
+          </div>
 
-          {/* SECTION 4 — How we pay this supplier */}
-          <section className="space-y-4">
-            <SectionLabel icon={<CreditCard className="w-3.5 h-3.5" />}>How We Pay This Supplier</SectionLabel>
-            <p className="text-[11px] -mt-2 leading-snug" style={{ color: '#94a3b8' }}>
-              Optional. Fill this in if you want LogiQ-On to pay this supplier automatically by bank
+          {/* SECTION 4: HOW WE PAY THIS SUPPLIER */}
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+            <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-indigo-600" />
+              <span>{isEdit ? '3' : '4'}. How We Pay This Supplier</span>
+            </div>
+            <p className="text-[11px] text-slate-500 -mt-1">
+              Optional. Fill this in only if LogiQ-On should pay this supplier automatically by bank
               transfer once an order is confirmed received. Leave blank to pay them manually instead.
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <p className="text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>Agreed Payment Terms</p>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Agreed Payment Terms</label>
                 <select
                   value={paymentTerms}
                   onChange={(e) => setPaymentTerms(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white border text-sm focus:outline-none"
-                  style={{ borderColor: '#e2e8f0', color: '#0f172a' }}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20"
                 >
                   <option value="">— Select —</option>
                   {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <p className="text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>Currency</p>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Currency</label>
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white border text-sm focus:outline-none"
-                  style={{ borderColor: '#e2e8f0', color: '#0f172a' }}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20"
                 >
                   {['AUD', 'USD', 'NZD', 'EUR', 'GBP', 'SGD'].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
-            <FI label="Supplier's Bank BSB" value={bankBsb} onChange={setBankBsb} placeholder="e.g. 063-000" mono />
-            <div className="grid grid-cols-2 gap-3">
-              <FI label="Supplier's Account Number" value={bankAccNum} onChange={setBankAccNum} placeholder="e.g. 12345678" mono />
-              <FI label="Supplier's Account Name" value={bankAccName} onChange={setBankAccName} placeholder="e.g. Apex Hardware Pty Ltd" />
+            <Input label="Supplier's Bank BSB" value={bankBsb} onChange={(e) => setBankBsb(e.target.value)} placeholder="e.g. 063-000" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="Supplier's Account Number" value={bankAccNum} onChange={(e) => setBankAccNum(e.target.value)} placeholder="e.g. 12345678" />
+              <Input label="Supplier's Account Name" value={bankAccName} onChange={(e) => setBankAccName(e.target.value)} placeholder="e.g. Apex Hardware Pty Ltd" />
             </div>
-          </section>
+          </div>
 
-          {error && (
-            <p className="text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: '#fef2f2', color: '#991b1b' }}>{error}</p>
-          )}
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={saving} leftIcon={<Save className="w-4 h-4" />}>
+              {isEdit ? 'Save Changes' : 'Add Supplier'}
+            </Button>
+          </div>
         </form>
-
-        {/* Sticky footer */}
-        <div className="px-6 py-4 border-t flex items-center justify-end gap-3" style={{ borderColor: '#e2e8f0' }}>
-          <button type="button" onClick={onClose} className="text-sm font-semibold px-4 py-2 rounded-xl border transition-all" style={{ borderColor: '#e2e8f0', color: '#64748b' }}>
-            Cancel
-          </button>
-          <button
-            onClick={(e) => { e.preventDefault(); handleSubmit(e as any); }}
-            disabled={saving}
-            className="text-sm font-bold px-5 py-2 rounded-xl flex items-center gap-2 transition-all"
-            style={{ background: saving ? '#94a3b8' : '#1e3a8a', color: '#fff' }}
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Supplier'}
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -381,46 +394,6 @@ function SupplierCard({ supplier, onEdit }: { supplier: Supplier; onEdit: () => 
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function SectionLabel({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 pb-1 border-b" style={{ borderColor: '#f1f5f9' }}>
-      <span style={{ color: '#1e3a8a' }}>{icon}</span>
-      <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: '#64748b' }}>{children}</span>
-    </div>
-  );
-}
-
-function FI({
-  label, value, onChange, placeholder, type = 'text', required, mono, disabled,
-}: {
-  label: string; value: string; onChange: (v: string) => void;
-  placeholder?: string; type?: string; required?: boolean; mono?: boolean; disabled?: boolean;
-}) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>
-        {label}{required && <span style={{ color: '#ef4444' }}> *</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        disabled={disabled}
-        className={`w-full px-3 py-2 rounded-xl border text-sm focus:outline-none ${mono ? 'font-mono' : ''}`}
-        style={{
-          borderColor: '#e2e8f0',
-          color: '#0f172a',
-          background: disabled ? '#f8fafc' : '#fff',
-        }}
-      />
     </div>
   );
 }

@@ -41,9 +41,10 @@ export default function PlatformOwnerDashboard() {
       setSupplierCount(approvedVendors.length);
       setOrderCount(Array.isArray(orders) ? orders.length : 0);
 
-      // Show setup banner if any approved vendor is missing a PO email
-      const missingPoEmail = approvedVendors.some((v: any) => !v.poEmail);
-      setNeedsSupplierSetup(missingPoEmail);
+      // Show setup banner if any approved vendor is missing a PO email, or has one
+      // on our own logiqon.* domain (a platform login address, not a real supplier inbox)
+      const needsFix = approvedVendors.some((v: any) => !v.poEmail || /@logiqon\.(tech|com)$/i.test(v.poEmail || ''));
+      setNeedsSupplierSetup(needsFix);
     } catch {
       // non-critical
     } finally {

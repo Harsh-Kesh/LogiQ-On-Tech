@@ -32,6 +32,20 @@ const SUPPLIER_CODES: Record<string, string> = {
   'LQ-LBL-00123': 'SML-VOID-PP-500',
 };
 
+// Known demo vendors whose platform LOGIN email lives on our own logiqon.* domain
+// (vendor@logiqon.tech) — that is a test account credential, not a real supplier
+// mailbox, so it must never be used as the PO recipient. These overrides always win,
+// even if poEmail was previously (wrongly) auto-filled from that login address.
+const DEMO_SUPPLIER_PO_EMAILS: Record<string, string> = {
+  'Apex Hardware & Logistics Ltd': 'orders@apexhardware.com.au',
+  'Smith Logistics Pty Ltd': 'orders@smithlogistics.com.au',
+  'Jonathan Logistics Hub': 'orders@jonathanlogisticshub.com.au',
+};
+
+function isOwnDomain(email: string | null | undefined): boolean {
+  return !!email && /@logiqon\.(tech|com)$/i.test(email.trim());
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user || (session.user as any).role !== 'PLATFORM_OWNER') {
@@ -44,18 +58,21 @@ export async function POST(req: Request) {
     skipped: 0,
   };
 
-  // 1. Set vendor poEmail from their registered user email (only where not already set)
-  const vendors = await prisma.vendor.findMany({
-    where: { poEmail: null },
+  // 1. Set vendor poEmail. Fill in anything missing from their registered user email,
+  // BUT always correct it if that email is on our own logiqon.* domain (a platform
+  // login credential, never a real supplier mailbox) or matches a known demo vendor.
+  const allVendors = await prisma.vendor.findMany({
     include: { user: { select: { email: true } } },
   });
 
-  for (const vendor of vendors) {
-    if (vendor.user?.email) {
-      await prisma.vendor.update({
-        where: { id: vendor.id },
-        data: { poEmail: vendor.user.email },
-      });
+  for (const vendor of allVendors) {
+    const knownFix = DEMO_SUPPLIER_PO_EMAILS[vendor.companyName];
+    const needsFix = knownFix && (isOwnDomain(vendor.poEmail) || !vendor.poEmail);
+    if (needsFix) {
+      await prisma.vendor.update({ where: { id: vendor.id }, data: { poEmail: knownFix } });
+      results.vendorsUpdated++;
+    } else if (!vendor.poEmail && vendor.user?.email && !isOwnDomain(vendor.user.email)) {
+      await prisma.vendor.update({ where: { id: vendor.id }, data: { poEmail: vendor.user.email } });
       results.vendorsUpdated++;
     }
   }
