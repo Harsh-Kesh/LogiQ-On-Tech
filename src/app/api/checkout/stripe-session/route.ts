@@ -72,33 +72,39 @@ export async function POST(req: Request) {
 
   // Pass customer info as metadata so the webhook can reconstruct the order
   // without a round-trip to our DB (keeps the webhook handler simple + idempotent).
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    line_items: lineItems,
-    customer_email: customerEmail,
-    metadata: {
-      customerName,
-      customerPhone,
-      deliveryAddress,
-      // Compact line data: sku|qty|unitPrice|taxPct joined by newlines
-      linesJson: JSON.stringify(
-        resolvedLines.map((l) => ({
-          sku: l.sku,
-          itemName: l.itemName,
-          qty: l.quantity,
-          unitPrice: l.unitPrice,
-          taxPercent: l.taxPercent,
-        }))
-      ),
-    },
-    payment_intent_data: {
-      metadata: { customerName, customerEmail },
-    },
-    billing_address_collection: 'auto',
-    success_url: `${APP_URL}/products/shop/confirmation?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${APP_URL}/products/shop/checkout`,
-    expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 min
-  });
+  let session: Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: lineItems,
+      customer_email: customerEmail,
+      metadata: {
+        customerName,
+        customerPhone,
+        deliveryAddress,
+        linesJson: JSON.stringify(
+          resolvedLines.map((l) => ({
+            sku: l.sku,
+            itemName: l.itemName,
+            qty: l.quantity,
+            unitPrice: l.unitPrice,
+            taxPercent: l.taxPercent,
+          }))
+        ),
+      },
+      payment_intent_data: {
+        metadata: { customerName, customerEmail },
+      },
+      billing_address_collection: 'auto',
+      success_url: `${APP_URL}/products/shop/confirmation?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${APP_URL}/products/shop/checkout`,
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+    });
+  } catch (err: unknown) {
+    console.error('[stripe-session] Stripe error:', err);
+    const message = err instanceof Error ? err.message : 'Payment provider error.';
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 
   return NextResponse.json({ url: session.url });
 }
