@@ -3,59 +3,62 @@
 // POST /api/demo/setup — PLATFORM_OWNER only.
 //
 // Product catalog model:
-//   costPrice     = what LogiQ pays Sektor (comes from Sektor data feed)
-//   sellingPrice  = what LogiQ charges the customer (set by LogiQ in Item Master)
-//   supplierItemCode = Sektor's catalog code (used on POs sent to Sektor)
-//   sku           = LogiQ's internal code (shown to customers in the store)
+//   costPrice        = what LogiQ pays the supplier
+//   sellingPrice     = what LogiQ charges the customer (set by LogiQ in Item Master)
+//   supplierItemCode = the supplier's own catalog number (used on POs sent to them)
+//   sku              = LogiQ's internal code (shown to customers in the store)
 //
 // Only 5 products are published to the storefront — these represent the demo catalog.
 // All others are set to DRAFT / unpublished.
+//
+// Note: this is unrelated to the Sektor courier/delivery tracking integration
+// (sektorStatus, sektorTrackingNumber, /api/webhooks/sektor) — that is a real,
+// separate feature for tracking shipments after dispatch, not a supplier.
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// The 5 storefront products for the demo.
-// costPrice  = Sektor's price to us (what the feed brings in)
-// sellingPrice = LogiQ's retail price (what the customer pays, owner sets this)
+// The 5 storefront products for the demo. supplierCode is a generic, randomly
+// generated supplier catalog number — not tied to any particular brand.
 const DEMO_PRODUCTS: Record<string, {
-  sektorCode: string;
+  supplierCode: string;
   costPrice: number;
   sellingPrice: number;
   warrantyMonths: number;
   description: string;
 }> = {
   'LQ-SCN-00101': {
-    sektorCode: 'SEKT-ZBR-DS2208-SR',
+    supplierCode: '482917',
     costPrice: 185.00,
     sellingPrice: 299.00,
     warrantyMonths: 12,
     description: 'Heavy-duty IP65 Bluetooth 2D barcode scanner for warehouse receiving and bin picking.',
   },
   'LQ-PRT-00102': {
-    sektorCode: 'SEKT-ZBR-ZD421-TLP',
+    supplierCode: '739204',
     costPrice: 420.00,
     sellingPrice: 649.00,
     warrantyMonths: 12,
     description: 'High-speed industrial thermal label printer with Ethernet, USB & Wi-Fi module.',
   },
   'LQ-MOB-00103': {
-    sektorCode: 'SEKT-HNW-CT47-AN',
+    supplierCode: '615830',
     costPrice: 1150.00,
     sellingPrice: 1799.00,
     warrantyMonths: 24,
     description: 'Enterprise 5.5-inch rugged mobile terminal with 2D Zebra scan engine & 4G SIM.',
   },
   'LQ-RFD-00104': {
-    sektorCode: 'SEKT-HNW-IT70-UHF',
+    supplierCode: '294761',
     costPrice: 62.00,
     sellingPrice: 99.00,
     warrantyMonths: 12,
     description: 'High-durability printable UHF RFID adhesive tags for pallet and container tracking.',
   },
   'LQ-RFD-00109': {
-    sektorCode: 'SEKT-ZBR-FX9600-4P',
+    supplierCode: '856402',
     costPrice: 2850.00,
     sellingPrice: 4499.00,
     warrantyMonths: 24,
@@ -121,8 +124,8 @@ export async function POST(req: Request) {
   results.push(`Unpublished ${unpublished.count} non-demo item(s) from storefront`);
 
   // 3. Configure the 5 demo products:
-  //    - costPrice from Sektor feed, sellingPrice set by LogiQ
-  //    - supplierItemCode = Sektor catalog code (goes on POs)
+  //    - costPrice = what we pay the supplier, sellingPrice set by LogiQ
+  //    - supplierItemCode = the supplier's own catalog number (goes on POs)
   //    - warranty, serial tracking, store listing flags
   for (const [sku, cfg] of Object.entries(DEMO_PRODUCTS)) {
     const updated = await prisma.itemMaster.updateMany({
@@ -132,7 +135,7 @@ export async function POST(req: Request) {
         status: 'ACTIVE',
         costPrice: cfg.costPrice,
         sellingPrice: cfg.sellingPrice,
-        supplierItemCode: cfg.sektorCode,
+        supplierItemCode: cfg.supplierCode,
         storeDescription: cfg.description,
         warrantyPeriodMonths: cfg.warrantyMonths,
         warrantyStartRule: 'DELIVERY_DATE',
@@ -143,7 +146,7 @@ export async function POST(req: Request) {
     if (updated.count > 0) {
       const margin = (((cfg.sellingPrice - cfg.costPrice) / cfg.sellingPrice) * 100).toFixed(0);
       results.push(
-        `${sku}: published ✓ | cost AUD ${cfg.costPrice} | sell AUD ${cfg.sellingPrice} | margin ${margin}% | Sektor: ${cfg.sektorCode}`
+        `${sku}: published ✓ | cost AUD ${cfg.costPrice} | sell AUD ${cfg.sellingPrice} | margin ${margin}% | Supplier code: ${cfg.supplierCode}`
       );
     } else {
       results.push(`${sku}: NOT FOUND in Item Master — skipped`);

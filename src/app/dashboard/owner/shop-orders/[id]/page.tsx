@@ -212,7 +212,7 @@ export default function ShopOrderDetailPage() {
   const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
 
   return (
-    <div className="space-y-6 pb-12 max-w-4xl">
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
       {/* Back + header */}
       <div>
         <Link href="/dashboard/owner/shop-orders" className="inline-flex items-center gap-1.5 text-xs font-semibold mb-4 hover:underline" style={{ color: '#1e3a8a' }}>
