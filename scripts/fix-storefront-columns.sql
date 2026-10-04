@@ -32,3 +32,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS "storefront_orders_salesOrderId_key" ON storef
 -- Add indexes if missing
 CREATE INDEX IF NOT EXISTS "storefront_orders_customerEmail_idx" ON storefront_orders("customerEmail");
 CREATE INDEX IF NOT EXISTS "storefront_orders_status_idx"        ON storefront_orders("status");
+
+-- Create email_logs table if it doesn't exist
+CREATE TABLE IF NOT EXISTS email_logs (
+  id        TEXT         NOT NULL PRIMARY KEY,
+  "to"      TEXT         NOT NULL,
+  cc        TEXT,
+  subject   TEXT         NOT NULL,
+  html      TEXT         NOT NULL,
+  "sentAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  mode      TEXT         NOT NULL DEFAULT 'simulated',
+  "orderId" TEXT
+);
+CREATE INDEX IF NOT EXISTS "email_logs_sentAt_idx" ON email_logs("sentAt");

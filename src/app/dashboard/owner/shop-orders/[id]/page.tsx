@@ -232,14 +232,13 @@ export default function ShopOrderDetailPage() {
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Supplier & Fulfilment</p>
           </div>
           <div className="space-y-2">
-            {order.salesOrder?.salesOrderNumber && (
-              <Row label="Sales Order" value={
+            {(order.myobSoNumber || order.salesOrder?.salesOrderNumber) && (
+              <Row label="Sales Order #" value={
                 <Link href="/dashboard/owner/pipeline" className="font-mono text-xs hover:underline" style={{ color: '#1e3a8a' }}>
-                  {order.salesOrder.salesOrderNumber}
+                  {order.myobSoNumber || order.salesOrder?.salesOrderNumber}
                 </Link>
               } />
             )}
-            {order.myobSoNumber && <Row label="MYOB SO #" value={order.myobSoNumber} mono />}
             {order.myobPoNumber && <Row label="Purchase Order #" value={order.myobPoNumber} mono />}
             {order.poEmailSentTo && (
               <Row label="PO Emailed to" value={

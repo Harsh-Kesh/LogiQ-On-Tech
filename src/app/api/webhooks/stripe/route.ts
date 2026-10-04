@@ -189,6 +189,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
 
     await sendTransactionalEmail({
       to: customerEmail,
+      orderId: storefrontOrder.id,
       subject: `Order Confirmed — ${orderNumber}`,
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a">
@@ -313,6 +314,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
         }).join('');
         await sendTransactionalEmail({
           to: supplierEmail,
+          orderId: storefrontOrder.id,
           subject: `Purchase Order ${poNumber} — LogiQ-On Tech`,
           html: `
             <div style="font-family:sans-serif;max-width:680px;margin:0 auto">
