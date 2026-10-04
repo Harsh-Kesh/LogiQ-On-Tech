@@ -190,7 +190,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error(`Account registration rejected by Platform Owner. Reason: ${reason}`);
         }
 
-        if (user.role !== 'OWNER') {
+        if (user.role !== 'PLATFORM_OWNER') {
           throw new Error('Invalid email or password.');
         }
 
