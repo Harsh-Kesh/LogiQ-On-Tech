@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
   Package, Truck, ShoppingBag, ShoppingCart, GitBranch, FileText,
-  RefreshCw, ArrowRight, LayoutDashboard,
+  RefreshCw, ArrowRight, LayoutDashboard, Zap, CheckCircle2,
 } from 'lucide-react';
 
 export default function PlatformOwnerDashboard() {
@@ -14,10 +14,14 @@ export default function PlatformOwnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [setupRunning, setSetupRunning] = useState(false);
+  const [setupDone, setSetupDone] = useState(false);
+  const [setupMsg, setSetupMsg] = useState('');
 
   const [productCount, setProductCount] = useState<number | null>(null);
   const [supplierCount, setSupplierCount] = useState<number | null>(null);
   const [orderCount, setOrderCount] = useState<number | null>(null);
+  const [needsSupplierSetup, setNeedsSupplierSetup] = useState(false);
 
   const loadData = async () => {
     setRefreshing(true);
@@ -33,8 +37,13 @@ export default function PlatformOwnerDashboard() {
       const orders = ordersRes?.orders ?? ordersRes ?? [];
 
       setProductCount(Array.isArray(products) ? products.length : 0);
-      setSupplierCount(Array.isArray(vendors) ? vendors.filter((v: any) => v.status === 'APPROVED').length : 0);
+      const approvedVendors = Array.isArray(vendors) ? vendors.filter((v: any) => v.status === 'APPROVED') : [];
+      setSupplierCount(approvedVendors.length);
       setOrderCount(Array.isArray(orders) ? orders.length : 0);
+
+      // Show setup banner if any approved vendor is missing a PO email
+      const missingPoEmail = approvedVendors.some((v: any) => !v.poEmail);
+      setNeedsSupplierSetup(missingPoEmail);
     } catch {
       // non-critical
     } finally {
@@ -42,6 +51,22 @@ export default function PlatformOwnerDashboard() {
       setRefreshing(false);
       setLastRefreshed(new Date());
     }
+  };
+
+  const runSupplierSetup = async () => {
+    setSetupRunning(true);
+    try {
+      const res = await fetch('/api/admin/setup-supplier-data', { method: 'POST' });
+      const json = await res.json();
+      setSetupMsg(json.message || (res.ok ? 'Done.' : 'Setup failed.'));
+      if (res.ok) {
+        setSetupDone(true);
+        setNeedsSupplierSetup(false);
+      }
+    } catch {
+      setSetupMsg('Request failed — check network.');
+    }
+    setSetupRunning(false);
   };
 
   useEffect(() => { loadData(); }, []);
@@ -152,6 +177,33 @@ export default function PlatformOwnerDashboard() {
           );
         })}
       </div>
+
+      {/* One-time supplier data setup */}
+      {(needsSupplierSetup || setupMsg) && !setupDone && (
+        <div className="flex items-center gap-4 bg-white border rounded-2xl px-5 py-4" style={{ borderColor: '#fde68a', background: '#fffbeb' }}>
+          <Zap className="w-5 h-5 shrink-0" style={{ color: '#b45309' }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold" style={{ color: '#92400e' }}>Supplier data not initialised</p>
+            <p className="text-xs mt-0.5" style={{ color: '#b45309' }}>
+              {setupMsg || 'Vendor PO emails and supplier item codes are not set. Click to auto-populate from existing vendor records.'}
+            </p>
+          </div>
+          <button
+            onClick={runSupplierSetup}
+            disabled={setupRunning}
+            className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl transition-all"
+            style={{ background: '#1e3a8a', color: '#fff', opacity: setupRunning ? 0.6 : 1 }}
+          >
+            {setupRunning ? 'Running…' : 'Run Setup'}
+          </button>
+        </div>
+      )}
+      {setupDone && (
+        <div className="flex items-center gap-3 bg-white border rounded-2xl px-5 py-4" style={{ borderColor: '#bbf7d0', background: '#f0fdf4' }}>
+          <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: '#166534' }} />
+          <p className="text-sm font-semibold" style={{ color: '#166534' }}>{setupMsg}</p>
+        </div>
+      )}
 
       {/* Quick links */}
       <div>
