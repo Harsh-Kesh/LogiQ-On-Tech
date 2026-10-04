@@ -612,16 +612,20 @@ export default function MasterDataItemsPage() {
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-xs font-bold text-indigo-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
-              {item.sku}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md" title="LogiQ-On internal SKU">
+              LogiQ: {item.sku}
             </span>
-            {item.supplierItemCode && (
-              <span className="font-mono text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md" title="Supplier catalog code">
-                {item.supplierItemCode}
+            {item.supplierItemCode ? (
+              <span className="font-mono text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md" title="Supplier's catalog code — used on PO emails">
+                Supplier: {item.supplierItemCode}
               </span>
-            )}
-            <span className="font-mono text-[11px] text-slate-500">EAN: {item.barcode}</span>
+            ) : item.vendorId ? (
+              <span className="font-mono text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md" title="Supplier item code not set — PO email will show 'Not configured'">
+                ⚠ Supplier code not set
+              </span>
+            ) : null}
+            {item.barcode && <span className="font-mono text-[11px] text-slate-500">EAN: {item.barcode}</span>}
           </div>
         </div>
       ),

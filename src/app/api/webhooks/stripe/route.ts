@@ -294,18 +294,23 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
         });
       }
 
-      // Email PO to supplier — fall back to IMAP inbox for demo so PO is visible somewhere
-      // Look up all item masters for this order so we can include Sektor codes on the PO
+      // Email PO to supplier
+      // Look up all item masters for this order so we can include supplier codes on the PO
       const allSkus = resolvedLines.map((l) => l.sku);
       const allItemMasters = await prisma.itemMaster.findMany({ where: { sku: { in: allSkus } } });
-      const sektorCodeBySku = new Map(allItemMasters.map((im) => [im.sku, im.supplierItemCode]));
+      const supplierCodeBySku = new Map(allItemMasters.map((im) => [im.sku, im.supplierItemCode]));
 
-      const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail || process.env.IMAP_USER;
-      if (supplierEmail) {
+      const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail;
+      if (!supplierEmail) {
+        console.warn(`[stripe-webhook] No supplier email for PO ${poNumber} (order ${orderNumber}). Set vendor.poEmail or itemMaster.supplierEmail to enable PO emails.`);
+      } else {
         const poLines = resolvedLines.map((l) => {
-          const sektorCode = sektorCodeBySku.get(l.sku);
+          const supplierCode = supplierCodeBySku.get(l.sku);
+          const supplierCodeCell = supplierCode
+            ? `<strong>${supplierCode}</strong><br/><span style="font-size:11px;color:#94a3b8">Our ref: ${l.sku}</span>`
+            : `<span style="color:#f59e0b;font-style:italic">Not configured</span><br/><span style="font-size:11px;color:#94a3b8">Our ref: ${l.sku}</span>`;
           return `<tr>
-            <td style="padding:4px 8px;border:1px solid #e2e8f0">${sektorCode || l.sku}<br/><span style="font-size:11px;color:#94a3b8">Our ref: ${l.sku}</span></td>
+            <td style="padding:4px 8px;border:1px solid #e2e8f0">${supplierCodeCell}</td>
             <td style="padding:4px 8px;border:1px solid #e2e8f0">${l.itemName}</td>
             <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center">${l.qty}</td>
             <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${l.unitPrice.toFixed(2)}</td>
