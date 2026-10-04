@@ -53,7 +53,9 @@ export async function POST(req: Request) {
         product_data: {
           name: product.itemName,
           description: product.storeDescription?.slice(0, 500) || undefined,
-          images: product.storeImages?.slice(0, 1) || [],
+          images: (product.storeImages || [])
+            .filter((u) => /^https?:\/\/.+/.test(u))
+            .slice(0, 1),
           metadata: { sku },
         },
         unit_amount: unitPriceIncGst,
