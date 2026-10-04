@@ -192,13 +192,36 @@ export async function GET(req: Request) {
     }),
   ]);
 
-  // Resolve sfOrderId for warranty results
+  // Resolve sfOrderId for warranty results — try the direct salesOrderId link
+  // first, then fall back through the linked supplier invoice's PO number, since
+  // not every warranty record ends up with salesOrderId populated (e.g. if the
+  // SalesOrder failed to create at checkout time, which is non-fatal there).
   const warrantyResults = await Promise.all(
     warranties.map(async (w) => {
       let sfOrderId: string | null = null;
       if (w.salesOrderId) {
         const sf = await prisma.storefrontOrder.findFirst({
           where: { salesOrderId: w.salesOrderId },
+          select: { id: true },
+        });
+        sfOrderId = sf?.id ?? null;
+      }
+      if (!sfOrderId && w.supplierInvoiceId) {
+        const inv = await prisma.supplierInvoice.findUnique({
+          where: { id: w.supplierInvoiceId },
+          select: { linkedPoNumber: true },
+        });
+        if (inv?.linkedPoNumber) {
+          const sf = await prisma.storefrontOrder.findFirst({
+            where: { OR: [{ myobPoNumber: inv.linkedPoNumber }, { orderNumber: inv.linkedPoNumber }] },
+            select: { id: true },
+          });
+          sfOrderId = sf?.id ?? null;
+        }
+      }
+      if (!sfOrderId && w.salesOrderNumber) {
+        const sf = await prisma.storefrontOrder.findFirst({
+          where: { myobSoNumber: w.salesOrderNumber },
           select: { id: true },
         });
         sfOrderId = sf?.id ?? null;
@@ -224,6 +247,7 @@ export async function GET(req: Request) {
             OR: [
               { myobPoNumber: i.linkedPoNumber },
               { myobPoNumber: { contains: i.linkedPoNumber } },
+              { orderNumber: i.linkedPoNumber },
             ],
           },
           select: { id: true },

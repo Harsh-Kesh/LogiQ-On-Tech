@@ -404,6 +404,7 @@ export default function TraceabilityPage() {
   const [selectedSfOrderId, setSelectedSfOrderId] = useState<string | null>(null);
   const [chain, setChain] = useState<InvestigationChain | null>(null);
   const [loadingChain, setLoadingChain] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const search = useCallback(async (q: string) => {
     if (q.length < 2) { setResults(null); return; }
@@ -417,6 +418,7 @@ export default function TraceabilityPage() {
   }, []);
 
   const loadChain = useCallback(async (sfOrderId: string) => {
+    setLinkError(null);
     if (sfOrderId === selectedSfOrderId) return;
     setSelectedSfOrderId(sfOrderId);
     setChain(null);
@@ -459,6 +461,11 @@ export default function TraceabilityPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-1.5">
+          {linkError && (
+            <div className="px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+              {linkError}
+            </div>
+          )}
           {results && allResults.length === 0 && (
             <div className="text-center py-12 text-slate-400 text-sm">No results for "{query}"</div>
           )}
@@ -471,14 +478,13 @@ export default function TraceabilityPage() {
             return (
               <button
                 key={`${item.type}-${item.id}`}
-                onClick={() => item.sfOrderId && loadChain(item.sfOrderId)}
-                disabled={!item.sfOrderId}
+                onClick={() => item.sfOrderId ? loadChain(item.sfOrderId) : setLinkError(`Could not find a linked order for "${item.title}".`)}
                 className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
                   isSelected
                     ? 'border-indigo-400 bg-indigo-50 shadow-sm'
                     : item.sfOrderId
                     ? 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'
-                    : 'border-slate-100 bg-slate-50 opacity-60 cursor-default'
+                    : 'border-slate-100 bg-slate-50 hover:border-amber-300'
                 }`}
               >
                 <div className={`p-1.5 rounded-lg shrink-0 ${color}`}>
