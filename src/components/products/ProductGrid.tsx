@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getAssetPath } from '@/lib/nav';
 import { useCart } from '@/components/store/CartContext';
 import type { PublicProduct } from '@/lib/store-catalog';
@@ -44,6 +45,7 @@ export default function ProductGrid({ products, supplementary = [], hideTypeFilt
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const { addItem } = useCart();
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const router = useRouter();
 
   const categories = useMemo(() => {
     return ['All', ...Array.from(new Set(products.map((p) => p.attributes?.Type).filter(Boolean) as string[]))];
@@ -88,51 +90,59 @@ export default function ProductGrid({ products, supplementary = [], hideTypeFilt
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((product) => (
-          <div key={product.sku} className="bg-white border border-outline-variant rounded-2xl overflow-hidden group hover:border-indigo-300 hover:shadow-lg transition-all flex flex-col">
-            <div className="relative h-52 bg-surface-container-low">
-              {product.storeImages[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={resolveImageSrc(product.storeImages[0])}
-                  alt={product.itemName}
-                  className="absolute inset-0 w-full h-full object-contain p-6 group-hover:scale-105 transition-transform duration-500"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-4xl text-slate-300">inventory_2</span>
+        {filtered.map((product) => {
+          const detailHref = `/products/shop/product/${encodeURIComponent(product.sku)}`;
+          return (
+            <div key={product.sku} className="bg-white border border-outline-variant rounded-2xl overflow-hidden group hover:border-indigo-300 hover:shadow-lg transition-all flex flex-col">
+              <Link href={detailHref} className="relative h-52 bg-surface-container-low block">
+                {product.storeImages[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={resolveImageSrc(product.storeImages[0])}
+                    alt={product.itemName}
+                    className="absolute inset-0 w-full h-full object-contain p-6 group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-4xl text-slate-300">inventory_2</span>
+                  </div>
+                )}
+                {product.quantityAvailable <= 0 && (
+                  <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide bg-rose-50 text-rose-700 border border-rose-200 px-2 py-1 rounded-full">
+                    Out of Stock
+                  </span>
+                )}
+              </Link>
+              <div className="p-6 border-t border-outline-variant flex flex-col flex-1">
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">
+                  {product.attributes?.Brand || product.categoryName}
+                  {product.attributes?.Type ? ` · ${product.attributes.Type}` : ''}
+                </span>
+                <Link href={detailHref}>
+                  <h3 className="text-headline-sm font-headline-sm text-on-background mb-2 hover:text-indigo-600 transition-colors">{product.itemName}</h3>
+                </Link>
+                <p className="text-body-sm text-on-surface-variant mb-4 leading-snug flex-1">{product.storeDescription}</p>
+                <div className="flex items-center justify-between gap-3 mt-auto">
+                  <div>
+                    <span className="text-lg font-extrabold text-slate-950">
+                      {product.currency} {product.sellingPrice.toFixed(2)}
+                    </span>
+                    <Link href={detailHref} className="block text-[10px] text-indigo-600 hover:underline mt-0.5">View details →</Link>
+                  </div>
+                  <button
+                    onClick={() => handleAdd(product)}
+                    className={`px-4 py-2 rounded-full text-label-sm font-bold transition-colors whitespace-nowrap ${
+                      justAdded === product.sku ? 'bg-emerald-600 text-white' : 'bg-slate-950 text-white hover:bg-indigo-600'
+                    }`}
+                    style={{ color: '#ffffff' }}
+                  >
+                    {justAdded === product.sku ? 'Added ✓' : product.quantityAvailable <= 0 ? 'Add Anyway' : 'Add to Cart'}
+                  </button>
                 </div>
-              )}
-              {product.quantityAvailable <= 0 && (
-                <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide bg-rose-50 text-rose-700 border border-rose-200 px-2 py-1 rounded-full">
-                  Out of Stock
-                </span>
-              )}
-            </div>
-            <div className="p-6 border-t border-outline-variant flex flex-col flex-1">
-              <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-2">
-                {product.attributes?.Brand || product.categoryName}
-                {product.attributes?.Type ? ` · ${product.attributes.Type}` : ''}
-              </span>
-              <h3 className="text-headline-sm font-headline-sm text-on-background mb-2">{product.itemName}</h3>
-              <p className="text-body-sm text-on-surface-variant mb-4 leading-snug flex-1">{product.storeDescription}</p>
-              <div className="flex items-center justify-between gap-3 mt-auto">
-                <span className="text-lg font-extrabold text-slate-950">
-                  {product.currency} {product.sellingPrice.toFixed(2)}
-                </span>
-                <button
-                  onClick={() => handleAdd(product)}
-                  className={`px-4 py-2 rounded-full text-label-sm font-bold transition-colors whitespace-nowrap ${
-                    justAdded === product.sku ? 'bg-emerald-600 text-white' : 'bg-slate-950 text-white hover:bg-indigo-600'
-                  }`}
-                  style={{ color: '#ffffff' }}
-                >
-                  {justAdded === product.sku ? 'Added ✓' : product.quantityAvailable <= 0 ? 'Add Anyway (Backorder)' : 'Add to Cart'}
-                </button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {supplementary.map((item) => (
           <div key={item.id} className="bg-white border border-outline-variant rounded-2xl overflow-hidden group hover:border-indigo-300 hover:shadow-lg transition-all flex flex-col">

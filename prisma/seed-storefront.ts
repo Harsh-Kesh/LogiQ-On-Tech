@@ -8,11 +8,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Only these 9 SKUs have real product photography on disk (public/images/products/**),
-// carried over from the marketing site before the JSON->Postgres migration. Publishing
-// only these to the storefront keeps every listing backed by a real, matching image
-// instead of a generic stand-in for the other 15 catalog items (labels, tape, pallets,
-// etc.) that never had dedicated photography.
+// Five hero SKUs — one from each major product category — that have real photography
+// on disk and make a complete, representative demo storefront without clutter.
 const STOREFRONT_ITEMS: Record<string, { images: string[]; storeDescription: string }> = {
   'LQ-SCN-00101': {
     images: ['/images/products/barcode-scanners/zebra-ds2200.jpg', '/images/products/barcode-scanners/zebra-ls2208.jpg'],
@@ -33,22 +30,6 @@ const STOREFRONT_ITEMS: Record<string, { images: string[]; storeDescription: str
   'LQ-RFD-00109': {
     images: ['/images/products/rfid/zebra-fx9600.jpg', '/images/products/rfid/zebra-atr7000.jpg'],
     storeDescription: 'Industrial 4-port UHF RFID reader for automatic dock door pallet scanning.',
-  },
-  'LQ-SCN-00110': {
-    images: ['/images/products/barcode-scanners/zebra-ds457.jpg', '/images/products/barcode-scanners/zebra-ds4600.jpg'],
-    storeDescription: 'Conveyor belt high-speed barcode reader for automated package sortation.',
-  },
-  'LQ-SCN-00113': {
-    images: ['/images/products/barcode-scanners/zebra-cs60.jpg', '/images/products/barcode-scanners/cipherlab-2200.jpg'],
-    storeDescription: 'Hands-free Bluetooth finger ring scanner with haptic vibration feedback.',
-  },
-  'LQ-PRT-00114': {
-    images: ['/images/products/desktop-printers/honeywell-e-class-mark-iii.jpg', '/images/products/desktop-printers/bixolon-xd5-40.jpg'],
-    storeDescription: 'Full metal chassis 24/7 continuous duty cycle thermal label printer.',
-  },
-  'LQ-MOB-00115': {
-    images: ['/images/products/mobile-computers/honeywell-cn80g.jpg', '/images/products/mobile-computers/honeywell-ck65.jpg'],
-    storeDescription: 'Deep-freeze rated mobile computer operating reliably down to -30C with defroster.',
   },
 };
 
