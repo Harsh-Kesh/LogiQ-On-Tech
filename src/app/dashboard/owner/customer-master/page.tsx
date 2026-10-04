@@ -1,279 +1,205 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DataTable, Column } from '@/components/ui/DataTable';
-import { Modal } from '@/components/ui/Modal';
-import { Toast } from '@/components/ui/Toast';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { ItemPicker } from '@/components/ui/ItemPicker';
-import { QuickAddCustomerModal } from '@/components/customer-master/QuickAddCustomerModal';
-import { Plus, Search, Edit2, Trash2, RefreshCw, Users } from 'lucide-react';
+import { Users, Search, RefreshCw, Mail, MapPin, ShoppingBag, TrendingUp } from 'lucide-react';
 
-// FR-MD-004 — Customer Master Data. Key fields per requirement:
-// Customer Name, Item Code, Item Description, Selling Price, Currency, MOQ, Payment Terms, Incoterms.
-
-interface CustomerMasterRecord {
-  id: string;
-  customerName: string;
-  itemCode: string;
-  customerItemCode?: string;
-  itemDescription: string;
-  sellingPrice: number;
+interface ShopCustomer {
+  email: string;
+  name: string;
+  location?: string;
+  orderCount: number;
+  totalSpend: number;
   currency: string;
-  moq: number;
-  paymentTerms: string;
-  incoterms: string;
-  leadTimeDays: number;
-  createdAt: string;
-  updatedAt: string;
+  lastOrderDate: string;
 }
 
-const CURRENCIES = ['AUD', 'USD', 'EUR', 'GBP', 'NZD', 'SGD'];
-const PAYMENT_TERMS = ['Net 7', 'Net 14', 'Net 30', 'Net 45', 'Net 60', 'Prepaid', 'CIA (Cash in Advance)', 'COD'];
-const INCOTERMS = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
-
-const emptyForm = {
-  customerName: '',
-  itemCode: '',
-  customerItemCode: '',
-  itemDescription: '',
-  sellingPrice: '',
-  currency: 'AUD',
-  moq: '',
-  paymentTerms: 'Net 30',
-  incoterms: 'EXW',
-  leadTimeDays: '7',
-};
-
 export default function CustomerMasterDataPage() {
-  const [records, setRecords] = useState<CustomerMasterRecord[]>([]);
+  const [customers, setCustomers] = useState<ShopCustomer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [editing, setEditing] = useState<CustomerMasterRecord | null>(null);
-  const [form, setForm] = useState<any>(emptyForm);
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [res, itemsRes] = await Promise.all([
-        fetch('/api/mdm/customer-master'),
-        fetch('/api/mdm/items')
-      ]);
-      const data = await res.json();
-      const itemsData = await itemsRes.json();
-      setRecords(data.records || []);
-      setItems(itemsData.items || []);
-    } catch (e) {
-      setToast({ msg: 'Failed to load records.', type: 'error' });
+      const res = await fetch('/api/sales-orders');
+      const data = res.ok ? await res.json() : {};
+      const orders: any[] = Array.isArray(data) ? data : Array.isArray(data.salesOrders) ? data.salesOrders : [];
+
+      // Aggregate by customer email for online store orders
+      const storeOrders = orders.filter((o) => o.source === 'ONLINE_STORE' || o.customerEmail);
+      const map = new Map<string, ShopCustomer>();
+
+      for (const o of storeOrders) {
+        const key = (o.customerEmail || o.customerName || '').toLowerCase().trim();
+        if (!key) continue;
+        const existing = map.get(key);
+        if (existing) {
+          existing.orderCount += 1;
+          existing.totalSpend += o.totalValue || 0;
+          if (new Date(o.createdAt) > new Date(existing.lastOrderDate)) {
+            existing.lastOrderDate = o.createdAt;
+          }
+        } else {
+          map.set(key, {
+            email: o.customerEmail || '',
+            name: o.customerName || o.customerEmail || 'Unknown Customer',
+            location: o.deliveryLocation || '',
+            orderCount: 1,
+            totalSpend: o.totalValue || 0,
+            currency: o.currency || 'AUD',
+            lastOrderDate: o.createdAt || new Date().toISOString(),
+          });
+        }
+      }
+
+      setCustomers(Array.from(map.values()).sort((a, b) => new Date(b.lastOrderDate).getTime() - new Date(a.lastOrderDate).getTime()));
+    } catch {
+      // non-critical
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const openCreate = () => {
-    setIsQuickAddOpen(true);
-  };
-
-  const openEdit = (r: CustomerMasterRecord) => {
-    setEditing(r);
-    setForm({ ...r, sellingPrice: String(r.sellingPrice), moq: String(r.moq) });
-    setIsOpen(true);
-  };
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editing) return;
-    try {
-      const res = await fetch(`/api/mdm/customer-master/${editing.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      setToast({ msg: 'Record updated.', type: 'success' });
-      setIsOpen(false);
-      load();
-    } catch (err: any) {
-      setToast({ msg: err.message || 'Save failed.', type: 'error' });
-    }
-  };
-
-  const handleQuickAddCreated = (customerName: string) => {
-    setIsQuickAddOpen(false);
-    setToast({ msg: `Price agreement created for ${customerName}.`, type: 'success' });
-    load();
-  };
-
-  const remove = async (r: CustomerMasterRecord) => {
-    if (!confirm(`Delete customer master record for ${r.customerName} / ${r.itemCode}?`)) return;
-    try {
-      const res = await fetch(`/api/mdm/customer-master/${r.id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      setToast({ msg: 'Record deleted.', type: 'success' });
-      load();
-    } catch (err: any) {
-      setToast({ msg: err.message || 'Delete failed.', type: 'error' });
-    }
-  };
-
-  const filtered = records.filter((r) => {
+  const filtered = customers.filter((c) => {
     if (!search.trim()) return true;
-    const s = search.toLowerCase();
-    return r.customerName.toLowerCase().includes(s) || r.itemCode.toLowerCase().includes(s) || r.itemDescription.toLowerCase().includes(s);
+    const q = search.toLowerCase();
+    return c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.location || '').toLowerCase().includes(q);
   });
 
-  const columns: Column<CustomerMasterRecord>[] = [
-    { header: 'Customer Name', cell: (r) => <span className="font-bold text-slate-900">{r.customerName}</span> },
-    { header: 'Item Code', cell: (r) => <span className="font-mono text-xs text-indigo-700">{r.itemCode}</span> },
-    { header: "Customer's Item Code", cell: (r) => <span className="font-mono text-xs text-slate-600">{r.customerItemCode || '—'}</span> },
-    { header: 'Item Description', accessorKey: 'itemDescription' },
-    { header: 'Selling Price', cell: (r) => <span className="font-mono">{r.currency} {r.sellingPrice.toFixed(2)}</span> },
-    { header: 'MOQ', cell: (r) => <span className="font-mono">{r.moq.toLocaleString()}</span> },
-    { header: 'Payment Terms', accessorKey: 'paymentTerms' },
-    { header: 'Incoterms', cell: (r) => <span className="font-mono font-bold text-slate-700">{r.incoterms}</span> },
-    { header: 'Lead Time', cell: (r) => <span className="font-mono">{r.leadTimeDays} day{r.leadTimeDays === 1 ? '' : 's'}</span> },
-  ];
+  const totalRevenue = customers.reduce((s, c) => s + c.totalSpend, 0);
+  const totalOrders = customers.reduce((s, c) => s + c.orderCount, 0);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      {/* Page header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-            <Users className="w-6 h-6 text-indigo-600" /> Customer Master Data
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Pricing and terms used when creating Sales Orders and Sales Invoices for each customer.
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Customer Directory</h1>
+          </div>
+          <p className="text-sm" style={{ color: '#64748b' }}>
+            Customers who have purchased from the online shop.
           </p>
         </div>
-        <Button onClick={openCreate} variant="primary" className="flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Add Customer Master Record
-        </Button>
       </div>
 
-      <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by customer, item code or description..."
-            className="pl-10"
-          />
+      {/* Summary stats */}
+      {!loading && customers.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: 'Total Customers', value: customers.length, icon: Users, color: '#1e3a8a', bg: '#eff6ff' },
+            { label: 'Total Orders', value: totalOrders, icon: ShoppingBag, color: '#065f46', bg: '#ecfdf5' },
+            { label: 'Total Revenue', value: `AUD ${totalRevenue.toLocaleString('en-AU', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: '#b45309', bg: '#fffbeb' },
+          ].map((s) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.label} className="bg-white rounded-2xl border p-5 flex items-center gap-4" style={{ borderColor: '#e2e8f0' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: s.bg }}>
+                  <Icon className="w-5 h-5" style={{ color: s.color }} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#94a3b8' }}>{s.label}</p>
+                  <p className="text-xl font-black font-mono mt-0.5" style={{ color: '#0f172a' }}>{s.value}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <button onClick={load} className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600" aria-label="Refresh">
+      )}
+
+      {/* Search */}
+      <div className="bg-white rounded-2xl border p-4 flex items-center gap-3" style={{ borderColor: '#e2e8f0' }}>
+        <Search className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search customers by name, email or location..."
+          className="flex-1 text-sm outline-none bg-transparent placeholder-slate-400"
+          style={{ color: '#0f172a' }}
+        />
+        <button onClick={load} className="p-1.5 rounded-lg transition-colors" style={{ color: '#64748b' }}>
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        isLoading={loading}
-        emptyMessage="No customer master records yet. Add your first record above."
-        showSearch={false}
-        actions={(r) => (
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => openEdit(r)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600" aria-label="Edit">
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => remove(r)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600" aria-label="Delete">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-      />
+      {/* Customer list */}
+      {loading ? (
+        <div className="text-center py-16 text-sm" style={{ color: '#94a3b8' }}>Loading customers…</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-2xl border" style={{ borderColor: '#e2e8f0' }}>
+          <ShoppingBag className="w-8 h-8 mx-auto mb-3" style={{ color: '#cbd5e1' }} />
+          <p className="text-sm font-semibold" style={{ color: '#475569' }}>
+            {search ? 'No customers match your search.' : 'No shop customers yet.'}
+          </p>
+          <p className="text-xs mt-1" style={{ color: '#94a3b8' }}>
+            Customers will appear here once they place orders in the online shop.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#e2e8f0' }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                {['Customer', 'Email', 'Location', 'Orders', 'Total Spend', 'Last Order'].map((h) => (
+                  <th key={h} className="py-3 px-4 text-left text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c, i) => (
+                <tr key={c.email || i} className="border-b transition-colors hover:bg-slate-50" style={{ borderColor: '#f1f5f9' }}>
+                  <td className="py-3.5 px-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+                        {c.name[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <span className="font-semibold" style={{ color: '#0f172a' }}>{c.name}</span>
+                    </div>
+                  </td>
+                  <td className="py-3.5 px-4">
+                    {c.email ? (
+                      <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 hover:underline" style={{ color: '#1e3a8a' }}>
+                        <Mail className="w-3.5 h-3.5" />
+                        <span className="text-xs">{c.email}</span>
+                      </a>
+                    ) : <span className="text-xs" style={{ color: '#94a3b8' }}>—</span>}
+                  </td>
+                  <td className="py-3.5 px-4">
+                    {c.location ? (
+                      <div className="flex items-center gap-1.5 text-xs" style={{ color: '#475569' }}>
+                        <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: '#94a3b8' }} />
+                        <span className="truncate max-w-[160px]">{c.location}</span>
+                      </div>
+                    ) : <span className="text-xs" style={{ color: '#94a3b8' }}>—</span>}
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <span className="text-xs font-bold font-mono" style={{ color: '#0f172a' }}>{c.orderCount}</span>
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <span className="text-xs font-bold font-mono" style={{ color: '#1e3a8a' }}>
+                      {c.currency} {c.totalSpend.toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <span className="text-xs" style={{ color: '#64748b' }}>
+                      {new Date(c.lastOrderDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Edit Customer Master Record" maxWidth="lg">
-        {editing && (
-          <form onSubmit={save} className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Customer Name *</label>
-                <Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} required />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Item *</label>
-                <ItemPicker
-                  items={items}
-                  value={{ itemCode: form.itemCode, itemName: form.itemDescription }}
-                  onChange={(v) => setForm({ ...form, itemCode: v.itemCode, itemDescription: v.itemName, sellingPrice: v.sellingPrice || form.sellingPrice })}
-                  placeholder="Search global items..."
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Item Description *</label>
-              <Input value={form.itemDescription} readOnly className="bg-slate-50 cursor-not-allowed text-slate-500" required />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Customer's Item Code</label>
-              <Input
-                value={form.customerItemCode}
-                onChange={(e) => setForm({ ...form, customerItemCode: e.target.value })}
-                placeholder="e.g. the customer's own SKU/reference for this item"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Selling Price *</label>
-                <Input type="number" step="0.01" min="0" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })} required />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Currency *</label>
-                <Select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">MOQ *</label>
-                <Input type="number" min="0" value={form.moq} onChange={(e) => setForm({ ...form, moq: e.target.value })} required />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Incoterms *</label>
-              <Select value={form.incoterms} onChange={(e) => setForm({ ...form, incoterms: e.target.value })} options={INCOTERMS.map((t) => ({ value: t, label: t }))} />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Payment Terms *</label>
-                <Select value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} options={PAYMENT_TERMS.map((t) => ({ value: t, label: t }))} />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Lead Time (Days) *</label>
-                <Input type="number" min="0" value={form.leadTimeDays} onChange={(e) => setForm({ ...form, leadTimeDays: e.target.value })} required />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button type="submit" variant="primary">Update Record</Button>
-            </div>
-          </form>
-        )}
-      </Modal>
-
-      <QuickAddCustomerModal
-        isOpen={isQuickAddOpen}
-        onClose={() => setIsQuickAddOpen(false)}
-        items={items}
-        existingRecords={records}
-        onCreated={handleQuickAddCreated}
-      />
-
-      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      {!loading && filtered.length > 0 && (
+        <p className="text-xs text-center" style={{ color: '#94a3b8' }}>
+          {filtered.length} customer{filtered.length !== 1 ? 's' : ''} from online shop purchases.
+        </p>
+      )}
     </div>
   );
 }

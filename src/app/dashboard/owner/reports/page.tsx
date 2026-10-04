@@ -628,8 +628,8 @@ export default function ReportsPage() {
     <div className="space-y-6 max-w-7xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Management Reports</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-bold" style={{ color: '#0f172a' }}>Management Reports</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>
             Live operational dashboards across the full supply chain pipeline
           </p>
         </div>

@@ -719,12 +719,12 @@ export default function MasterDataItemsPage() {
       {/* Light Header Banner (Matching Vendor & User Directory UI Style) */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
-            <Package className="w-8 h-8" />
+          <div className="p-3.5 rounded-2xl shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <Package className="w-8 h-8" style={{ color: '#1e3a8a' }} />
           </div>
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
-              <Layers className="w-3.5 h-3.5 text-indigo-600" />
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold font-mono" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
+              <Layers className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
               ITEM CATALOG
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -737,10 +737,10 @@ export default function MasterDataItemsPage() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button variant="outline" onClick={() => setIsCsvModalOpen(true)} className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-bold" leftIcon={<Upload className="w-4 h-4 shrink-0 text-indigo-600" />}>
+          <Button variant="outline" onClick={() => setIsCsvModalOpen(true)} className="font-bold" style={{ borderColor: '#bfdbfe', color: '#1e3a8a' }} leftIcon={<Upload className="w-4 h-4 shrink-0" style={{ color: '#1e3a8a' }} />}>
             Bulk CSV Import
           </Button>
-          <Button onClick={openNewItemModal} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30" leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
+          <Button onClick={openNewItemModal} className="text-white font-bold shadow-md" style={{ background: '#1e3a8a', border: '1px solid #1e40af' }} leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
             Create Item Master
           </Button>
         </div>
@@ -752,7 +752,7 @@ export default function MasterDataItemsPage() {
           onClick={() => setActiveTab('ITEMS')}
           className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 shrink-0 whitespace-nowrap ${
             activeTab === 'ITEMS'
-              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              ? 'border-[#1e3a8a] text-[#1e3a8a] bg-blue-50/50'
               : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >

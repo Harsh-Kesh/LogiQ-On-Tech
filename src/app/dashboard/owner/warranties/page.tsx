@@ -254,8 +254,8 @@ export default function WarrantiesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Warranty Management</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-bold" style={{ color: '#0f172a' }}>Warranty Management</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>
             Track warranty periods, expiry alerts, and lifecycle actions for all sold items
           </p>
         </div>

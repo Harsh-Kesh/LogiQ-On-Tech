@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { getAssetPath } from "@/lib/nav";
-import { Eye, EyeOff, Shield, Building, Warehouse, ShoppingCart } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface DemoAccount {
   id: string;
@@ -36,49 +36,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     bgColor: "#eff6ff",
     borderColor: "#bfdbfe",
     icon: "👑",
-    description: "Executive analytics, commercial order management & user directory",
-  },
-  {
-    id: "vendor_apex",
-    role: "Vendor: Apex Hardware",
-    badge: "Vendor Portal",
-    email: "vendor@logiqon.tech",
-    password: "Password123!",
-    portalName: "Vendor Portal",
-    portalUrl: "/dashboard/vendor",
-    color: "#d97706",
-    bgColor: "#fffbeb",
-    borderColor: "#fef3c7",
-    icon: "🏭",
-    description: "Hardware catalog (Scanners, RFID) & warehouse stock fulfillment",
-  },
-  {
-    id: "vendor_smith",
-    role: "Vendor: Smith Logistics",
-    badge: "Vendor Portal",
-    email: "john@smithlogistics.com",
-    password: "Password123!",
-    portalName: "Vendor Portal",
-    portalUrl: "/dashboard/vendor",
-    color: "#059669",
-    bgColor: "#ecfdf5",
-    borderColor: "#a7f3d0",
-    icon: "📦",
-    description: "Freight & logistics catalog & warehouse stock fulfillment",
-  },
-  {
-    id: "vendor_jonathan",
-    role: "Vendor: Jonathan Logistics Hub",
-    badge: "Vendor Portal",
-    email: "jon.doe@vendor.logiqon.com",
-    password: "Password123!",
-    portalName: "Vendor Portal",
-    portalUrl: "/dashboard/vendor",
-    color: "#7c3aed",
-    bgColor: "#f5f3ff",
-    borderColor: "#ddd6fe",
-    icon: "🚚",
-    description: "Logistics catalog & warehouse stock fulfillment",
+    description: "Full platform access — products, orders, suppliers & reports",
   },
 ];
 
@@ -512,7 +470,7 @@ export default function LoginView() {
           </div>
 
           <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", borderTop: "1px solid #f1f5f9", paddingTop: 16, marginTop: 24 }}>
-            Secure Access for Owners, Vendors &amp; Warehouse Teams • ATO Compliant
+            Secure Platform Owner Access • LogiQ-On 2026
           </div>
         </div>
       </div>

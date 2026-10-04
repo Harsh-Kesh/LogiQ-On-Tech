@@ -973,10 +973,10 @@ export default function B2BOwnerOrdersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-          <ClipboardList className="w-6 h-6 text-indigo-600" /> Order Management
+        <h1 className="text-2xl font-extrabold flex items-center gap-2" style={{ color: '#0f172a' }}>
+          <ClipboardList className="w-6 h-6" style={{ color: '#1e3a8a' }} /> Order Management
         </h1>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs mt-1" style={{ color: '#64748b' }}>
           Sales Order → Allocation → Dispatch → Invoice → Payment. Purchase Order → Vendor Invoice → Vendor Payment.
         </p>
       </div>
@@ -989,8 +989,9 @@ export default function B2BOwnerOrdersPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
+              style={active ? { background: '#1e3a8a', color: '#fff' } : {}}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
-                active ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                active ? 'shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />

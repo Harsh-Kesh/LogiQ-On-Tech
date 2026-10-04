@@ -102,12 +102,12 @@ export default function MfaEnrolPage() {
       )}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
-            <Lock className="w-8 h-8" />
+          <div className="p-3 rounded-2xl shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <Lock className="w-8 h-8" style={{ color: '#1e3a8a' }} />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Two-Factor Authentication Setup</h1>
-            <p className="text-xs text-slate-500 font-mono">Secure your account with an authenticator app</p>
+            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Two-Factor Authentication Setup</h1>
+            <p className="text-xs font-mono" style={{ color: '#64748b' }}>Secure your account with an authenticator app</p>
           </div>
         </div>
 

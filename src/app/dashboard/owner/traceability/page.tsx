@@ -436,8 +436,8 @@ export default function TraceabilityPage() {
       {/* ── Left: Search + results ── */}
       <div className="w-80 shrink-0 flex flex-col gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Global Traceability</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-xl font-bold" style={{ color: '#0f172a' }}>Global Traceability</h1>
+          <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>
             Search serials, orders, POs, invoices, warranties
           </p>
         </div>

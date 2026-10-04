@@ -48,19 +48,19 @@ export default function AuditLogsPage() {
     <div className="space-y-6 font-sans">
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-sky-50 text-sky-600 border border-sky-200">
-            <FileText className="w-8 h-8" />
+          <div className="p-3 rounded-2xl" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <FileText className="w-8 h-8" style={{ color: '#1e3a8a' }} />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Audit Logs</h1>
-            <p className="text-xs text-slate-500 font-mono">Track security events and account activity</p>
+            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Audit Logs</h1>
+            <p className="text-xs font-mono" style={{ color: '#64748b' }}>Track security events and account activity</p>
           </div>
         </div>
 
         <button
           onClick={fetchLogs}
           disabled={loading}
-          className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 border border-slate-800 transition-all shadow-md"
+          className="px-4 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md" style={{ background: '#1e3a8a' }}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Stream
         </button>

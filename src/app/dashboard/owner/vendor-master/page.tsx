@@ -1,286 +1,176 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DataTable, Column } from '@/components/ui/DataTable';
-import { Modal } from '@/components/ui/Modal';
-import { Toast } from '@/components/ui/Toast';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { ItemPicker } from '@/components/ui/ItemPicker';
-import { Plus, Search, Edit2, Trash2, RefreshCw, Building } from 'lucide-react';
+import { Truck, Search, RefreshCw, Mail, MapPin, Phone, ExternalLink } from 'lucide-react';
 
-// FR-MD-004 — Vendor Master Data. Key fields per requirement:
-// Vendor Name, Item Code, Item Description, Cost of Goods, Currency, MOQ, Lead Time, Payment Terms, Incoterms.
-
-interface VendorMasterRecord {
+interface Supplier {
   id: string;
-  vendorName: string;
-  itemCode: string;
-  itemDescription: string;
-  costOfGoods: number;
-  currency: string;
-  moq: number;
-  leadTimeDays: number;
-  paymentTerms: string;
-  incoterms: string;
-  createdAt: string;
-  updatedAt: string;
+  companyName: string;
+  abnAcn: string;
+  status: string;
+  businessRegisteredAddress?: string;
+  businessLocation?: string;
+  paymentTerms?: string;
+  poEmail?: string;
+  apEmail?: string;
+  phone?: string;
+  user?: { email: string; fullName?: string };
 }
 
-const CURRENCIES = ['AUD', 'USD', 'EUR', 'GBP', 'NZD', 'SGD'];
-const PAYMENT_TERMS = ['Net 7', 'Net 14', 'Net 30', 'Net 45', 'Net 60', 'Prepaid', 'CIA (Cash in Advance)', 'COD'];
-const INCOTERMS = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
-
-const emptyForm = {
-  vendorName: '',
-  itemCode: '',
-  itemDescription: '',
-  costOfGoods: '',
-  currency: 'AUD',
-  moq: '',
-  leadTimeDays: '',
-  paymentTerms: 'Net 30',
-  incoterms: 'EXW',
-};
-
 export default function VendorMasterDataPage() {
-  const [records, setRecords] = useState<VendorMasterRecord[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<any[]>([]);
-  const [registeredVendors, setRegisteredVendors] = useState<Array<{ id: string; companyName: string; poEmail?: string; apEmail?: string; paymentTerms?: string }>>([]);
   const [search, setSearch] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-  const [editing, setEditing] = useState<VendorMasterRecord | null>(null);
-  const [form, setForm] = useState<any>(emptyForm);
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [res, itemsRes, vendorsRes] = await Promise.all([
-        fetch('/api/mdm/vendor-master'),
-        fetch('/api/mdm/items'),
-        fetch('/api/admin/vendors'),
-      ]);
-      const data = await res.json();
-      const itemsData = await itemsRes.json();
-      const vendorsData = vendorsRes.ok ? await vendorsRes.json() : { vendors: [] };
-      setRecords(data.records || []);
-      setItems(itemsData.items || []);
-      setRegisteredVendors(
-        (vendorsData.vendors || [])
-          .filter((v: any) => v.status === 'APPROVED' && v.companyName)
-          .map((v: any) => ({ id: v.id, companyName: v.companyName as string, poEmail: v.poEmail || '', apEmail: v.apEmail || '', paymentTerms: v.paymentTerms || '' }))
-      );
-    } catch (e) {
-      setToast({ msg: 'Failed to load records.', type: 'error' });
+      const res = await fetch('/api/admin/vendors');
+      const data = res.ok ? await res.json() : {};
+      const list: Supplier[] = Array.isArray(data) ? data : Array.isArray(data.vendors) ? data.vendors : [];
+      setSuppliers(list.filter((v) => v.status === 'APPROVED'));
+    } catch {
+      // non-critical
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm(emptyForm);
-    setIsOpen(true);
-  };
-
-  const openEdit = (r: VendorMasterRecord) => {
-    setEditing(r);
-    setForm({ ...r, costOfGoods: String(r.costOfGoods), moq: String(r.moq), leadTimeDays: String(r.leadTimeDays) });
-    setIsOpen(true);
-  };
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const url = editing ? `/api/mdm/vendor-master/${editing.id}` : '/api/mdm/vendor-master';
-      const method = editing ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      setToast({ msg: editing ? 'Record updated.' : 'Record created.', type: 'success' });
-      setIsOpen(false);
-      load();
-    } catch (err: any) {
-      setToast({ msg: err.message || 'Save failed.', type: 'error' });
-    }
-  };
-
-  const remove = async (r: VendorMasterRecord) => {
-    if (!confirm(`Delete vendor master record for ${r.vendorName} / ${r.itemCode}?`)) return;
-    try {
-      const res = await fetch(`/api/mdm/vendor-master/${r.id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      setToast({ msg: 'Record deleted.', type: 'success' });
-      load();
-    } catch (err: any) {
-      setToast({ msg: err.message || 'Delete failed.', type: 'error' });
-    }
-  };
-
-  const filtered = records.filter((r) => {
+  const filtered = suppliers.filter((s) => {
     if (!search.trim()) return true;
-    const s = search.toLowerCase();
-    return r.vendorName.toLowerCase().includes(s) || r.itemCode.toLowerCase().includes(s) || r.itemDescription.toLowerCase().includes(s);
+    const q = search.toLowerCase();
+    return (
+      s.companyName?.toLowerCase().includes(q) ||
+      s.abnAcn?.toLowerCase().includes(q) ||
+      s.poEmail?.toLowerCase().includes(q) ||
+      s.user?.email?.toLowerCase().includes(q)
+    );
   });
-
-  const columns: Column<VendorMasterRecord>[] = [
-    {
-      header: 'Vendor',
-      cell: (r) => {
-        const vendor = registeredVendors.find((v) => v.companyName === r.vendorName);
-        return (
-          <div className="space-y-0.5">
-            <span className="font-bold text-slate-900 block">{r.vendorName}</span>
-            {vendor?.poEmail && <a href={`mailto:${vendor.poEmail}`} className="text-[10px] text-indigo-600 hover:underline block">{vendor.poEmail}</a>}
-          </div>
-        );
-      },
-    },
-    { header: 'Item Code', cell: (r) => <span className="font-mono text-xs text-indigo-700">{r.itemCode}</span> },
-    { header: 'Item Description', accessorKey: 'itemDescription' },
-    { header: 'Cost of Goods', cell: (r) => <span className="font-mono">{r.currency} {r.costOfGoods.toFixed(2)}</span> },
-    { header: 'MOQ', cell: (r) => <span className="font-mono">{r.moq.toLocaleString()}</span> },
-    { header: 'Lead Time', cell: (r) => <span className="font-mono">{r.leadTimeDays} days</span> },
-    { header: 'Payment Terms', accessorKey: 'paymentTerms' },
-    { header: 'Incoterms', cell: (r) => <span className="font-mono font-bold text-slate-700">{r.incoterms}</span> },
-  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      {/* Page header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-            <Building className="w-6 h-6 text-indigo-600" /> Vendor Pricing &amp; Terms
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Per-item procurement pricing and terms used when creating Purchase Orders for each vendor.
+          <div className="flex items-center gap-2 mb-1">
+            <Truck className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Supplier Directory</h1>
+          </div>
+          <p className="text-sm" style={{ color: '#64748b' }}>
+            Approved suppliers and their contact details.
           </p>
         </div>
-        <Button onClick={openCreate} variant="primary" className="flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Add Vendor Master Record
-        </Button>
       </div>
 
-      <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by vendor, item code or description..."
-            className="pl-10"
-          />
-        </div>
-        <button onClick={load} className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600">
+      {/* Search bar */}
+      <div className="bg-white rounded-2xl border p-4 flex items-center gap-3" style={{ borderColor: '#e2e8f0' }}>
+        <Search className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search suppliers by name, ABN or email..."
+          className="flex-1 text-sm outline-none bg-transparent placeholder-slate-400"
+          style={{ color: '#0f172a' }}
+        />
+        <button onClick={load} className="p-1.5 rounded-lg transition-colors" style={{ color: '#64748b' }}>
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        isLoading={loading}
-        emptyMessage="No vendor master records yet. Add your first record above."
-        showSearch={false}
-        actions={(r) => (
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => openEdit(r)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600" aria-label="Edit">
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => remove(r)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600" aria-label="Delete">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-      />
-
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={editing ? 'Edit Vendor Master Record' : 'Add Vendor Master Record'} maxWidth="lg">
-        <form onSubmit={save} className="space-y-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Vendor Name *</label>
-              <Select
-                value={form.vendorName}
-                onChange={(e) => {
-                  const vendor = registeredVendors.find((v) => v.companyName === e.target.value);
-                  setForm({
-                    ...form,
-                    vendorName: e.target.value,
-                    ...(vendor?.paymentTerms && !editing ? { paymentTerms: vendor.paymentTerms } : {}),
-                  });
-                }}
-                options={[{ value: '', label: '-- Select registered vendor --' }, ...registeredVendors.map((v) => ({ value: v.companyName, label: v.companyName }))]}
-                required
-              />
-              {form.vendorName && (() => {
-                const vendor = registeredVendors.find((v) => v.companyName === form.vendorName);
-                return vendor?.poEmail ? (
-                  <p className="text-[10px] text-indigo-600 mt-1">PO: <strong>{vendor.poEmail}</strong>{vendor.apEmail ? ` · AP: ${vendor.apEmail}` : ''}</p>
-                ) : null;
-              })()}
-            </div>
-            <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Item *</label>
-                <ItemPicker
-                  items={items}
-                  value={{ itemCode: form.itemCode, itemName: form.itemDescription }}
-                  onChange={(v) => setForm({ ...form, itemCode: v.itemCode, itemDescription: v.itemName, costOfGoods: v.unitCost || form.costOfGoods })}
-                  placeholder="Search global items..."
-                />
+      {/* Supplier cards */}
+      {loading ? (
+        <div className="text-center py-16 text-sm" style={{ color: '#94a3b8' }}>Loading suppliers…</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-2xl border" style={{ borderColor: '#e2e8f0' }}>
+          <Truck className="w-8 h-8 mx-auto mb-3" style={{ color: '#cbd5e1' }} />
+          <p className="text-sm font-semibold" style={{ color: '#475569' }}>
+            {search ? 'No suppliers match your search.' : 'No approved suppliers yet.'}
+          </p>
+          <p className="text-xs mt-1" style={{ color: '#94a3b8' }}>
+            Suppliers are approved in the Vendor Directory section.
+          </p>
+          <a
+            href="/dashboard/owner/vendors"
+            className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold px-4 py-2 rounded-xl border transition-all"
+            style={{ color: '#1e3a8a', borderColor: '#bfdbfe', background: '#eff6ff' }}
+          >
+            Go to Vendor Directory <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((s) => (
+            <div key={s.id} className="bg-white rounded-2xl border p-5 space-y-4 hover:shadow-sm transition-all" style={{ borderColor: '#e2e8f0' }}>
+              {/* Header */}
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base font-black" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+                  {s.companyName?.[0]?.toUpperCase() ?? '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm leading-snug truncate" style={{ color: '#0f172a' }}>{s.companyName}</p>
+                  {s.abnAcn && (
+                    <p className="text-xs font-mono mt-0.5" style={{ color: '#64748b' }}>ABN/ACN: {s.abnAcn}</p>
+                  )}
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }}>
+                  APPROVED
+                </span>
               </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Item Description *</label>
-            <Input value={form.itemDescription} readOnly className="bg-slate-50 cursor-not-allowed text-slate-500" required />
-          </div>
+              {/* Details */}
+              <div className="space-y-2">
+                {(s.poEmail || s.user?.email) && (
+                  <div className="flex items-center gap-2 text-xs" style={{ color: '#475569' }}>
+                    <Mail className="w-3.5 h-3.5 shrink-0" style={{ color: '#94a3b8' }} />
+                    <a href={`mailto:${s.poEmail || s.user?.email}`} className="hover:underline truncate" style={{ color: '#1e3a8a' }}>
+                      {s.poEmail || s.user?.email}
+                    </a>
+                  </div>
+                )}
+                {s.apEmail && s.apEmail !== s.poEmail && (
+                  <div className="flex items-center gap-2 text-xs" style={{ color: '#475569' }}>
+                    <Mail className="w-3.5 h-3.5 shrink-0" style={{ color: '#94a3b8' }} />
+                    <a href={`mailto:${s.apEmail}`} className="hover:underline truncate" style={{ color: '#1e3a8a' }}>
+                      {s.apEmail} <span className="text-[10px] font-semibold" style={{ color: '#94a3b8' }}>(AP)</span>
+                    </a>
+                  </div>
+                )}
+                {s.phone && (
+                  <div className="flex items-center gap-2 text-xs" style={{ color: '#475569' }}>
+                    <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: '#94a3b8' }} />
+                    <span>{s.phone}</span>
+                  </div>
+                )}
+                {(s.businessLocation || s.businessRegisteredAddress) && (
+                  <div className="flex items-start gap-2 text-xs" style={{ color: '#475569' }}>
+                    <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#94a3b8' }} />
+                    <span className="leading-snug">{s.businessLocation || s.businessRegisteredAddress}</span>
+                  </div>
+                )}
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Cost of Goods *</label>
-              <Input type="number" step="0.01" min="0" value={form.costOfGoods} onChange={(e) => setForm({ ...form, costOfGoods: e.target.value })} required />
+              {/* Footer */}
+              {s.paymentTerms && (
+                <div className="pt-3 border-t flex items-center justify-between" style={{ borderColor: '#f1f5f9' }}>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#94a3b8' }}>Payment Terms</span>
+                  <span className="text-xs font-semibold" style={{ color: '#0f172a' }}>{s.paymentTerms}</span>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Currency *</label>
-              <Select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">MOQ *</label>
-              <Input type="number" min="0" value={form.moq} onChange={(e) => setForm({ ...form, moq: e.target.value })} required />
-            </div>
-          </div>
+          ))}
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Lead Time (days) *</label>
-              <Input type="number" min="0" value={form.leadTimeDays} onChange={(e) => setForm({ ...form, leadTimeDays: e.target.value })} required />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Payment Terms *</label>
-              <Select value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} options={PAYMENT_TERMS.map((t) => ({ value: t, label: t }))} />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Incoterms *</label>
-              <Select value={form.incoterms} onChange={(e) => setForm({ ...form, incoterms: e.target.value })} options={INCOTERMS.map((t) => ({ value: t, label: t }))} />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-            <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary">{editing ? 'Update Record' : 'Create Record'}</Button>
-          </div>
-        </form>
-      </Modal>
-
-      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      {!loading && filtered.length > 0 && (
+        <p className="text-xs text-center" style={{ color: '#94a3b8' }}>
+          Showing {filtered.length} approved supplier{filtered.length !== 1 ? 's' : ''}.{' '}
+          <a href="/dashboard/owner/vendors" className="font-semibold hover:underline" style={{ color: '#1e3a8a' }}>
+            Manage all vendors →
+          </a>
+        </p>
+      )}
     </div>
   );
 }

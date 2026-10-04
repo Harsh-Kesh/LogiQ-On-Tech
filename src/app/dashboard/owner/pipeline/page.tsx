@@ -271,8 +271,8 @@ export default function PipelinePage() {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Order Pipeline</h1>
-          <p className="text-sm text-slate-500 mt-0.5">End-to-end supply chain status for every storefront order</p>
+          <h1 className="text-2xl font-bold" style={{ color: '#0f172a' }}>Order Pipeline</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>End-to-end supply chain status for every storefront order</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <button
