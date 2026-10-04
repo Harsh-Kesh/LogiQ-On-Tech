@@ -205,6 +205,42 @@ export async function createMyobCustomerInvoice(
   return { guid: result?.UID || '', invoiceNumber: result?.Number || params.invoiceNumber };
 }
 
+// ─── Supplier Card (our own MYOB company file's record of this supplier) ──────
+// This is NOT a connection to the supplier's own MYOB account — MYOB has no such
+// concept. It is a Contact/Card inside LogiQ-On's own company file that purchase
+// orders and bills reference, purely so our MYOB books record the transaction
+// against a named supplier. Auto-created once per vendor, then reused.
+
+export interface MyobSupplierCardParams {
+  companyName: string;
+  email?: string;
+}
+
+export interface MyobSupplierCardResult {
+  guid: string;
+}
+
+export async function createMyobSupplierCard(params: MyobSupplierCardParams): Promise<MyobSupplierCardResult> {
+  if (!process.env.MYOB_CLIENT_ID) {
+    const fakeGuid = `DEMO-MYOB-SUPCARD-${Date.now()}`;
+    console.log(`[MYOB DEMO] Would create Supplier Card for ${params.companyName}`);
+    return { guid: fakeGuid };
+  }
+
+  const body = {
+    IsIndividual: false,
+    CompanyName: params.companyName,
+    IsSupplier: true,
+    SellingDetails: {},
+    BuyingDetails: {},
+    ...(params.email ? { Addresses: [{ Email: params.email }] } : {}),
+  };
+
+  const result = await myobRequest('POST', '/Contact/Supplier', body);
+  const guid: string = result?.UID || result?.uid || '';
+  return { guid };
+}
+
 export interface MyobPoLine {
   itemCode: string;
   description: string;

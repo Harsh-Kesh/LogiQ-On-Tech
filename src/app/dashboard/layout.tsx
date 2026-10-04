@@ -63,7 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navGroups = [
     {
-      label: 'Overview',
+      label: '',
       links: [
         { name: 'Overview', href: '/dashboard/owner', roleRequired: OWNER_ONLY, icon: LayoutDashboard },
       ],
@@ -111,10 +111,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const sidebarContent = (
     <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-6">
       {navGroups.map((group) => (
-        <div key={group.label}>
-          <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>
-            {group.label}
-          </div>
+        <div key={group.label || 'primary'}>
+          {group.label && (
+            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              {group.label}
+            </div>
+          )}
           <div className="space-y-0.5">
             {group.links.map((link) => {
               const isActive = (link as any).activePaths

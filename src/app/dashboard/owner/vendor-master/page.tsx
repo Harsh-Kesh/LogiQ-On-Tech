@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Truck, Search, RefreshCw, Plus, X, Mail, MapPin, CreditCard,
-  Building2, Save, Edit2, ChevronDown, ChevronUp, Hash, Package,
+  Building2, Save, Edit2, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
 interface Supplier {
@@ -66,7 +66,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
   const [bankBsb, setBankBsb] = useState(initial?.bankBsb ?? '');
   const [bankAccNum, setBankAccNum] = useState(initial?.bankAccountNumber ?? '');
   const [bankAccName, setBankAccName] = useState(initial?.bankAccountName ?? '');
-  const [myobId, setMyobId] = useState(initial?.myobContactId ?? '');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -91,7 +90,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
             bankBsb: bankBsb.trim() || null,
             bankAccountNumber: bankAccNum.trim() || null,
             bankAccountName: bankAccName.trim() || null,
-            myobContactId: myobId.trim() || null,
           }),
         });
         if (!res.ok) {
@@ -110,7 +108,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           bankBsb: bankBsb.trim() || undefined,
           bankAccountNumber: bankAccNum.trim() || undefined,
           bankAccountName: bankAccName.trim() || undefined,
-          myobContactId: myobId.trim() || undefined,
         });
       } else {
         // POST — create new vendor
@@ -130,7 +127,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
             bankBsb: bankBsb.trim() || null,
             bankAccountNumber: bankAccNum.trim() || null,
             bankAccountName: bankAccName.trim() || null,
-            myobContactId: myobId.trim() || null,
           }),
         });
         const j = await res.json();
@@ -149,7 +145,6 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           bankBsb: bankBsb.trim() || undefined,
           bankAccountNumber: bankAccNum.trim() || undefined,
           bankAccountName: bankAccName.trim() || undefined,
-          myobContactId: myobId.trim() || undefined,
           user: { email: loginEmail.trim(), fullName: contactName.trim() },
         });
       }
@@ -218,12 +213,16 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
             </div>
           </section>
 
-          {/* SECTION 4 — Payment terms */}
+          {/* SECTION 4 — How we pay this supplier */}
           <section className="space-y-4">
-            <SectionLabel icon={<CreditCard className="w-3.5 h-3.5" />}>Payment & Settlement</SectionLabel>
+            <SectionLabel icon={<CreditCard className="w-3.5 h-3.5" />}>How We Pay This Supplier</SectionLabel>
+            <p className="text-[11px] -mt-2 leading-snug" style={{ color: '#94a3b8' }}>
+              Optional. Fill this in if you want LogiQ-On to pay this supplier automatically by bank
+              transfer once an order is confirmed received. Leave blank to pay them manually instead.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>Payment Terms</p>
+                <p className="text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>Agreed Payment Terms</p>
                 <select
                   value={paymentTerms}
                   onChange={(e) => setPaymentTerms(e.target.value)}
@@ -246,21 +245,10 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
                 </select>
               </div>
             </div>
-            <FI label="Bank BSB" value={bankBsb} onChange={setBankBsb} placeholder="e.g. 063-000" mono />
+            <FI label="Supplier's Bank BSB" value={bankBsb} onChange={setBankBsb} placeholder="e.g. 063-000" mono />
             <div className="grid grid-cols-2 gap-3">
-              <FI label="Account Number" value={bankAccNum} onChange={setBankAccNum} placeholder="e.g. 12345678" mono />
-              <FI label="Account Name" value={bankAccName} onChange={setBankAccName} placeholder="e.g. Apex Hardware Pty Ltd" />
-            </div>
-          </section>
-
-          {/* SECTION 5 — Integration */}
-          <section className="space-y-4">
-            <SectionLabel icon={<Hash className="w-3.5 h-3.5" />}>System Integration</SectionLabel>
-            <div>
-              <FI label="MYOB Contact ID" value={myobId} onChange={setMyobId} placeholder="e.g. abc-1234-def" mono />
-              <p className="text-[11px] mt-1.5 leading-snug" style={{ color: '#94a3b8' }}>
-                The supplier's GUID from MYOB — required for automatic purchase order creation.
-              </p>
+              <FI label="Supplier's Account Number" value={bankAccNum} onChange={setBankAccNum} placeholder="e.g. 12345678" mono />
+              <FI label="Supplier's Account Name" value={bankAccName} onChange={setBankAccName} placeholder="e.g. Apex Hardware Pty Ltd" />
             </div>
           </section>
 
@@ -373,15 +361,15 @@ function SupplierCard({ supplier, onEdit }: { supplier: Supplier; onEdit: () => 
         )}
       </div>
 
-      {/* Expandable: banking + integration */}
-      {(hasBanking || supplier.myobContactId) && (
+      {/* Expandable: bank details for paying this supplier */}
+      {hasBanking && (
         <div className="border-t" style={{ borderColor: '#f1f5f9' }}>
           <button
             onClick={() => setExpanded(!expanded)}
             className="w-full flex items-center justify-between px-5 py-3 text-xs font-semibold hover:bg-slate-50 transition-colors"
             style={{ color: '#64748b' }}
           >
-            <span>Banking & Integration</span>
+            <span>Bank Details for Payment</span>
             {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
           {expanded && (
@@ -389,7 +377,6 @@ function SupplierCard({ supplier, onEdit }: { supplier: Supplier; onEdit: () => 
               {supplier.bankBsb && <Field label="BSB" value={supplier.bankBsb} mono />}
               {supplier.bankAccountNumber && <Field label="Account Number" value={supplier.bankAccountNumber} mono />}
               {supplier.bankAccountName && <Field label="Account Name" value={supplier.bankAccountName} />}
-              {supplier.myobContactId && <Field label="MYOB Contact ID" value={supplier.myobContactId} mono />}
             </div>
           )}
         </div>

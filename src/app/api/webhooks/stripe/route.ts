@@ -8,7 +8,7 @@ import { nextDocumentNumber } from '@/lib/document-sequences';
 import { createSalesOrder } from '@/lib/sales-orders';
 import { sendOrderConfirmationEmail, sendTransactionalEmail } from '@/lib/email';
 import { logAuditEvent } from '@/lib/audit';
-import { createMyobPurchaseOrder, createMyobSalesOrder } from '@/lib/myob';
+import { createMyobPurchaseOrder, createMyobSalesOrder, createMyobSupplierCard } from '@/lib/myob';
 
 // Stripe requires the raw body for signature verification — Next.js App Router
 // provides it via req.arrayBuffer() as long as we do NOT call req.json() first.
@@ -255,9 +255,23 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
       const vendor = itemMaster?.vendor;
       const poNumber = await nextDocumentNumber('PO');
 
-      if (vendor?.myobContactId) {
+      // Resolve (or lazily create) this supplier's MYOB contact card. This card lives in
+      // LogiQ-On's own MYOB company file purely so the PO is recorded against a named
+      // supplier in our books — it is not a connection to the supplier's own MYOB account.
+      let supplierMyobId = vendor?.myobContactId || null;
+      if (!supplierMyobId && vendor) {
+        try {
+          const card = await createMyobSupplierCard({ companyName: vendor.companyName, email: vendor.poEmail || undefined });
+          supplierMyobId = card.guid;
+          await prisma.vendor.update({ where: { id: vendor.id }, data: { myobContactId: card.guid } });
+        } catch (err) {
+          console.warn('MYOB supplier card auto-create failed (non-fatal):', err);
+        }
+      }
+
+      if (supplierMyobId) {
         const myobResult = await createMyobPurchaseOrder({
-          supplierContactId: vendor.myobContactId,
+          supplierContactId: supplierMyobId,
           poNumber,
           deliveryAddress,
           currency: 'AUD',
@@ -277,12 +291,13 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
             myobPoGuid: myobResult.guid,
             myobPoNumber: myobResult.poNumber,
             status: 'PO_SENT',
-            poEmailSentTo: vendor.poEmail || undefined,
+            poEmailSentTo: vendor?.poEmail || undefined,
             poEmailSentAt: new Date(),
           },
         });
       } else {
-        // MYOB contact not configured — still create internal PO record and email supplier
+        // No vendor linked to this item, or card creation failed — still record an
+        // internal PO number so the order can proceed through the pipeline.
         await prisma.storefrontOrder.update({
           where: { id: storefrontOrder.id },
           data: {

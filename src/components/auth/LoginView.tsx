@@ -64,7 +64,7 @@ export default function LoginView() {
       });
 
       if (res?.ok) {
-        // Fetch session to check MFA status
+        // Fetch session to check MFA status and route straight to the right dashboard
         const sessionRes = await fetch("/api/auth/session");
         if (sessionRes.ok) {
           const session = await sessionRes.json();
@@ -72,6 +72,9 @@ export default function LoginView() {
             router.push("/auth/mfa-verify");
             return;
           }
+          const role = session?.user?.role;
+          router.push(role === "PLATFORM_OWNER" ? "/dashboard/owner" : "/dashboard/vendor");
+          return;
         }
         router.push("/dashboard");
       } else {
