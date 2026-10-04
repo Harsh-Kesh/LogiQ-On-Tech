@@ -1,3 +1,5 @@
+﻿export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { getPublishedProductBySku } from '@/lib/store-catalog';
 import { createSalesOrder } from '@/lib/sales-orders';
