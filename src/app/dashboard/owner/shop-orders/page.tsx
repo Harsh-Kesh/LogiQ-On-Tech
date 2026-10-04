@@ -9,6 +9,7 @@ import {
   FileText, Truck, Download, RotateCcw, Settings, Inbox,
   ShieldAlert,
 } from 'lucide-react';
+import PaySupplierModal from '@/components/orders/PaySupplierModal';
 
 interface Order {
   id: string;
@@ -48,22 +49,8 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 const PAY_ELIGIBLE = new Set(['MATCHED', 'BILL_CREATED']);
-const SEKTOR_STAGE_ELIGIBLE = new Set(['SUPPLIER_PAID']);
+const FULFILL_ELIGIBLE = new Set(['SUPPLIER_PAID']);
 const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
-
-const SEKTOR_STAGES = ['PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'] as const;
-const SEKTOR_STAGE_LABELS: Record<string, string> = {
-  PROCESSING: 'Processing',
-  DISPATCHED: 'Dispatched',
-  OUT_FOR_DELIVERY: 'Out for Delivery',
-  DELIVERED: 'Delivered → Fulfilled',
-};
-function nextSektorStage(current: string | null): string {
-  if (!current) return 'PROCESSING';
-  const idx = SEKTOR_STAGES.indexOf(current as any);
-  if (idx === -1 || idx === SEKTOR_STAGES.length - 1) return 'DELIVERED';
-  return SEKTOR_STAGES[idx + 1];
-}
 
 const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'SUPPLIER_PAID', 'FULFILLED'];
 const PIPELINE_STEP_LABELS = [
@@ -83,7 +70,7 @@ export default function ShopOrdersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
-  const [payingId, setPayingId] = useState<string | null>(null);
+  const [payOrderId, setPayOrderId] = useState<string | null>(null);
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
   const [deliveryStageId, setDeliveryStageId] = useState<string | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
@@ -169,10 +156,8 @@ export default function ShopOrdersPage() {
     }
   };
 
-  const handleSimulateDeliveryStage = async (order: Order) => {
-    const next = nextSektorStage(order.sektorStatus);
-    const label = SEKTOR_STAGE_LABELS[next] || next;
-    if (!confirm(`Simulate delivery status → ${label}?\n\nThis will update the order status and email the customer.`)) return;
+  const handleMarkFulfilled = async (order: Order) => {
+    if (!confirm('Mark this order as fulfilled?\n\nWe don\'t receive real delivery updates, so this confirms the goods have reached the customer — it emails them their tax invoice.')) return;
     setDeliveryStageId(order.id);
     const res = await fetch('/api/demo/simulate-sektor-status', {
       method: 'POST',
@@ -182,31 +167,10 @@ export default function ShopOrdersPage() {
     setDeliveryStageId(null);
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      const msg = data.fulfilled
-        ? `Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`
-        : `Delivery advanced to: ${data.stage}\nNext stage: ${data.nextStage || '—'}`;
-      alert(msg);
+      alert(`Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`);
       load();
     } else {
       alert(`Failed: ${data.error || res.statusText}`);
-    }
-  };
-
-  const handlePaySupplier = async (orderId: string) => {
-    if (!confirm('Trigger bank transfer to supplier now? (Airwallex or Monoova, whichever is configured)')) return;
-    setPayingId(orderId);
-    const res = await fetch('/api/payments/supplier', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storefrontOrderId: orderId }),
-    });
-    setPayingId(null);
-    if (res.ok) {
-      alert('Payment initiated successfully.');
-      load();
-    } else {
-      const data = await res.json().catch(() => ({}));
-      alert(`Payment failed: ${data.error || res.statusText}`);
     }
   };
 
@@ -336,7 +300,7 @@ export default function ShopOrdersPage() {
           {filtered.map((order) => {
             const badge = STATUS_LABELS[order.status] || { label: order.status, color: 'bg-slate-100 text-slate-600' };
             const canPay = PAY_ELIGIBLE.has(order.status);
-            const canDeliveryStage = SEKTOR_STAGE_ELIGIBLE.has(order.status);
+            const canFulfill = FULFILL_ELIGIBLE.has(order.status);
             const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
             const soNumber = order.myobSoNumber || order.salesOrder?.salesOrderNumber;
             return (
@@ -409,28 +373,21 @@ export default function ShopOrdersPage() {
                     )}
                     {canPay && (
                       <button
-                        onClick={() => handlePaySupplier(order.id)}
-                        disabled={payingId === order.id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                        onClick={() => setPayOrderId(order.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition"
                       >
                         <DollarSign className="w-3.5 h-3.5" />
-                        {payingId === order.id ? 'Processing…' : 'Pay Supplier'}
+                        Pay Supplier
                       </button>
                     )}
-                    {canDeliveryStage && (
+                    {canFulfill && (
                       <button
-                        onClick={() => handleSimulateDeliveryStage(order)}
+                        onClick={() => handleMarkFulfilled(order)}
                         disabled={deliveryStageId === order.id}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition disabled:opacity-60 ${
-                          nextSektorStage(order.sektorStatus) === 'DELIVERED'
-                            ? 'bg-emerald-600 hover:bg-emerald-700'
-                            : 'bg-sky-600 hover:bg-sky-700'
-                        }`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-60"
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        {deliveryStageId === order.id
-                          ? 'Updating…'
-                          : `Delivery: ${SEKTOR_STAGE_LABELS[nextSektorStage(order.sektorStatus)] || 'Next Stage'}`}
+                        {deliveryStageId === order.id ? 'Marking…' : 'Mark as Fulfilled'}
                       </button>
                     )}
                     <Link
@@ -471,33 +428,6 @@ export default function ShopOrdersPage() {
                   })}
                 </div>
 
-                {/* Delivery stage progress (visible once SUPPLIER_PAID) */}
-                {(order.status === 'SUPPLIER_PAID' || order.status === 'FULFILLED') && (
-                  <div className="mt-2 flex items-center gap-1 overflow-x-auto pb-0.5 text-[10px] font-semibold text-slate-400">
-                    <span className="text-slate-400 mr-1 shrink-0">Delivery:</span>
-                    {SEKTOR_STAGES.map((stage, i) => {
-                      const currentIdx = order.sektorStatus ? SEKTOR_STAGES.indexOf(order.sektorStatus as any) : -1;
-                      const stageIdx = SEKTOR_STAGES.indexOf(stage);
-                      const done = stageIdx <= currentIdx;
-                      const isCurrent = stageIdx === currentIdx;
-                      const SEKTOR_COLORS: Record<string, string> = {
-                        PROCESSING: done || isCurrent ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400',
-                        DISPATCHED: done || isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400',
-                        OUT_FOR_DELIVERY: done || isCurrent ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400',
-                        DELIVERED: done || isCurrent ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400',
-                      };
-                      return (
-                        <span key={stage} className="flex items-center gap-1 shrink-0">
-                          <span className={`px-2 py-0.5 rounded ${SEKTOR_COLORS[stage] || 'bg-slate-100 text-slate-400'}`}>
-                            {SEKTOR_STAGE_LABELS[stage] || stage}
-                          </span>
-                          {i < SEKTOR_STAGES.length - 1 && <span className="text-slate-300">→</span>}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-
                 {/* Reference numbers */}
                 <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
                   {order.myobPoNumber && <span>PO: <strong className="text-slate-700">{order.myobPoNumber}</strong></span>}
@@ -517,6 +447,14 @@ export default function ShopOrdersPage() {
         <p className="text-xs text-center" style={{ color: '#94a3b8' }}>
           {filtered.length} order{filtered.length !== 1 ? 's' : ''} {search || statusFilter !== 'ALL' ? 'found' : 'total'}
         </p>
+      )}
+
+      {payOrderId && (
+        <PaySupplierModal
+          orderId={payOrderId}
+          onClose={() => setPayOrderId(null)}
+          onPaid={() => { setPayOrderId(null); load(); }}
+        />
       )}
     </div>
   );

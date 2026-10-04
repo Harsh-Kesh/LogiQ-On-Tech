@@ -8,6 +8,7 @@ import {
   CheckCircle2, Clock, Send, Mail, ExternalLink, FileText,
   DollarSign, RotateCcw, ShieldAlert, AlertTriangle,
 } from 'lucide-react';
+import PaySupplierModal from '@/components/orders/PaySupplierModal';
 
 interface OrderItem {
   id: string;
@@ -41,6 +42,7 @@ interface Order {
   myobInvoiceNumber?: string;
   monoovaTxnId?: string;
   threeWayMatchResult?: string | null;
+  threeWayMatchNotes?: string | null;
   sektorStatus?: string | null;
   sektorTrackingNumber?: string;
   poEmailSentTo?: string;
@@ -65,22 +67,8 @@ const PIPELINE_STEP_LABELS = [
   { key: 'FULFILLED', label: 'Fulfilled', icon: CheckCircle2 },
 ];
 
-const SEKTOR_STAGES = ['PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'] as const;
-const SEKTOR_STAGE_LABELS: Record<string, string> = {
-  PROCESSING: 'Processing',
-  DISPATCHED: 'Dispatched',
-  OUT_FOR_DELIVERY: 'Out for Delivery',
-  DELIVERED: 'Delivered → Fulfilled',
-};
-function nextSektorStage(current: string | null | undefined): string {
-  if (!current) return 'PROCESSING';
-  const idx = SEKTOR_STAGES.indexOf(current as any);
-  if (idx === -1 || idx === SEKTOR_STAGES.length - 1) return 'DELIVERED';
-  return SEKTOR_STAGES[idx + 1];
-}
-
 const PAY_ELIGIBLE = new Set(['MATCHED', 'BILL_CREATED']);
-const SEKTOR_STAGE_ELIGIBLE = new Set(['SUPPLIER_PAID']);
+const FULFILL_ELIGIBLE = new Set(['SUPPLIER_PAID']);
 const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
 export default function ShopOrderDetailPage() {
@@ -89,7 +77,7 @@ export default function ShopOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [payingId, setPayingId] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
   const [simulatingId, setSimulatingId] = useState(false);
   const [deliveryStageId, setDeliveryStageId] = useState(false);
   const [retryingPoId, setRetryingPoId] = useState(false);
@@ -149,24 +137,8 @@ export default function ShopOrderDetailPage() {
     else alert(`Simulation failed: ${data.error || res.statusText}`);
   };
 
-  const handlePaySupplier = async () => {
-    if (!order || !confirm('Trigger bank transfer to supplier now? (Airwallex or Monoova, whichever is configured)')) return;
-    setPayingId(true);
-    const res = await fetch('/api/payments/supplier', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storefrontOrderId: order.id }),
-    });
-    setPayingId(false);
-    if (res.ok) { alert('Payment initiated successfully.'); load(); }
-    else { const data = await res.json().catch(() => ({})); alert(`Payment failed: ${data.error || res.statusText}`); }
-  };
-
-  const handleSimulateDeliveryStage = async () => {
-    if (!order) return;
-    const next = nextSektorStage(order.sektorStatus);
-    const label = SEKTOR_STAGE_LABELS[next] || next;
-    if (!confirm(`Simulate delivery status → ${label}?\n\nThis will update the order status and email the customer.`)) return;
+  const handleMarkFulfilled = async () => {
+    if (!order || !confirm('Mark this order as fulfilled?\n\nWe don\'t receive real delivery updates, so this confirms the goods have reached the customer — it emails them their tax invoice.')) return;
     setDeliveryStageId(true);
     const res = await fetch('/api/demo/simulate-sektor-status', {
       method: 'POST',
@@ -176,10 +148,7 @@ export default function ShopOrderDetailPage() {
     setDeliveryStageId(false);
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      const msg = data.fulfilled
-        ? `Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`
-        : `Delivery advanced to: ${data.stage}\nNext stage: ${data.nextStage || '—'}`;
-      alert(msg);
+      alert(`Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`);
       load();
     } else {
       alert(`Failed: ${data.error || res.statusText}`);
@@ -208,7 +177,7 @@ export default function ShopOrderDetailPage() {
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const currentStepIdx = PIPELINE_STEPS.indexOf(order.status);
   const canPay = PAY_ELIGIBLE.has(order.status);
-  const canDeliveryStage = SEKTOR_STAGE_ELIGIBLE.has(order.status);
+  const canFulfill = FULFILL_ELIGIBLE.has(order.status);
   const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
 
   return (
@@ -255,16 +224,16 @@ export default function ShopOrderDetailPage() {
           <ActionButton onClick={handleSimulateInvoice} loading={simulatingId} icon={FileText} color="#7c3aed" label="Simulate Invoice" loadingLabel="Simulating…" />
         )}
         {canPay && (
-          <ActionButton onClick={handlePaySupplier} loading={payingId} icon={DollarSign} color="#16a34a" label="Pay Supplier" loadingLabel="Processing…" />
+          <ActionButton onClick={() => setShowPayModal(true)} loading={false} icon={DollarSign} color="#16a34a" label="Pay Supplier" loadingLabel="Processing…" />
         )}
-        {canDeliveryStage && (
+        {canFulfill && (
           <ActionButton
-            onClick={handleSimulateDeliveryStage}
+            onClick={handleMarkFulfilled}
             loading={deliveryStageId}
             icon={Truck}
-            color={nextSektorStage(order.sektorStatus) === 'DELIVERED' ? '#059669' : '#0284c7'}
-            label={`Delivery: ${SEKTOR_STAGE_LABELS[nextSektorStage(order.sektorStatus)] || 'Next Stage'}`}
-            loadingLabel="Updating…"
+            color="#059669"
+            label="Mark as Fulfilled"
+            loadingLabel="Marking…"
           />
         )}
       </div>
@@ -305,23 +274,9 @@ export default function ShopOrderDetailPage() {
           })}
         </div>
 
-        {/* Delivery sub-stage (visible once SUPPLIER_PAID) */}
-        {(order.status === 'SUPPLIER_PAID' || order.status === 'FULFILLED') && (
-          <div className="mt-4 pt-4 border-t flex items-center gap-1 overflow-x-auto" style={{ borderColor: '#f1f5f9' }}>
-            <span className="text-[10px] font-bold uppercase tracking-wider mr-2 shrink-0" style={{ color: '#94a3b8' }}>Delivery:</span>
-            {SEKTOR_STAGES.map((stage, i) => {
-              const currentIdx = order.sektorStatus ? SEKTOR_STAGES.indexOf(order.sektorStatus as any) : -1;
-              const stageIdx = SEKTOR_STAGES.indexOf(stage);
-              const done = stageIdx <= currentIdx;
-              return (
-                <span key={stage} className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: done ? '#1e3a8a' : '#f1f5f9', color: done ? '#fff' : '#94a3b8' }}>
-                    {SEKTOR_STAGE_LABELS[stage]}
-                  </span>
-                  {i < SEKTOR_STAGES.length - 1 && <span style={{ color: '#cbd5e1' }}>→</span>}
-                </span>
-              );
-            })}
+        {order.status === 'FULFILLED' && (
+          <div className="mt-4 pt-4 border-t flex items-center gap-1.5 text-xs font-semibold" style={{ borderColor: '#f1f5f9', color: '#059669' }}>
+            <CheckCircle2 className="w-3.5 h-3.5" /> Delivered — marked fulfilled by owner
           </div>
         )}
       </div>
@@ -416,7 +371,23 @@ export default function ShopOrderDetailPage() {
               } />
             )}
             {order.myobPoNumber && <Row label="Purchase Order #" value={order.myobPoNumber} mono />}
-            {order.myobBillNumber && <Row label="Supplier Bill #" value={order.myobBillNumber} mono />}
+            {order.threeWayMatchNotes && (
+              <Row label="3-Way Match" value={
+                <span className="text-[11px] leading-snug" style={{ color: order.threeWayMatchResult === 'EXCEPTION' ? '#dc2626' : '#166534' }}>
+                  {order.threeWayMatchNotes}
+                </span>
+              } />
+            )}
+            {order.myobBillNumber && (
+              <Row label="Supplier Bill #" value={
+                <span>
+                  <span className="font-mono">{order.myobBillNumber}</span>
+                  <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
+                    Our payable record — this is what we owe the supplier, created once their invoice is matched
+                  </span>
+                </span>
+              } />
+            )}
             {order.myobInvoiceNumber && <Row label="Customer Invoice #" value={order.myobInvoiceNumber} mono />}
             {order.monoovaTxnId && <Row label="Payment Reference" value={order.monoovaTxnId} mono />}
             {order.sektorTrackingNumber && <Row label="Tracking #" value={order.sektorTrackingNumber} mono />}
@@ -440,6 +411,14 @@ export default function ShopOrderDetailPage() {
             </Link>
           </div>
         </div>
+      )}
+
+      {showPayModal && (
+        <PaySupplierModal
+          orderId={order.id}
+          onClose={() => setShowPayModal(false)}
+          onPaid={() => { setShowPayModal(false); load(); }}
+        />
       )}
     </div>
   );

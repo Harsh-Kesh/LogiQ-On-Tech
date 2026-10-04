@@ -8,6 +8,7 @@ import { createMyobBill } from './myob';
 import { sendMonoovaOskoPayment } from './monoova';
 import { sendAirwallexPayment } from './airwallex';
 import { createWarrantyRecords } from './warranty';
+import { computeSupplierPoTotal } from './po-total';
 
 const TOLERANCE_PCT = 0.02; // ±2%
 
@@ -32,7 +33,14 @@ export async function runThreeWayMatch(
     }),
   ]);
 
-  const poTotal = Number(sfOrder.totalAmount);
+  // The PO total is what WE owe the supplier (cost price) — never sfOrder.totalAmount,
+  // which is what the CUSTOMER paid us (selling price). Those are different numbers by
+  // design (our margin sits between them), so matching against the wrong one would
+  // flag every order as a variance exception in anything but a demo.
+  const po = await computeSupplierPoTotal(
+    sfOrder.items.map((i) => ({ itemCode: i.itemCode, quantity: i.quantity, taxPercent: i.taxPercent }))
+  );
+  const poTotal = po.total;
   const invTotal = Number(suppInv.invoiceAmount);
   const variance = invTotal - poTotal;
   const variancePct = poTotal > 0 ? Math.abs(variance) / poTotal : 1;
@@ -84,6 +92,9 @@ export async function runThreeWayMatch(
         : null;
       const vendor = itemMaster?.vendor;
 
+      const allMasters = await prisma.itemMaster.findMany({ where: { sku: { in: sfOrder.items.map((i) => i.itemCode) } } });
+      const costBySku = new Map(allMasters.map((m) => [m.sku, Number(m.costPrice)]));
+
       const billResult = await createMyobBill({
         // Fall back to demo placeholders so the stub always succeeds
         supplierContactId: vendor?.myobContactId || 'DEMO-MYOB-VENDOR',
@@ -95,7 +106,7 @@ export async function runThreeWayMatch(
           itemCode: item.itemCode,
           description: item.itemName,
           quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
+          unitPrice: costBySku.get(item.itemCode) ?? Number(item.unitPrice),
           taxCode: 'GST',
         })),
         memo: `Supplier Bill for ${sfOrder.orderNumber}`,
