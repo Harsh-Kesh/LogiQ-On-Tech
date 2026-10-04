@@ -150,19 +150,20 @@ export async function pollSupplierInvoices(): Promise<PollResult> {
             result.errors.push(`3-way match failed for ${storefrontOrder!.id}: ${err.message}`)
           );
 
-          // Write serial numbers to warranty records created by the match, in document order
-          if (parsed.serialNumbers && parsed.serialNumbers.length > 0) {
+          // Write serial/batch numbers to warranty records created by the match, in document order
+          if ((parsed.serialNumbers && parsed.serialNumbers.length > 0) || (parsed.batchNumbers && parsed.batchNumbers.length > 0)) {
             const warranties = await prisma.warrantyRecord.findMany({
               where: { supplierInvoiceId: suppInvoice.id },
               orderBy: { createdAt: 'asc' },
             });
             for (let i = 0; i < warranties.length; i++) {
-              const sn = parsed.serialNumbers[i];
-              if (sn && !warranties[i].serialNumber) {
-                await prisma.warrantyRecord.update({
-                  where: { id: warranties[i].id },
-                  data: { serialNumber: sn },
-                });
+              const sn = parsed.serialNumbers?.[i];
+              const bn = parsed.batchNumbers?.[i];
+              const data: Record<string, string> = {};
+              if (sn && !warranties[i].serialNumber) data.serialNumber = sn;
+              if (bn && !warranties[i].batchNumber) data.batchNumber = bn;
+              if (Object.keys(data).length > 0) {
+                await prisma.warrantyRecord.update({ where: { id: warranties[i].id }, data });
               }
             }
           }

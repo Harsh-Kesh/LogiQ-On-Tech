@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
-  Package, Truck, ShoppingBag, ShoppingCart, GitBranch, FileText,
+  Package, Truck, ShoppingBag, ShoppingCart, FileText,
   RefreshCw, ArrowRight, LayoutDashboard, Zap, CheckCircle2,
 } from 'lucide-react';
 
@@ -109,9 +109,8 @@ export default function PlatformOwnerDashboard() {
 
   const quickLinks = [
     { label: 'Item Master Data', desc: 'Manage the 5 products in your shop catalogue', href: '/dashboard/owner/items', icon: Package },
-    { label: 'Vendor Master Data', desc: 'Supplier contact directory and details', href: '/dashboard/owner/vendor-master', icon: Truck },
+    { label: 'Supplier Directory', desc: 'Supplier contact directory and details', href: '/dashboard/owner/vendor-master', icon: Truck },
     { label: 'Customer Master Data', desc: 'Customers from shop purchases', href: '/dashboard/owner/customer-master', icon: ShoppingCart },
-    { label: 'Order Pipeline', desc: 'Track orders through the fulfilment chain', href: '/dashboard/owner/pipeline', icon: GitBranch },
     { label: 'Audit Logs', desc: 'Platform activity and security events', href: '/dashboard/owner/audit-logs', icon: FileText },
   ];
 

@@ -18,6 +18,7 @@ export async function GET() {
       partNumber: true,
       partDescription: true,
       serialNumber: true,
+      batchNumber: true,
       customerName: true,
       salesOrderNumber: true,
       vendorName: true,

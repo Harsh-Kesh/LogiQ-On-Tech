@@ -17,6 +17,7 @@ export interface ParsedInvoice {
   totalAmount?: number;
   lines?: ParsedInvoiceLine[];
   serialNumbers?: string[];  // one per line item, in order of appearance
+  batchNumbers?: string[];   // one per line item, in order of appearance
 }
 
 export interface ParsedInvoiceLine {
@@ -99,5 +100,14 @@ export async function parseInvoicePdf(buffer: Buffer): Promise<ParsedInvoice> {
     if (!serialNumbers.includes(sn)) serialNumbers.push(sn);
   }
 
-  return { invoiceNumber, invoiceDate, dueDate, supplierName, poNumber, subtotal, taxAmount, totalAmount, lines, serialNumbers };
+  // Batch / lot numbers — match common patterns: Batch No:, Batch:, Lot No:, Lot:, B/N:
+  const batchNumbers: string[] = [];
+  const batchRe = /(?:b\/n|batch|lot)\s*(?:no|number|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-]{2,29})/gi;
+  let batchMatch;
+  while ((batchMatch = batchRe.exec(text)) !== null) {
+    const bn = batchMatch[1].trim();
+    if (!batchNumbers.includes(bn)) batchNumbers.push(bn);
+  }
+
+  return { invoiceNumber, invoiceDate, dueDate, supplierName, poNumber, subtotal, taxAmount, totalAmount, lines, serialNumbers, batchNumbers };
 }

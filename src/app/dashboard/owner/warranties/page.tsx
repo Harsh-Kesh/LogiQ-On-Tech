@@ -11,6 +11,7 @@ interface WarrantyRecord {
   partNumber: string;
   partDescription: string | null;
   serialNumber: string | null;
+  batchNumber: string | null;
   customerName: string | null;
   salesOrderNumber: string | null;
   vendorName: string | null;
@@ -115,10 +116,10 @@ export default function WarrantiesPage() {
   const expiredCount  = records.filter((r) => r.status === 'EXPIRED').length;
 
   const handleExportCsv = () => {
-    const headers = ['Warranty #', 'Part #', 'Description', 'Serial', 'Customer', 'SO #', 'Vendor',
+    const headers = ['Warranty #', 'Part #', 'Description', 'Serial', 'Batch', 'Customer', 'SO #', 'Vendor',
       'Start Date', 'Start Rule', 'Expiry Date', 'Period (mo)', 'Days Remaining', 'Status', 'Override Reason'];
     const rows = displayed.map((r) => [
-      r.warrantyNumber, r.partNumber, r.partDescription || '', r.serialNumber || '',
+      r.warrantyNumber, r.partNumber, r.partDescription || '', r.serialNumber || '', r.batchNumber || '',
       r.customerName || '', r.salesOrderNumber || '', r.vendorName || '',
       r.warrantyStartDate ? new Date(r.warrantyStartDate).toLocaleDateString('en-AU') : '',
       START_RULE_LABELS[r.warrantyStartRule || ''] || r.warrantyStartRule || '',
@@ -337,6 +338,7 @@ export default function WarrantiesPage() {
                       <div className="font-semibold text-slate-900">{rec.partNumber}</div>
                       {rec.partDescription && <div className="text-xs text-slate-400 mt-0.5">{rec.partDescription}</div>}
                       {rec.serialNumber && <div className="text-xs font-mono text-slate-500 mt-0.5">S/N: {rec.serialNumber}</div>}
+                      {rec.batchNumber && <div className="text-xs font-mono text-slate-500 mt-0.5">Batch: {rec.batchNumber}</div>}
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-slate-800">{rec.customerName || '—'}</div>

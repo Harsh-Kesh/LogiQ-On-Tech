@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ArrowLeft, Package, User, MapPin, CreditCard, Truck,
-  CheckCircle2, Clock, Send, Mail, ExternalLink,
+  CheckCircle2, Clock, Send, Mail, ExternalLink, FileText,
+  DollarSign, RotateCcw, ShieldAlert, AlertTriangle,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -36,6 +37,12 @@ interface Order {
   // MYOB / supplier
   myobSoNumber?: string;
   myobPoNumber?: string;
+  myobBillNumber?: string;
+  myobInvoiceNumber?: string;
+  monoovaTxnId?: string;
+  threeWayMatchResult?: string | null;
+  sektorStatus?: string | null;
+  sektorTrackingNumber?: string;
   poEmailSentTo?: string;
   poEmailSentAt?: string;
   // SO link
@@ -46,20 +53,35 @@ interface Order {
   items: OrderItem[];
 }
 
-const STAGES = [
-  { key: 'PAID',       label: 'Payment Received', icon: CreditCard },
+const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'SUPPLIER_PAID', 'FULFILLED'];
+const PIPELINE_STEP_LABELS = [
+  { key: 'PAID', label: 'Payment Received', icon: CreditCard },
   { key: 'SO_CREATED', label: 'Sales Order Created', icon: Package },
-  { key: 'PO_SENT',    label: 'PO Sent to Supplier', icon: Send },
-  { key: 'SHIPPED',    label: 'Shipped', icon: Truck },
-  { key: 'DELIVERED',  label: 'Delivered', icon: CheckCircle2 },
+  { key: 'PO_SENT', label: 'PO Sent to Supplier', icon: Send },
+  { key: 'INVOICE_RECEIVED', label: 'Supplier Invoice Received', icon: FileText },
+  { key: 'MATCHED', label: '3-Way Matched', icon: CheckCircle2 },
+  { key: 'BILL_CREATED', label: 'Bill Created', icon: FileText },
+  { key: 'SUPPLIER_PAID', label: 'Supplier Paid', icon: DollarSign },
+  { key: 'FULFILLED', label: 'Fulfilled', icon: CheckCircle2 },
 ];
 
-const STAGE_ORDER = STAGES.map((s) => s.key);
-
-function stageIndex(status: string) {
-  const idx = STAGE_ORDER.indexOf(status);
-  return idx === -1 ? 0 : idx;
+const SEKTOR_STAGES = ['PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED'] as const;
+const SEKTOR_STAGE_LABELS: Record<string, string> = {
+  PROCESSING: 'Processing',
+  DISPATCHED: 'Dispatched',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
+  DELIVERED: 'Delivered → Fulfilled',
+};
+function nextSektorStage(current: string | null | undefined): string {
+  if (!current) return 'PROCESSING';
+  const idx = SEKTOR_STAGES.indexOf(current as any);
+  if (idx === -1 || idx === SEKTOR_STAGES.length - 1) return 'DELIVERED';
+  return SEKTOR_STAGES[idx + 1];
 }
+
+const PAY_ELIGIBLE = new Set(['MATCHED', 'BILL_CREATED']);
+const SEKTOR_STAGE_ELIGIBLE = new Set(['SUPPLIER_PAID']);
+const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
 export default function ShopOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -67,13 +89,102 @@ export default function ShopOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const [payingId, setPayingId] = useState(false);
+  const [simulatingId, setSimulatingId] = useState(false);
+  const [deliveryStageId, setDeliveryStageId] = useState(false);
+  const [retryingPoId, setRetryingPoId] = useState(false);
+  const [forceMatchId, setForceMatchId] = useState(false);
+
+  const load = () => {
     fetch(`/api/storefront/orders/${id}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then(setOrder)
       .catch(() => setError('Order not found.'))
       .finally(() => setLoading(false));
-  }, [id]);
+  };
+
+  useEffect(() => { load(); }, [id]);
+
+  const handleRetryPo = async () => {
+    if (!order || !confirm('Retry creating the MYOB Purchase Order for this order?')) return;
+    setRetryingPoId(true);
+    const res = await fetch('/api/myob/po', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: order.id }),
+    });
+    setRetryingPoId(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { alert(`PO created: ${data.poNumber}`); load(); }
+    else alert(`Failed: ${data.error || res.statusText}`);
+  };
+
+  const handleForceMatch = async () => {
+    if (!order) return;
+    const label = order.status === 'MATCH_EXCEPTION' ? 'override the exception and force-match' : 'force the order through bill/payment';
+    if (!confirm(`This will ${label} for this order. Continue?`)) return;
+    setForceMatchId(true);
+    const res = await fetch('/api/demo/force-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: order.id }),
+    });
+    setForceMatchId(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { alert(`Force match complete!\nNew status: ${data.orderStatus}\n${data.notes || ''}`); load(); }
+    else alert(`Failed: ${data.error || res.statusText}`);
+  };
+
+  const handleSimulateInvoice = async () => {
+    if (!order || !confirm('Simulate a supplier invoice arriving for this order? This will trigger the 3-way match immediately.')) return;
+    setSimulatingId(true);
+    const res = await fetch('/api/demo/simulate-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: order.id }),
+    });
+    setSimulatingId(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { alert(`Invoice simulated! ${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`); load(); }
+    else alert(`Simulation failed: ${data.error || res.statusText}`);
+  };
+
+  const handlePaySupplier = async () => {
+    if (!order || !confirm('Trigger bank transfer to supplier now? (Airwallex or Monoova, whichever is configured)')) return;
+    setPayingId(true);
+    const res = await fetch('/api/payments/supplier', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: order.id }),
+    });
+    setPayingId(false);
+    if (res.ok) { alert('Payment initiated successfully.'); load(); }
+    else { const data = await res.json().catch(() => ({})); alert(`Payment failed: ${data.error || res.statusText}`); }
+  };
+
+  const handleSimulateDeliveryStage = async () => {
+    if (!order) return;
+    const next = nextSektorStage(order.sektorStatus);
+    const label = SEKTOR_STAGE_LABELS[next] || next;
+    if (!confirm(`Simulate delivery status → ${label}?\n\nThis will update the order status and email the customer.`)) return;
+    setDeliveryStageId(true);
+    const res = await fetch('/api/demo/simulate-sektor-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: order.id }),
+    });
+    setDeliveryStageId(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      const msg = data.fulfilled
+        ? `Order FULFILLED! Customer has received their tax invoice.\nInvoice: ${data.myobInvoiceNumber || 'pending'}`
+        : `Delivery advanced to: ${data.stage}\nNext stage: ${data.nextStage || '—'}`;
+      alert(msg);
+      load();
+    } else {
+      alert(`Failed: ${data.error || res.statusText}`);
+    }
+  };
 
   if (loading) {
     return (
@@ -95,7 +206,10 @@ export default function ShopOrderDetailPage() {
 
   const fmt = (v: string | number) => Number(v).toFixed(2);
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-  const currentStage = stageIndex(order.status);
+  const currentStepIdx = PIPELINE_STEPS.indexOf(order.status);
+  const canPay = PAY_ELIGIBLE.has(order.status);
+  const canDeliveryStage = SEKTOR_STAGE_ELIGIBLE.has(order.status);
+  const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
 
   return (
     <div className="space-y-6 pb-12 max-w-4xl">
@@ -112,34 +226,76 @@ export default function ShopOrderDetailPage() {
           </div>
           <StatusBadge status={order.status} />
         </div>
+        {order.threeWayMatchResult === 'EXCEPTION' && (
+          <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+            <AlertTriangle className="w-3.5 h-3.5" /> 3-way match exception — check the variance before proceeding.
+          </div>
+        )}
+      </div>
+
+      {/* Operational actions */}
+      <div className="flex flex-wrap gap-2">
+        {order.status === 'PAID' && (
+          <ActionButton onClick={handleRetryPo} loading={retryingPoId} icon={RotateCcw} color="#f97316" label="Fix: Create SO + PO" loadingLabel="Creating…" />
+        )}
+        {order.status === 'SO_CREATED' && (
+          <ActionButton onClick={handleRetryPo} loading={retryingPoId} icon={RotateCcw} color="#f59e0b" label="Retry PO" loadingLabel="Retrying…" />
+        )}
+        {canForceMatch && (
+          <ActionButton
+            onClick={handleForceMatch}
+            loading={forceMatchId}
+            icon={ShieldAlert}
+            color="#e11d48"
+            label={order.status === 'MATCH_EXCEPTION' ? 'Override Match' : 'Force Through'}
+            loadingLabel="Forcing…"
+          />
+        )}
+        {order.status === 'PO_SENT' && (
+          <ActionButton onClick={handleSimulateInvoice} loading={simulatingId} icon={FileText} color="#7c3aed" label="Simulate Invoice" loadingLabel="Simulating…" />
+        )}
+        {canPay && (
+          <ActionButton onClick={handlePaySupplier} loading={payingId} icon={DollarSign} color="#16a34a" label="Pay Supplier" loadingLabel="Processing…" />
+        )}
+        {canDeliveryStage && (
+          <ActionButton
+            onClick={handleSimulateDeliveryStage}
+            loading={deliveryStageId}
+            icon={Truck}
+            color={nextSektorStage(order.sektorStatus) === 'DELIVERED' ? '#059669' : '#0284c7'}
+            label={`Delivery: ${SEKTOR_STAGE_LABELS[nextSektorStage(order.sektorStatus)] || 'Next Stage'}`}
+            loadingLabel="Updating…"
+          />
+        )}
       </div>
 
       {/* Stage timeline */}
       <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#e2e8f0' }}>
         <p className="text-xs font-bold uppercase tracking-wider mb-5" style={{ color: '#94a3b8' }}>Order Progress</p>
-        <div className="flex items-start gap-0">
-          {STAGES.map((stage, i) => {
-            const done = i <= currentStage;
-            const active = i === currentStage;
+        <div className="flex items-start gap-0 overflow-x-auto">
+          {PIPELINE_STEP_LABELS.map((stage, i) => {
+            const stepIdx = PIPELINE_STEPS.indexOf(stage.key);
+            const done = stepIdx <= currentStepIdx;
+            const active = stepIdx === currentStepIdx;
+            const isException = order.status === 'MATCH_EXCEPTION' && stage.key === 'MATCHED';
             const Icon = stage.icon;
             return (
-              <div key={stage.key} className="flex-1 flex flex-col items-center text-center relative">
-                {/* Connector line */}
+              <div key={stage.key} className="flex-1 min-w-[88px] flex flex-col items-center text-center relative">
                 {i > 0 && (
                   <div style={{
                     position: 'absolute', top: 16, right: '50%', width: '100%', height: 2,
-                    background: done ? '#1e3a8a' : '#e2e8f0',
+                    background: done ? (isException ? '#ef4444' : '#1e3a8a') : '#e2e8f0',
                     zIndex: 0,
                   }} />
                 )}
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%', position: 'relative', zIndex: 1,
-                  background: done ? '#1e3a8a' : '#f1f5f9',
-                  border: `2px solid ${done ? '#1e3a8a' : '#e2e8f0'}`,
+                  background: isException ? '#ef4444' : done ? '#1e3a8a' : '#f1f5f9',
+                  border: `2px solid ${isException ? '#ef4444' : done ? '#1e3a8a' : '#e2e8f0'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: active ? '0 0 0 4px rgba(30,58,138,0.12)' : 'none',
                 }}>
-                  <Icon style={{ width: 14, height: 14, color: done ? '#fff' : '#cbd5e1' }} />
+                  <Icon style={{ width: 14, height: 14, color: done || isException ? '#fff' : '#cbd5e1' }} />
                 </div>
                 <p className="text-[10px] font-semibold mt-2 leading-tight px-1" style={{ color: done ? '#0f172a' : '#94a3b8' }}>
                   {stage.label}
@@ -148,6 +304,26 @@ export default function ShopOrderDetailPage() {
             );
           })}
         </div>
+
+        {/* Delivery sub-stage (visible once SUPPLIER_PAID) */}
+        {(order.status === 'SUPPLIER_PAID' || order.status === 'FULFILLED') && (
+          <div className="mt-4 pt-4 border-t flex items-center gap-1 overflow-x-auto" style={{ borderColor: '#f1f5f9' }}>
+            <span className="text-[10px] font-bold uppercase tracking-wider mr-2 shrink-0" style={{ color: '#94a3b8' }}>Delivery:</span>
+            {SEKTOR_STAGES.map((stage, i) => {
+              const currentIdx = order.sektorStatus ? SEKTOR_STAGES.indexOf(order.sektorStatus as any) : -1;
+              const stageIdx = SEKTOR_STAGES.indexOf(stage);
+              const done = stageIdx <= currentIdx;
+              return (
+                <span key={stage} className="flex items-center gap-1 shrink-0">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: done ? '#1e3a8a' : '#f1f5f9', color: done ? '#fff' : '#94a3b8' }}>
+                    {SEKTOR_STAGE_LABELS[stage]}
+                  </span>
+                  {i < SEKTOR_STAGES.length - 1 && <span style={{ color: '#cbd5e1' }}>→</span>}
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -224,8 +400,8 @@ export default function ShopOrderDetailPage() {
         </div>
       </div>
 
-      {/* Supplier / SO / PO */}
-      {(order.salesOrder || order.myobPoNumber || order.poEmailSentTo) && (
+      {/* Supplier / SO / PO / fulfilment */}
+      {(order.salesOrder || order.myobPoNumber || order.poEmailSentTo || order.myobBillNumber || order.myobInvoiceNumber) && (
         <div className="bg-white rounded-2xl border p-5 space-y-3" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center gap-2 mb-1">
             <Truck className="w-4 h-4" style={{ color: '#1e3a8a' }} />
@@ -234,12 +410,16 @@ export default function ShopOrderDetailPage() {
           <div className="space-y-2">
             {(order.myobSoNumber || order.salesOrder?.salesOrderNumber) && (
               <Row label="Sales Order #" value={
-                <Link href="/dashboard/owner/pipeline" className="font-mono text-xs hover:underline" style={{ color: '#1e3a8a' }}>
+                <span className="font-mono text-xs" style={{ color: '#1e3a8a' }}>
                   {order.myobSoNumber || order.salesOrder?.salesOrderNumber}
-                </Link>
+                </span>
               } />
             )}
             {order.myobPoNumber && <Row label="Purchase Order #" value={order.myobPoNumber} mono />}
+            {order.myobBillNumber && <Row label="Supplier Bill #" value={order.myobBillNumber} mono />}
+            {order.myobInvoiceNumber && <Row label="Customer Invoice #" value={order.myobInvoiceNumber} mono />}
+            {order.monoovaTxnId && <Row label="Payment Reference" value={order.monoovaTxnId} mono />}
+            {order.sektorTrackingNumber && <Row label="Tracking #" value={order.sektorTrackingNumber} mono />}
             {order.poEmailSentTo && (
               <Row label="PO Emailed to" value={
                 <span className="flex items-center gap-1">
@@ -265,15 +445,40 @@ export default function ShopOrderDetailPage() {
   );
 }
 
+function ActionButton({
+  onClick, loading, icon: Icon, color, label, loadingLabel,
+}: {
+  onClick: () => void; loading: boolean; icon: React.ComponentType<{ className?: string }>;
+  color: string; label: string; loadingLabel: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-white text-xs font-semibold transition-all disabled:opacity-60"
+      style={{ background: color }}
+    >
+      <Icon className="w-3.5 h-3.5" />
+      {loading ? loadingLabel : label}
+    </button>
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    PAID:        { label: 'Paid',        bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
-    SO_CREATED:  { label: 'SO Created',  bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
-    PO_SENT:     { label: 'PO Sent',     bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
-    SHIPPED:     { label: 'Shipped',     bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
-    DELIVERED:   { label: 'Delivered',   bg: '#ecfdf5', color: '#15803d', border: '#86efac' },
-    CANCELLED:   { label: 'Cancelled',   bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
-    PENDING_PAYMENT: { label: 'Pending', bg: '#fafafa', color: '#71717a', border: '#e4e4e7' },
+    PENDING_PAYMENT: { label: 'Pending Payment', bg: '#fafafa', color: '#71717a', border: '#e4e4e7' },
+    PAID:             { label: 'Paid',             bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
+    SO_CREATED:       { label: 'SO Created',        bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
+    PO_SENT:          { label: 'PO Sent',           bg: '#eef2ff', color: '#4338ca', border: '#c7d2fe' },
+    INVOICE_RECEIVED: { label: 'Invoice Received',  bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
+    MATCH_PENDING:    { label: 'Match Pending',     bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+    MATCHED:          { label: 'Matched ✓',         bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+    MATCH_EXCEPTION:  { label: 'Match Exception',   bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
+    BILL_CREATED:     { label: 'Bill Created',      bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4' },
+    PAYMENT_SCHEDULED:{ label: 'Payment Scheduled', bg: '#ecfeff', color: '#0e7490', border: '#a5f3fc' },
+    SUPPLIER_PAID:    { label: 'Supplier Paid',     bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+    FULFILLED:        { label: 'Fulfilled',         bg: '#ecfdf5', color: '#15803d', border: '#86efac' },
+    CANCELLED:        { label: 'Cancelled',         bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
   };
   const s = map[status] ?? map.PENDING_PAYMENT;
   return (

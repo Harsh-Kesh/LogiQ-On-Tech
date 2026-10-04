@@ -131,6 +131,7 @@ export async function GET(req: Request) {
           partNumber: w.partNumber,
           partDescription: w.partDescription,
           serialNumber: w.serialNumber,
+          batchNumber: w.batchNumber,
           status: w.status,
           warrantyStartDate: w.warrantyStartDate,
           warrantyExpiryDate: w.warrantyExpiryDate,
@@ -155,6 +156,7 @@ export async function GET(req: Request) {
           { warrantyNumber: { contains: q, mode: 'insensitive' } },
           { partNumber: { contains: q, mode: 'insensitive' } },
           { serialNumber: { contains: q, mode: 'insensitive' } },
+          { batchNumber: { contains: q, mode: 'insensitive' } },
           { customerName: { contains: q, mode: 'insensitive' } },
           { salesOrderNumber: { contains: q, mode: 'insensitive' } },
           { supplierInvoiceNumber: { contains: q, mode: 'insensitive' } },
@@ -206,7 +208,7 @@ export async function GET(req: Request) {
         id: w.id,
         sfOrderId,
         title: w.warrantyNumber,
-        subtitle: `${w.partNumber}${w.serialNumber ? ' · S/N: ' + w.serialNumber : ''} — ${w.customerName || 'N/A'}`,
+        subtitle: `${w.partNumber}${w.serialNumber ? ' · S/N: ' + w.serialNumber : ''}${w.batchNumber ? ' · Batch: ' + w.batchNumber : ''} — ${w.customerName || 'N/A'}`,
         meta: `Expires: ${w.warrantyExpiryDate?.toISOString().split('T')[0] ?? 'N/A'} · ${w.status}`,
       };
     })

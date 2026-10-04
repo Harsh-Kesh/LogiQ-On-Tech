@@ -69,6 +69,7 @@ interface WarrantyRecord {
   partNumber: string;
   partDescription: string | null;
   serialNumber: string | null;
+  batchNumber: string | null;
   status: string;
   warrantyStartDate: string | null;
   warrantyExpiryDate: string | null;
@@ -326,6 +327,7 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
               <Row label="Part Number" value={w.partNumber} />
               {w.partDescription && <Row label="Description" value={w.partDescription} />}
               {w.serialNumber && <Row label="Serial Number" value={<span className="font-mono">{w.serialNumber}</span>} />}
+              {w.batchNumber && <Row label="Batch Number" value={<span className="font-mono">{w.batchNumber}</span>} />}
               <Row label="Vendor" value={w.vendorName} />
               <Row label="Delivery Date" value={fmt(w.deliveryDate)} />
               <Row label="Warranty Start" value={fmt(w.warrantyStartDate)} />
