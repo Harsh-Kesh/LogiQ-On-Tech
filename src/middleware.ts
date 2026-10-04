@@ -31,16 +31,13 @@ export async function middleware(req: NextRequest) {
     const role = (token.role as UserRole) || 'VENDOR';
     const hasMfaSecret = Boolean(token.mfaSecret);
 
-    // Mandatory MFA Enrolment Guard — only PLATFORM_OWNER is required to enrol.
-    // A VENDOR without a secret yet is not blocked; they can opt in from MFA Security.
-    if (role === 'PLATFORM_OWNER' && !hasMfaSecret && pathname !== '/dashboard/mfa-enrol') {
-      return NextResponse.redirect(new URL('/dashboard/mfa-enrol', req.url));
-    }
-
-    // Login 2FA Verification Guard: If MFA is enabled & configured but not yet verified for this session
-    if (hasMfaSecret && token.mfaEnabled === true && token.mfaVerified !== true) {
-      return NextResponse.redirect(new URL('/auth/mfa-verify', req.url));
-    }
+    // 2FA enforcement disabled — hooks left in place for future re-enablement
+    // if (role === 'PLATFORM_OWNER' && !hasMfaSecret && pathname !== '/dashboard/mfa-enrol') {
+    //   return NextResponse.redirect(new URL('/dashboard/mfa-enrol', req.url));
+    // }
+    // if (hasMfaSecret && token.mfaEnabled === true && token.mfaVerified !== true) {
+    //   return NextResponse.redirect(new URL('/auth/mfa-verify', req.url));
+    // }
 
     // Route RBAC Enforcement
     if (pathname.startsWith('/dashboard/owner')) {

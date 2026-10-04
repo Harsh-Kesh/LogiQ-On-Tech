@@ -214,7 +214,7 @@ export const authOptions: NextAuthOptions = {
           name: user.fullName,
           role: user.role,
           mfaEnabled: isMfaActive,
-          mfaVerified: !isMfaActive,
+          mfaVerified: true, // 2FA verification bypassed
           mfaSecret: user.mfaSecret || null,
         };
       },
