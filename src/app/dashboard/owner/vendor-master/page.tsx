@@ -48,7 +48,7 @@ export default function VendorMasterDataPage() {
   const [records, setRecords] = useState<VendorMasterRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<any[]>([]);
-  const [registeredVendors, setRegisteredVendors] = useState<string[]>([]);
+  const [registeredVendors, setRegisteredVendors] = useState<Array<{ id: string; companyName: string; poEmail?: string; apEmail?: string; paymentTerms?: string }>>([]);
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<VendorMasterRecord | null>(null);
@@ -69,13 +69,9 @@ export default function VendorMasterDataPage() {
       setRecords(data.records || []);
       setItems(itemsData.items || []);
       setRegisteredVendors(
-        Array.from(
-          new Set(
-            (vendorsData.vendors || [])
-              .filter((v: any) => v.status === 'APPROVED' && v.companyName)
-              .map((v: any) => v.companyName as string)
-          )
-        )
+        (vendorsData.vendors || [])
+          .filter((v: any) => v.status === 'APPROVED' && v.companyName)
+          .map((v: any) => ({ id: v.id, companyName: v.companyName as string, poEmail: v.poEmail || '', apEmail: v.apEmail || '', paymentTerms: v.paymentTerms || '' }))
       );
     } catch (e) {
       setToast({ msg: 'Failed to load records.', type: 'error' });
@@ -136,7 +132,18 @@ export default function VendorMasterDataPage() {
   });
 
   const columns: Column<VendorMasterRecord>[] = [
-    { header: 'Vendor Name', cell: (r) => <span className="font-bold text-slate-900">{r.vendorName}</span> },
+    {
+      header: 'Vendor',
+      cell: (r) => {
+        const vendor = registeredVendors.find((v) => v.companyName === r.vendorName);
+        return (
+          <div className="space-y-0.5">
+            <span className="font-bold text-slate-900 block">{r.vendorName}</span>
+            {vendor?.poEmail && <a href={`mailto:${vendor.poEmail}`} className="text-[10px] text-indigo-600 hover:underline block">{vendor.poEmail}</a>}
+          </div>
+        );
+      },
+    },
     { header: 'Item Code', cell: (r) => <span className="font-mono text-xs text-indigo-700">{r.itemCode}</span> },
     { header: 'Item Description', accessorKey: 'itemDescription' },
     { header: 'Cost of Goods', cell: (r) => <span className="font-mono">{r.currency} {r.costOfGoods.toFixed(2)}</span> },
@@ -202,10 +209,23 @@ export default function VendorMasterDataPage() {
               <label className="text-xs font-bold text-slate-700 block mb-1">Vendor Name *</label>
               <Select
                 value={form.vendorName}
-                onChange={(e) => setForm({ ...form, vendorName: e.target.value })}
-                options={[{ value: '', label: '-- Select registered vendor --' }, ...registeredVendors.map((v) => ({ value: v, label: v }))]}
+                onChange={(e) => {
+                  const vendor = registeredVendors.find((v) => v.companyName === e.target.value);
+                  setForm({
+                    ...form,
+                    vendorName: e.target.value,
+                    ...(vendor?.paymentTerms && !editing ? { paymentTerms: vendor.paymentTerms } : {}),
+                  });
+                }}
+                options={[{ value: '', label: '-- Select registered vendor --' }, ...registeredVendors.map((v) => ({ value: v.companyName, label: v.companyName }))]}
                 required
               />
+              {form.vendorName && (() => {
+                const vendor = registeredVendors.find((v) => v.companyName === form.vendorName);
+                return vendor?.poEmail ? (
+                  <p className="text-[10px] text-indigo-600 mt-1">PO: <strong>{vendor.poEmail}</strong>{vendor.apEmail ? ` · AP: ${vendor.apEmail}` : ''}</p>
+                ) : null;
+              })()}
             </div>
             <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">Item *</label>

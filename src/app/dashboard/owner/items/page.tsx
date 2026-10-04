@@ -1587,6 +1587,38 @@ export default function MasterDataItemsPage() {
                 </div>
               </div>
 
+              {/* Linked Supplier Details */}
+              {selectedItem.vendorId && (() => {
+                const vendor = registeredVendors.find((v) => v.id === selectedItem.vendorId);
+                const poEmail = vendor?.poEmail || selectedItem.supplierEmail;
+                const apEmail = vendor?.apEmail;
+                if (!vendor && !poEmail) return null;
+                return (
+                  <div className="border-t border-slate-200 pt-3 space-y-2">
+                    <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px] block flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-indigo-600" /> Linked Supplier Details
+                    </span>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      {vendor?.companyName && (
+                        <div><span className="text-slate-400 block font-sans">Company:</span><span className="font-bold text-slate-900">{vendor.companyName}</span></div>
+                      )}
+                      {poEmail && (
+                        <div><span className="text-slate-400 block font-sans">PO Email:</span><a href={`mailto:${poEmail}`} className="font-bold text-indigo-700 hover:underline">{poEmail}</a></div>
+                      )}
+                      {apEmail && (
+                        <div><span className="text-slate-400 block font-sans">AP Email:</span><a href={`mailto:${apEmail}`} className="font-bold text-indigo-700 hover:underline">{apEmail}</a></div>
+                      )}
+                      {selectedItem.supplierItemCode && (
+                        <div><span className="text-slate-400 block font-sans">Supplier Code:</span><span className="font-mono font-bold text-emerald-700">{selectedItem.supplierItemCode}</span></div>
+                      )}
+                      {selectedItem.leadTimeDays !== undefined && (
+                        <div><span className="text-slate-400 block font-sans">Lead Time:</span><span className="font-bold text-slate-900">{selectedItem.leadTimeDays} days</span></div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Technical Specifications Badges */}
               {selectedItem.attributes && Object.keys(selectedItem.attributes).length > 0 && (
                 <div className="space-y-2 border-t border-slate-200 pt-3">
