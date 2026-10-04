@@ -29,7 +29,16 @@ export default function Header() {
           <Brand />
           <nav className="main-nav" aria-label="Primary">
             {NAV_LINKS.map((l) => (
-              <Link key={l.key} href={l.href} className={pathname === l.href ? "active" : ""}>
+              <Link
+                key={l.key}
+                href={l.href}
+                className={
+                  pathname === l.href ||
+                  (l.href !== "/" && l.key !== "products" && pathname?.startsWith(l.href))
+                    ? "active"
+                    : ""
+                }
+              >
                 {l.label}
               </Link>
             ))}
