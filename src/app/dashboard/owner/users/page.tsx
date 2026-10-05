@@ -237,8 +237,8 @@ export default function UserManagementPage() {
       {/* Header */}
       <div className="bg-white rounded-2xl border p-6 flex flex-col md:flex-row md:items-center justify-between gap-6" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-            <Users className="w-6 h-6" style={{ color: '#1e3a8a' }} />
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
+            <Users className="w-6 h-6" style={{ color: '#4C3AE3' }} />
           </div>
           <div>
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>User Directory &amp; RBAC Control</h1>
@@ -250,7 +250,7 @@ export default function UserManagementPage() {
           <button
             onClick={() => setIsCreateOpen(true)}
             className="px-5 py-2.5 font-bold text-xs rounded-xl shadow-sm transition-all hover:opacity-90 flex items-center gap-2 cursor-pointer"
-            style={{ background: '#1e3a8a', color: '#fff' }}
+            style={{ background: '#4C3AE3', color: '#fff' }}
           >
             <UserPlus className="w-4 h-4" /> Provision New User
           </button>
@@ -297,11 +297,11 @@ export default function UserManagementPage() {
 
       {/* Bulk Upload Section */}
       <div className="p-6 rounded-2xl bg-white border space-y-4 relative overflow-hidden" style={{ borderColor: '#e2e8f0' }}>
-        <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-bold text-[10px] uppercase tracking-wider" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+        <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-bold text-[10px] uppercase tracking-wider" style={{ background: '#EEF0FE', color: '#4C3AE3' }}>
           Available
         </div>
         <div className="flex items-center gap-2 text-sm font-bold" style={{ color: '#0f172a' }}>
-          <Upload className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+          <Upload className="w-4 h-4" style={{ color: '#4C3AE3' }} />
           Bulk CSV Import User Provisioning
         </div>
         <FileUpload

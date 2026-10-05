@@ -38,7 +38,7 @@ export function CategoryTree({ categories, selectedCategoryId, onSelectCategory 
             <div
               onClick={() => onSelectCategory && onSelectCategory(parent)}
               className={`flex items-center justify-between p-2.5 cursor-pointer transition-colors ${
-                isSelected ? 'bg-[#eff6ff] text-[#1e3a8a] font-bold border-l-4 border-[#1e3a8a]' : 'hover:bg-slate-50 text-slate-800'
+                isSelected ? 'bg-[#EEF0FE] text-[#4C3AE3] font-bold border-l-4 border-[#4C3AE3]' : 'hover:bg-slate-50 text-slate-800'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -53,7 +53,7 @@ export function CategoryTree({ categories, selectedCategoryId, onSelectCategory 
                 ) : (
                   <span className="w-4" />
                 )}
-                <Folder className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+                <Folder className="w-4 h-4" style={{ color: '#4C3AE3' }} />
                 <span className="font-semibold">{parent.name}</span>
               </div>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-bold">
@@ -74,10 +74,10 @@ export function CategoryTree({ categories, selectedCategoryId, onSelectCategory 
                           ? 'text-white font-bold'
                           : 'hover:bg-slate-200/60 text-slate-700 font-medium'
                       }`}
-                      style={isChildSelected ? { background: '#1e3a8a' } : undefined}
+                      style={isChildSelected ? { background: '#4C3AE3' } : undefined}
                     >
                       <div className="flex items-center gap-2">
-                        <Tag className="w-3.5 h-3.5" style={{ color: isChildSelected ? '#fff' : '#1e3a8a' }} />
+                        <Tag className="w-3.5 h-3.5" style={{ color: isChildSelected ? '#fff' : '#4C3AE3' }} />
                         <span>{child.name}</span>
                       </div>
                       <span className={`text-[10px] font-mono ${isChildSelected ? 'text-blue-100' : 'text-slate-400'}`}>

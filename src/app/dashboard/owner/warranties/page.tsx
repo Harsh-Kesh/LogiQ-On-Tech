@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { ShieldCheck, AlertTriangle, Clock, RefreshCw, Download, X, Calendar, XCircle, Paperclip, Trash2, Upload } from 'lucide-react';
 
-const NAVY = '#1e3a8a';
+const NAVY = '#4C3AE3';
 
 interface WarrantyRecord {
   id: string;
@@ -402,7 +402,7 @@ export default function WarrantiesPage() {
                           onClick={() => openEvidenceModal(rec)}
                           title="View or upload evidence files"
                           className="flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-semibold transition hover:opacity-80"
-                          style={{ background: '#eff6ff', color: NAVY, borderColor: '#bfdbfe' }}
+                          style={{ background: '#EEF0FE', color: NAVY, borderColor: '#D9D4FB' }}
                         >
                           <Paperclip className="w-3 h-3" />
                           Evidence{rec._count.evidence > 0 ? ` (${rec._count.evidence})` : ''}
@@ -521,7 +521,7 @@ export default function WarrantiesPage() {
                     <button
                       onClick={() => handleDownloadEvidence(f.id, f.fileName)}
                       title="Download"
-                      className="p-1.5 rounded-lg bg-white border hover:bg-[#eff6ff] transition"
+                      className="p-1.5 rounded-lg bg-white border hover:bg-[#EEF0FE] transition"
                       style={{ borderColor: '#e2e8f0', color: '#64748b' }}
                     >
                       <Download className="w-3.5 h-3.5" />

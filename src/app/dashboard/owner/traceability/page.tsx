@@ -8,7 +8,7 @@ import {
   Shield, Truck, CreditCard, Mail, CheckCircle2, AlertCircle, Clock, Download
 } from 'lucide-react';
 
-const NAVY = '#1e3a8a';
+const NAVY = '#4C3AE3';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,8 +129,8 @@ function fmtDt(iso: string | null | undefined): string {
 interface BadgeStyle { label?: string; bg: string; color: string; border: string }
 
 const STATUS_ORDER: Record<string, BadgeStyle> = {
-  PAID:              { bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
-  SO_CREATED:        { bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
+  PAID:              { bg: '#EEF0FE', color: '#4C3AE3', border: '#D9D4FB' },
+  SO_CREATED:        { bg: '#EEF0FE', color: '#4C3AE3', border: '#D9D4FB' },
   PO_SENT:           { bg: '#eef2ff', color: '#4338ca', border: '#c7d2fe' },
   INVOICE_RECEIVED:  { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
   MATCH_PENDING:     { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
@@ -256,7 +256,7 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
       </Section>
 
       {/* Customer Transaction */}
-      <Section icon={ShoppingCart} title="Customer Transaction" bg="#eff6ff" color="#1e3a8a" border="#bfdbfe">
+      <Section icon={ShoppingCart} title="Customer Transaction" bg="#EEF0FE" color="#4C3AE3" border="#D9D4FB">
         <Row label="Website Order #" value={sfOrder.orderNumber} />
         <Row label="Internal SO #" value={salesOrder?.salesOrderNumber || sfOrder.myobSoNumber || '—'} />
         <Row label="MYOB SO #" value={sfOrder.myobSoNumber} />
@@ -410,7 +410,7 @@ const TYPE_ICON: Record<string, any> = {
 
 const TYPE_COLOR: Record<string, BadgeStyle> = {
   WARRANTY: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
-  STOREFRONT_ORDER: { bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
+  STOREFRONT_ORDER: { bg: '#EEF0FE', color: '#4C3AE3', border: '#D9D4FB' },
   SUPPLIER_INVOICE: { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
 };
 const TYPE_COLOR_DEFAULT: BadgeStyle = { bg: '#fafafa', color: '#71717a', border: '#e4e4e7' };
@@ -513,7 +513,7 @@ export default function TraceabilityPage() {
             const label = TYPE_LABEL[item.type] || item.type;
             const isSelected = item.sfOrderId === selectedSfOrderId;
             const cardStyle = isSelected
-              ? { borderColor: '#bfdbfe', background: '#eff6ff' }
+              ? { borderColor: '#D9D4FB', background: '#EEF0FE' }
               : item.sfOrderId
               ? { borderColor: '#e2e8f0', background: '#fff' }
               : { borderColor: '#f1f5f9', background: '#f8fafc' };

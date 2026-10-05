@@ -569,12 +569,12 @@ export default function VendorDashboardPage() {
       {/* Light Header Banner Card (Matching Owner Console UI Styling) */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-2xl shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-            <Building className="w-8 h-8" style={{ color: '#1e3a8a' }} />
+          <div className="p-3.5 rounded-2xl shrink-0" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
+            <Building className="w-8 h-8" style={{ color: '#4C3AE3' }} />
           </div>
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold font-mono" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
-              <ShieldCheck className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold font-mono" style={{ background: '#EEF0FE', color: '#4C3AE3', border: '1px solid #D9D4FB' }}>
+              <ShieldCheck className="w-3.5 h-3.5" style={{ color: '#4C3AE3' }} />
               VENDOR PORTAL • ATO COMPLIANCE & CATALOG
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
@@ -604,7 +604,7 @@ export default function VendorDashboardPage() {
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center font-mono" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+              <div className="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center font-mono" style={{ background: '#EEF0FE', color: '#4C3AE3' }}>
                 1
               </div>
               <h3 className="text-lg font-bold" style={{ color: '#0f172a' }}>Company Registration Details</h3>
@@ -678,7 +678,7 @@ export default function VendorDashboardPage() {
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center font-mono" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+              <div className="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center font-mono" style={{ background: '#EEF0FE', color: '#4C3AE3' }}>
                 2
               </div>
               <h3 className="text-lg font-bold text-slate-900">Upload Compliance Documents</h3>
@@ -725,7 +725,7 @@ export default function VendorDashboardPage() {
                     type="file"
                     accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                     onChange={handleFileSelect}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1e3a8a] file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#eff6ff] file:text-[#1e3a8a] hover:file:bg-[#dbeafe] cursor-pointer"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#4C3AE3] file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#EEF0FE] file:text-[#4C3AE3] hover:file:bg-[#dbeafe] cursor-pointer"
                   />
                 </div>
 
@@ -742,7 +742,7 @@ export default function VendorDashboardPage() {
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <FileText className="w-5 h-5" style={{ color: '#4C3AE3' }} />
             <h3 className="text-lg font-bold text-slate-900">Compliance Document Repository</h3>
           </div>
           <span className="text-xs font-mono text-slate-500 font-bold">
@@ -794,7 +794,7 @@ export default function VendorDashboardPage() {
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2">
-            <Package className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <Package className="w-5 h-5" style={{ color: '#4C3AE3' }} />
             <div>
               <h3 className="text-lg font-bold text-slate-900">Product Catalog (Assigned to Your Vendor Account)</h3>
               <p className="text-xs text-slate-500 font-mono">Read-only view of the products the Platform Owner has assigned to you, with pricing and taxonomy details.</p>
@@ -816,7 +816,7 @@ export default function VendorDashboardPage() {
               placeholder="Search catalog by Item Name, SKU, or Barcode..."
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#1e3a8a] font-mono"
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#4C3AE3] font-mono"
             />
           </div>
         </div>
@@ -849,7 +849,7 @@ export default function VendorDashboardPage() {
                       <div className="space-y-0.5">
                         <div className="font-extrabold text-slate-900 text-xs">{p.itemName}</div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#1e3a8a', background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#4C3AE3', background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
                             {p.sku}
                           </span>
                           <span className="font-mono text-[10px] text-slate-500">EAN: {p.barcode}</span>
@@ -881,7 +881,7 @@ export default function VendorDashboardPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => { setSelectedProduct(p); setIsProductDetailOpen(true); }}
-                        leftIcon={<Eye className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />}
+                        leftIcon={<Eye className="w-3.5 h-3.5" style={{ color: '#4C3AE3' }} />}
                       >
                         View Product Details
                       </Button>
@@ -926,7 +926,7 @@ export default function VendorDashboardPage() {
               <div className="grid grid-cols-2 gap-4 text-xs font-mono border-t border-slate-200 pt-3">
                 <div>
                   <span className="text-slate-400 block">SKU Code:</span>
-                  <span className="font-bold" style={{ color: '#1e3a8a' }}>{selectedProduct.sku}</span>
+                  <span className="font-bold" style={{ color: '#4C3AE3' }}>{selectedProduct.sku}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Barcode EAN:</span>
@@ -953,7 +953,7 @@ export default function VendorDashboardPage() {
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(selectedProduct.attributes).map(([k, v]) => (
-                      <span key={k} className="px-2.5 py-1 rounded-lg font-semibold text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a' }}>
+                      <span key={k} className="px-2.5 py-1 rounded-lg font-semibold text-xs" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB', color: '#4C3AE3' }}>
                         <span className="font-bold">{k}:</span> {v}
                       </span>
                     ))}
@@ -965,13 +965,13 @@ export default function VendorDashboardPage() {
             {selectedProduct.statusHistory && selectedProduct.statusHistory.length > 0 && (
               <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  <Clock className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+                  <Clock className="w-4 h-4" style={{ color: '#4C3AE3' }} />
                   <span>Lifecycle Status Change Audit History</span>
                 </div>
                 <div className="space-y-2 border-l-2 border-slate-200 pl-4 ml-1">
                   {selectedProduct.statusHistory.map((sh, idx) => (
                     <div key={idx} className="relative space-y-0.5">
-                      <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white" style={{ background: '#1e3a8a' }} />
+                      <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white" style={{ background: '#4C3AE3' }} />
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900">{sh.from} ➔ {sh.to}</span>
                         <span className="text-[10px] text-slate-400 font-mono">{new Date(sh.changedAt).toLocaleString()}</span>
@@ -1001,7 +1001,7 @@ export default function VendorDashboardPage() {
         <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="border-b border-slate-100 pb-5">
             <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <ClipboardList className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Procurement
+              <ClipboardList className="w-4 h-4" style={{ color: '#4C3AE3' }} /> Procurement
             </div>
             <h3 className="text-lg font-bold text-slate-900">Purchase Orders</h3>
             <p className="text-xs text-slate-500 mt-0.5">Purchase orders assigned to your organisation. Confirm an order, then dispatch its stock from the warehouse — supply status updates automatically once you do.</p>
@@ -1033,12 +1033,12 @@ export default function VendorDashboardPage() {
                   const pendingTc = transportCosts.some((t) => t.status === 'PENDING_APPROVAL' && t.relatedPoNumbers.includes(p.poNumber));
                   return (
                   <tr key={p.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#1e3a8a' }}>{p.poNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#4C3AE3' }}>{p.poNumber}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{p.linkedSalesOrderNumber || '—'}</td>
                     <td className="py-3 px-4">
                       {(p.lines || []).map((l: any, i: number) => (
                         <div key={i} className="text-[11px]">
-                          <span className="font-mono font-bold" style={{ color: '#1e3a8a' }}>{l.itemCode}</span> × {l.quantity}
+                          <span className="font-mono font-bold" style={{ color: '#4C3AE3' }}>{l.itemCode}</span> × {l.quantity}
                         </div>
                       ))}
                     </td>
@@ -1058,10 +1058,10 @@ export default function VendorDashboardPage() {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => setViewPoModal(p)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a]" title="View purchase order">
+                        <button onClick={() => setViewPoModal(p)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-600 hover:text-[#4C3AE3]" title="View purchase order">
                           <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => window.open(`/api/purchase-orders/${p.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a]" title="Print / download purchase order">
+                        <button onClick={() => window.open(`/api/purchase-orders/${p.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-600 hover:text-[#4C3AE3]" title="Print / download purchase order">
                           <Printer className="w-3.5 h-3.5" />
                         </button>
                         {vendorSafeNext.length > 0 ? (
@@ -1144,7 +1144,7 @@ export default function VendorDashboardPage() {
             )}
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <div className="mr-auto text-sm font-black font-mono" style={{ color: '#1e3a8a' }}>
+              <div className="mr-auto text-sm font-black font-mono" style={{ color: '#4C3AE3' }}>
                 Total: {viewPoModal.currency} {viewPoModal.totalValue?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
               <Button type="button" variant="outline" onClick={() => setViewPoModal(null)}>Close</Button>
@@ -1167,7 +1167,7 @@ export default function VendorDashboardPage() {
           <div className="border-b border-slate-100 pb-5 flex items-center justify-between">
             <div>
               <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Route className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Freight
+                <Route className="w-4 h-4" style={{ color: '#4C3AE3' }} /> Freight
               </div>
               <h3 className="text-lg font-bold text-slate-900">Transport Costs</h3>
               <p className="text-xs text-slate-500 mt-0.5">A claim covers one shipment: pick the dispatch notes that went out together from one warehouse, enter the tracking number and total freight cost, and it splits across whichever POs those dispatches belong to. The Platform Owner reviews and approves before it's added to those PO totals; you can't invoice a PO until it's fully supplied and free of a pending claim.</p>
@@ -1189,7 +1189,7 @@ export default function VendorDashboardPage() {
               <tbody className="divide-y divide-slate-100">
                 {transportCosts.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#1e3a8a' }}>{t.transportCostNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#4C3AE3' }}>{t.transportCostNumber}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{t.warehouseCode}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{t.trackingNumber}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{(t.relatedPoNumbers || []).join(', ')}</td>
@@ -1217,7 +1217,7 @@ export default function VendorDashboardPage() {
                   value={tcForm.warehouseCode}
                   onChange={(e) => setTcForm({ ...tcForm, warehouseCode: e.target.value, dnNumbers: [] })}
                   required
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#1e3a8a] bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#4C3AE3] bg-white"
                 >
                   <option value="">-- Select the warehouse this shipment left from --</option>
                   {claimableWarehouses.map((wh) => (
@@ -1261,7 +1261,7 @@ export default function VendorDashboardPage() {
                     {tcRelatedPoPreview.map((p) => (
                       <div key={p.poNumber} className="flex items-center justify-between px-3 py-2 text-[11px]">
                         <span className="font-mono font-bold text-slate-900">{p.poNumber}</span>
-                        <span className="font-bold" style={{ color: '#1e3a8a' }}>≈ {vendorPOs[0]?.currency || 'AUD'} {p.amount.toFixed(2)}</span>
+                        <span className="font-bold" style={{ color: '#4C3AE3' }}>≈ {vendorPOs[0]?.currency || 'AUD'} {p.amount.toFixed(2)}</span>
                       </div>
                     ))}
                     {tcRelatedPoPreview.length === 0 && (
@@ -1291,7 +1291,7 @@ export default function VendorDashboardPage() {
           <div className="border-b border-slate-100 pb-5 flex items-center justify-between">
             <div>
               <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <FileText className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Invoicing
+                <FileText className="w-4 h-4" style={{ color: '#4C3AE3' }} /> Invoicing
               </div>
               <h3 className="text-lg font-bold text-slate-900">Invoice Submission</h3>
               <p className="text-xs text-slate-500 mt-0.5">Submit invoices against confirmed purchase orders. Track approval and payment status.</p>
@@ -1316,21 +1316,21 @@ export default function VendorDashboardPage() {
                   const lastPayment = v.payments && v.payments.length > 0 ? v.payments[v.payments.length - 1] : null;
                   return (
                   <tr key={v.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#1e3a8a' }}>{v.vendorInvoiceNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#4C3AE3' }}>{v.vendorInvoiceNumber}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{v.linkedPoNumber}</td>
                     <td className="py-3 px-4 text-right font-mono font-bold">{v.currency} {v.invoiceAmount?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4 text-[11px]">{v.dueDate ? new Date(v.dueDate).toLocaleDateString() : '—'}</td>
                     <td className="py-3 px-4">
                       <StatusBadge status={v.status} />
                     </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold" style={{ color: '#1e3a8a' }}>{v.currency} {(v.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold" style={{ color: '#4C3AE3' }}>{v.currency} {(v.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4">
                       {lastPayment?.receiptAttachment?.fileUrl ? (
                         <a
                           href={lastPayment.receiptAttachment.fileUrl}
                           download={lastPayment.receiptAttachment.fileName}
                           className="text-[11px] font-bold hover:underline flex items-center gap-1"
-                          style={{ color: '#1e3a8a' }}
+                          style={{ color: '#4C3AE3' }}
                         >
                           <Download className="w-3 h-3" /> View
                         </a>
@@ -1389,10 +1389,10 @@ export default function VendorDashboardPage() {
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                   onChange={handleViAttachmentUpload}
-                  className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#eff6ff] file:text-[#1e3a8a] hover:file:bg-[#dbeafe]"
+                  className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#EEF0FE] file:text-[#4C3AE3] hover:file:bg-[#dbeafe]"
                 />
                 {viSubmitForm.attachment && (
-                  <p className="text-[11px] font-bold mt-1" style={{ color: '#1e3a8a' }}>Attached: {viSubmitForm.attachment.fileName}</p>
+                  <p className="text-[11px] font-bold mt-1" style={{ color: '#4C3AE3' }}>Attached: {viSubmitForm.attachment.fileName}</p>
                 )}
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">

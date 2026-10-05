@@ -50,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#f0f4ff' }}>
         <div className="flex items-center gap-3 bg-white p-6 rounded-2xl shadow-md border border-slate-200">
-          <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#1e3a8a', borderTopColor: 'transparent' }} />
+          <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#4C3AE3', borderTopColor: 'transparent' }} />
           <span className="text-xs font-semibold text-slate-600">
             {mustEnrol ? 'Enrolling required MFA…' : 'Verifying security session…'}
           </span>
@@ -127,12 +127,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileNavOpen(false)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-white text-[#1e3a8a] shadow-sm font-semibold'
+                      ? 'bg-white text-[#4C3AE3] shadow-sm font-semibold'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                 >
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 h-5 w-1 rounded-full" style={{ background: '#06B6D4' }} />
+                  )}
                   <Icon className="w-4 h-4 shrink-0" />
                   <span className="truncate">{link.name}</span>
                 </Link>
@@ -157,9 +160,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <div className="min-h-screen font-sans" style={{ background: '#f0f4ff', color: '#0f172a' }}>
+    <div className="min-h-screen font-sans" style={{ background: '#f4f3fe', color: '#0f172a' }}>
+      {/* Brand gradient strip — mirrors the logo mark's diagonal gradient */}
+      <div className="sticky top-0 z-50 h-[3px]" style={{ background: 'linear-gradient(90deg, #4C3AE3 0%, #06B6D4 100%)' }} />
       {/* Top Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-3.5 shadow-sm">
+      <header className="bg-white border-b border-slate-200 sticky top-[3px] z-50 px-6 py-3.5 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -170,7 +175,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <Brand />
-            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border" style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}>
               <Shield className="w-3 h-3" /> Platform Console
             </span>
           </div>
@@ -179,7 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="hidden sm:flex flex-col items-end gap-0.5">
               <span className="text-xs font-bold text-slate-800">{session?.user?.name || 'Platform Owner'}</span>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#EEF0FE', color: '#4C3AE3' }}>
                   Platform Owner
                 </span>
                 {mfaEnabled ? (
@@ -207,9 +212,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <div className="flex" style={{ minHeight: 'calc(100vh - 61px)' }}>
+      <div className="flex" style={{ minHeight: 'calc(100vh - 64px)' }}>
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex lg:flex-col w-60 shrink-0 sticky top-[61px] h-[calc(100vh-61px)]" style={{ background: '#1e3a8a' }}>
+        <aside className="hidden lg:flex lg:flex-col w-60 shrink-0 sticky top-[64px] h-[calc(100vh-64px)]" style={{ background: 'linear-gradient(170deg, #4C3AE3 0%, #3D2DC9 55%, #2A1F8F 100%)' }}>
           {sidebarContent}
           {sidebarFooter}
         </aside>
@@ -218,7 +223,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {mobileNavOpen && (
           <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
             <div className="absolute inset-0 bg-slate-900/50" onClick={() => setMobileNavOpen(false)} />
-            <aside className="absolute left-0 top-0 bottom-0 w-72 flex flex-col shadow-2xl" style={{ background: '#1e3a8a' }}>
+            <aside className="absolute left-0 top-0 bottom-0 w-72 flex flex-col shadow-2xl" style={{ background: 'linear-gradient(170deg, #4C3AE3 0%, #3D2DC9 55%, #2A1F8F 100%)' }}>
               <div className="px-4 py-3.5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <span className="text-white font-bold text-sm">Platform Console</span>
                 <button onClick={() => setMobileNavOpen(false)} className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10">

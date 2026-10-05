@@ -77,7 +77,7 @@ export default function CustomerMasterDataPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Users className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <Users className="w-5 h-5" style={{ color: '#4C3AE3' }} />
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Customer Directory</h1>
           </div>
           <p className="text-sm" style={{ color: '#64748b' }}>
@@ -90,7 +90,7 @@ export default function CustomerMasterDataPage() {
       {!loading && customers.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: 'Total Customers', value: customers.length, icon: Users, color: '#1e3a8a', bg: '#eff6ff' },
+            { label: 'Total Customers', value: customers.length, icon: Users, color: '#4C3AE3', bg: '#EEF0FE' },
             { label: 'Total Orders', value: totalOrders, icon: ShoppingBag, color: '#065f46', bg: '#ecfdf5' },
             { label: 'Total Revenue', value: `AUD ${totalRevenue.toLocaleString('en-AU', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: '#b45309', bg: '#fffbeb' },
           ].map((s) => {
@@ -153,7 +153,7 @@ export default function CustomerMasterDataPage() {
                 <tr key={c.email || i} className="border-b transition-colors hover:bg-slate-50" style={{ borderColor: '#f1f5f9' }}>
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0" style={{ background: '#EEF0FE', color: '#4C3AE3' }}>
                         {c.name[0]?.toUpperCase() ?? '?'}
                       </div>
                       <span className="font-semibold" style={{ color: '#0f172a' }}>{c.name}</span>
@@ -161,7 +161,7 @@ export default function CustomerMasterDataPage() {
                   </td>
                   <td className="py-3.5 px-4">
                     {c.email ? (
-                      <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 hover:underline" style={{ color: '#1e3a8a' }}>
+                      <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 hover:underline" style={{ color: '#4C3AE3' }}>
                         <Mail className="w-3.5 h-3.5" />
                         <span className="text-xs">{c.email}</span>
                       </a>
@@ -179,7 +179,7 @@ export default function CustomerMasterDataPage() {
                     <span className="text-xs font-bold font-mono" style={{ color: '#0f172a' }}>{c.orderCount}</span>
                   </td>
                   <td className="py-3.5 px-4">
-                    <span className="text-xs font-bold font-mono" style={{ color: '#1e3a8a' }}>
+                    <span className="text-xs font-bold font-mono" style={{ color: '#4C3AE3' }}>
                       {c.currency} {c.totalSpend.toLocaleString('en-AU', { minimumFractionDigits: 2 })}
                     </span>
                   </td>

@@ -33,7 +33,7 @@ export function ItemPicker({
     <div className={`relative ${className}`}>
       <input
         type="text"
-        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 placeholder:text-slate-400 font-mono"
+        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#4C3AE3] focus:ring-1 focus:ring-[#4C3AE3]/20 placeholder:text-slate-400 font-mono"
         placeholder={placeholder}
         value={value.itemCode ? `${value.itemCode} - ${value.itemName}` : search}
         onChange={(e) => {
@@ -50,7 +50,7 @@ export function ItemPicker({
             <button
               key={it.id || it.sku || it.itemCode}
               type="button"
-              className="w-full px-3 py-2.5 text-left text-xs hover:bg-[#eff6ff]/80 flex flex-col gap-0.5 transition-colors"
+              className="w-full px-3 py-2.5 text-left text-xs hover:bg-[#EEF0FE]/80 flex flex-col gap-0.5 transition-colors"
               onClick={() => {
                 onChange({
                   itemCode: it.sku || it.itemCode || '',
@@ -64,8 +64,8 @@ export function ItemPicker({
               }}
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono font-bold text-[#1e3a8a]">{it.sku || it.itemCode}</span>
-                <span className="font-mono text-[#1e3a8a] font-bold">${(it.sellingPrice || it.price || 0).toFixed(2)}</span>
+                <span className="font-mono font-bold text-[#4C3AE3]">{it.sku || it.itemCode}</span>
+                <span className="font-mono text-[#4C3AE3] font-bold">${(it.sellingPrice || it.price || 0).toFixed(2)}</span>
               </div>
               <span className="text-slate-600 text-[11px] truncate">{it.name || it.itemName || it.description}</span>
             </button>

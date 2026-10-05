@@ -28,14 +28,14 @@ export function Toast({ message, type = 'info', onClose }: ToastProps) {
           ? 'bg-rose-50 border-rose-200 text-rose-900'
           : type === 'warning'
           ? 'bg-amber-50 border-amber-200 text-amber-900'
-          : 'bg-[#eff6ff] border-[#bfdbfe] text-[#1e3a8a]'
+          : 'bg-[#EEF0FE] border-[#D9D4FB] text-[#4C3AE3]'
       }`}
     >
       <div className="flex items-center gap-2.5">
         {type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
         {type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600" />}
         {type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-600" />}
-        {type === 'info' && <Info className="w-5 h-5" style={{ color: '#1e3a8a' }} />}
+        {type === 'info' && <Info className="w-5 h-5" style={{ color: '#4C3AE3' }} />}
         <span className="text-xs font-bold">{message}</span>
       </div>
       {onClose && (
@@ -86,13 +86,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 ? 'bg-white border-amber-200 text-slate-900'
                 : 'bg-white text-slate-900'
             }`}
-            style={t.type === 'info' ? { borderColor: '#bfdbfe' } : undefined}
+            style={t.type === 'info' ? { borderColor: '#D9D4FB' } : undefined}
           >
             <div className="shrink-0 mt-0.5">
               {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
               {t.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600" />}
               {t.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-600" />}
-              {t.type === 'info' && <Info className="w-5 h-5" style={{ color: '#1e3a8a' }} />}
+              {t.type === 'info' && <Info className="w-5 h-5" style={{ color: '#4C3AE3' }} />}
             </div>
             <div className="flex-1 min-w-0 space-y-0.5">
               <h4 className="text-xs font-bold text-slate-900">{t.title}</h4>

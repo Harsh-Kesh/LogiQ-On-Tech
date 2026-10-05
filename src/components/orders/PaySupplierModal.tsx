@@ -80,7 +80,7 @@ export default function PaySupplierModal({ orderId, onClose, onPaid }: PaySuppli
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 flex items-center justify-between" style={{ background: '#1e3a8a' }}>
+        <div className="px-6 py-5 flex items-center justify-between" style={{ background: '#4C3AE3' }}>
           <div className="flex items-center gap-2.5">
             <Landmark className="w-5 h-5 text-white" />
             <div>
@@ -98,7 +98,7 @@ export default function PaySupplierModal({ orderId, onClose, onPaid }: PaySuppli
         <div className="p-6">
           {stage === 'loading' && (
             <div className="flex items-center justify-center py-10">
-              <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#1e3a8a' }} />
+              <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#4C3AE3' }} />
             </div>
           )}
 
@@ -144,7 +144,7 @@ export default function PaySupplierModal({ orderId, onClose, onPaid }: PaySuppli
                   onClick={confirmPayment}
                   disabled={!preview.canPay}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50"
-                  style={{ background: '#1e3a8a' }}
+                  style={{ background: '#4C3AE3' }}
                 >
                   Confirm &amp; Send
                 </button>
@@ -154,7 +154,7 @@ export default function PaySupplierModal({ orderId, onClose, onPaid }: PaySuppli
 
           {stage === 'processing' && preview && (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#1e3a8a' }} />
+              <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#4C3AE3' }} />
               <p className="text-sm font-bold" style={{ color: '#0f172a' }}>Sending via {preview.provider}…</p>
               <p className="text-xs" style={{ color: '#94a3b8' }}>{preview.currency} {preview.amount.toFixed(2)} to {preview.vendorName}</p>
             </div>
@@ -175,7 +175,7 @@ export default function PaySupplierModal({ orderId, onClose, onPaid }: PaySuppli
                 <Row label="Transaction ID" value={transactionId} mono />
                 <Row label="Sent at" value={new Date().toLocaleString('en-AU')} />
               </div>
-              <button onClick={handleClose} className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-colors" style={{ background: '#1e3a8a' }}>
+              <button onClick={handleClose} className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-colors" style={{ background: '#4C3AE3' }}>
                 Done <ArrowRight className="w-4 h-4" />
               </button>
             </div>

@@ -37,11 +37,11 @@ export default function HelpdeskFallbackPage() {
 
         <div className="p-4 rounded-2xl space-y-3 text-xs border" style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
           <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
-            <LifeBuoy className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Alternative support channels
+            <LifeBuoy className="w-4 h-4" style={{ color: '#4C3AE3' }} /> Alternative support channels
           </h2>
           <div className="flex items-center gap-2" style={{ color: '#0f172a' }}>
             <Mail className="w-3.5 h-3.5" style={{ color: '#94a3b8' }} />
-            <a href="mailto:support@logiqon.com.au" className="font-bold hover:underline" style={{ color: '#1e3a8a' }}>
+            <a href="mailto:support@logiqon.com.au" className="font-bold hover:underline" style={{ color: '#4C3AE3' }}>
               support@logiqon.com.au
             </a>
           </div>

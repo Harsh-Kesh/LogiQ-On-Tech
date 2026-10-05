@@ -12,7 +12,7 @@ interface BadgeProps {
 export function Badge({ children, variant = 'indigo', size = 'sm', className = '' }: BadgeProps) {
   const variantStyles: Record<BadgeVariant, string> = {
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    indigo: 'bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]',
+    indigo: 'bg-[#EEF0FE] text-[#4C3AE3] border-[#D9D4FB]',
     teal: 'bg-teal-50 text-teal-700 border-teal-200',
     success: 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]',
     amber: 'bg-[#fefce8] text-[#854d0e] border-[#fde68a]',

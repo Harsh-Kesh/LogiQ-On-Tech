@@ -160,7 +160,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           {/* SECTION 1: COMPANY IDENTITY */}
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-[#1e3a8a]" />
+              <Building2 className="w-4 h-4 text-[#4C3AE3]" />
               <span>1. Company Identity</span>
             </div>
             <Input label="Business / Company Name" required value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g. Apex Hardware Pty Ltd" disabled={isEdit} />
@@ -173,7 +173,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           {/* SECTION 2: PROCUREMENT EMAILS */}
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <Mail className="w-4 h-4 text-[#1e3a8a]" />
+              <Mail className="w-4 h-4 text-[#4C3AE3]" />
               <span>2. Procurement Emails</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -200,7 +200,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           {/* SECTION 3: BANK DETAILS FOR PAYMENT */}
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-[#1e3a8a]" />
+              <CreditCard className="w-4 h-4 text-[#4C3AE3]" />
               <span>3. Bank Details for Payment</span>
             </div>
             <p className="text-[11px] text-slate-500 -mt-1">
@@ -246,7 +246,7 @@ function SupplierCard({ supplier, onEdit }: { supplier: Supplier; onEdit: () => 
       <div className="p-5 flex items-start gap-3">
         <div
           className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-sm font-black"
-          style={{ background: '#eff6ff', color: '#1e3a8a' }}
+          style={{ background: '#EEF0FE', color: '#4C3AE3' }}
         >
           {initials}
         </div>
@@ -274,7 +274,7 @@ function SupplierCard({ supplier, onEdit }: { supplier: Supplier; onEdit: () => 
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#94a3b8' }}>PO Email</p>
           {supplier.poEmail ? (
-            <a href={`mailto:${supplier.poEmail}`} className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: '#1e3a8a' }}>
+            <a href={`mailto:${supplier.poEmail}`} className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: '#4C3AE3' }}>
               <Mail className="w-3 h-3" />
               {supplier.poEmail}
             </a>
@@ -306,7 +306,7 @@ function SupplierCard({ supplier, onEdit }: { supplier: Supplier; onEdit: () => 
         {supplier.paymentTerms && (
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>Terms</span>
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#EEF0FE', color: '#4C3AE3', border: '1px solid #D9D4FB' }}>
               {supplier.paymentTerms}
             </span>
             <span className="text-[10px] font-mono" style={{ color: '#94a3b8' }}>{supplier.currency || 'AUD'}</span>
@@ -401,7 +401,7 @@ export default function VendorMasterDataPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Truck className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <Truck className="w-5 h-5" style={{ color: '#4C3AE3' }} />
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Supplier Master Data</h1>
           </div>
           <p className="text-sm" style={{ color: '#64748b' }}>
@@ -415,7 +415,7 @@ export default function VendorMasterDataPage() {
           <button
             onClick={openAdd}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all hover:opacity-90"
-            style={{ background: '#1e3a8a', color: '#fff' }}
+            style={{ background: '#4C3AE3', color: '#fff' }}
           >
             <Plus className="w-4 h-4" /> Add Supplier
           </button>
@@ -450,7 +450,7 @@ export default function VendorMasterDataPage() {
             <button
               onClick={openAdd}
               className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl"
-              style={{ background: '#1e3a8a', color: '#fff' }}
+              style={{ background: '#4C3AE3', color: '#fff' }}
             >
               <Plus className="w-3.5 h-3.5" /> Add your first supplier
             </button>

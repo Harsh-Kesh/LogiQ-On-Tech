@@ -102,8 +102,8 @@ export default function MfaEnrolPage() {
       )}
       <div className="p-8 rounded-3xl bg-white border shadow-sm flex items-center justify-between gap-4" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-            <Lock className="w-8 h-8" style={{ color: '#1e3a8a' }} />
+          <div className="p-3 rounded-2xl shrink-0" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
+            <Lock className="w-8 h-8" style={{ color: '#4C3AE3' }} />
           </div>
           <div>
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Two-Factor Authentication Setup</h1>
@@ -115,7 +115,7 @@ export default function MfaEnrolPage() {
           href={targetDashboard}
           prefetch={false}
           className="px-4 py-2 font-bold text-xs rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5 shrink-0"
-          style={{ background: '#1e3a8a', color: '#fff' }}
+          style={{ background: '#4C3AE3', color: '#fff' }}
         >
           <span>Open {portalName}</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -126,11 +126,11 @@ export default function MfaEnrolPage() {
         <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: '#f1f5f9' }}>
           <div>
             <div className="text-sm font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
-              <ShieldCheck className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Account Security Status
+              <ShieldCheck className="w-4 h-4" style={{ color: '#4C3AE3' }} /> Account Security Status
             </div>
             <div className="text-xs mt-0.5 font-mono" style={{ color: '#64748b' }}>Account: {session?.user?.email}</div>
           </div>
-          <span className="px-3 py-1 rounded-full text-xs font-bold font-mono border" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
+          <span className="px-3 py-1 rounded-full text-xs font-bold font-mono border" style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}>
             Role: {userRole}
           </span>
         </div>
@@ -163,7 +163,7 @@ export default function MfaEnrolPage() {
                 href={targetDashboard}
                 prefetch={false}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all"
-                style={{ background: '#1e3a8a', color: '#fff' }}
+                style={{ background: '#4C3AE3', color: '#fff' }}
               >
                 <span>Launch {portalName} Now</span>
                 <ArrowRight className="w-4 h-4" />
@@ -192,7 +192,7 @@ export default function MfaEnrolPage() {
                 href={targetDashboard}
                 prefetch={false}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all"
-                style={{ background: '#1e3a8a', color: '#fff' }}
+                style={{ background: '#4C3AE3', color: '#fff' }}
               >
                 <span>Proceed to {portalName}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -204,7 +204,7 @@ export default function MfaEnrolPage() {
             <p className="text-xs max-w-md mx-auto leading-relaxed" style={{ color: '#64748b' }}>
               Secure your account using Google Authenticator, Microsoft Authenticator, or Authy. Click below to generate your 2FA setup QR Code.
             </p>
-            <Button onClick={handleStartSetup} isLoading={loading} style={{ background: '#1e3a8a', color: '#fff' }}>
+            <Button onClick={handleStartSetup} isLoading={loading} style={{ background: '#4C3AE3', color: '#fff' }}>
               Generate 2FA Setup QR Code
             </Button>
           </div>
@@ -215,14 +215,14 @@ export default function MfaEnrolPage() {
                 <img src={qrCodeUrl} alt="MFA QR Code" className="w-36 h-36" />
               </div>
               <div className="space-y-2 text-xs">
-                <div className="font-bold uppercase tracking-wider text-[11px]" style={{ color: '#1e3a8a' }}>
+                <div className="font-bold uppercase tracking-wider text-[11px]" style={{ color: '#4C3AE3' }}>
                   Step 1: Scan with Authenticator App
                 </div>
                 <p className="leading-relaxed" style={{ color: '#64748b' }}>
                   Scan this QR code using Google Authenticator or Microsoft Authenticator app on your phone.
                 </p>
                 <div className="pt-1 font-mono text-[11px]" style={{ color: '#475569' }}>
-                  Secret Key: <span className="bg-white px-2 py-0.5 rounded border font-bold select-all" style={{ color: '#1e3a8a', borderColor: '#e2e8f0' }}>{secret}</span>
+                  Secret Key: <span className="bg-white px-2 py-0.5 rounded border font-bold select-all" style={{ color: '#4C3AE3', borderColor: '#e2e8f0' }}>{secret}</span>
                 </div>
               </div>
             </div>
@@ -237,7 +237,7 @@ export default function MfaEnrolPage() {
                 placeholder="e.g. 123456"
               />
 
-              <Button type="submit" variant="success" className="w-full" isLoading={loading} style={{ background: '#1e3a8a', color: '#fff' }}>
+              <Button type="submit" variant="success" className="w-full" isLoading={loading} style={{ background: '#4C3AE3', color: '#fff' }}>
                 Verify &amp; Complete Setup
               </Button>
             </form>

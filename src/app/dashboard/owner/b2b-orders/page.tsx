@@ -28,7 +28,7 @@ function StatusPill({ status }: { status: string }) {
   const WARNING = { color: '#854d0e', bg: '#fefce8', border: '#fde68a' };
   const DANGER = { color: '#991b1b', bg: '#fef2f2', border: '#fecaca' };
   const NEUTRAL = { color: '#71717a', bg: '#fafafa', border: '#e4e4e7' };
-  const INFO = { color: '#1e3a8a', bg: '#eff6ff', border: '#bfdbfe' };
+  const INFO = { color: '#4C3AE3', bg: '#EEF0FE', border: '#D9D4FB' };
   const map: Record<string, { color: string; bg: string; border: string }> = {
     DRAFT: NEUTRAL,
     CONFIRMED: INFO,
@@ -987,7 +987,7 @@ export default function B2BOwnerOrdersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold flex items-center gap-2" style={{ color: '#0f172a' }}>
-          <ClipboardList className="w-6 h-6" style={{ color: '#1e3a8a' }} /> Order Management
+          <ClipboardList className="w-6 h-6" style={{ color: '#4C3AE3' }} /> Order Management
         </h1>
         <p className="text-xs mt-1" style={{ color: '#64748b' }}>
           Sales Order → Allocation → Dispatch → Invoice → Payment. Purchase Order → Vendor Invoice → Vendor Payment.
@@ -1002,7 +1002,7 @@ export default function B2BOwnerOrdersPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              style={active ? { background: '#1e3a8a', color: '#fff' } : {}}
+              style={active ? { background: '#4C3AE3', color: '#fff' } : {}}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                 active ? 'shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
               }`}
@@ -1036,7 +1036,7 @@ export default function B2BOwnerOrdersPage() {
                   placeholder="Search Sales Order No., Customer, PO Ref..."
                   value={soSearch}
                   onChange={(e) => setSoSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#1e3a8a] text-slate-900"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#4C3AE3] text-slate-900"
                 />
               </div>
               <Select
@@ -1088,18 +1088,18 @@ export default function B2BOwnerOrdersPage() {
                   const nextAction: { label: string; action?: () => void; style: string; confirm?: string } = (() => {
                     switch (s.status) {
                       case 'DRAFT':
-                        return { label: 'Confirm Order', action: () => advanceSoStatus(s, 'CONFIRMED'), style: 'bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]' };
+                        return { label: 'Confirm Order', action: () => advanceSoStatus(s, 'CONFIRMED'), style: 'bg-[#EEF0FE] text-[#4C3AE3] border-[#D9D4FB]' };
                       case 'CONFIRMED':
                       case 'STOCK_CHECK':
                         return { label: 'Allocate Stock', action: () => openAllocationModal(s), style: 'bg-teal-50 text-teal-700 border-teal-200' };
                       case 'PARTIALLY_ALLOCATED':
                         return { label: 'Allocate Remaining', action: () => openAllocationModal(s), style: 'bg-amber-50 text-amber-700 border-amber-200' };
                       case 'ALLOCATED':
-                        return { label: 'Create Dispatch Note', action: () => setCreateDnModalSo(s), style: 'bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]' };
+                        return { label: 'Create Dispatch Note', action: () => setCreateDnModalSo(s), style: 'bg-[#EEF0FE] text-[#4C3AE3] border-[#D9D4FB]' };
                       case 'PARTIALLY_DISPATCHED': {
                         const uncovered = getUncoveredWarehouses(s);
                         return uncovered.length > 0
-                          ? { label: `Create Dispatch Note (${uncovered.length} warehouse${uncovered.length === 1 ? '' : 's'} left)`, action: () => setCreateDnModalSo(s), style: 'bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]' }
+                          ? { label: `Create Dispatch Note (${uncovered.length} warehouse${uncovered.length === 1 ? '' : 's'} left)`, action: () => setCreateDnModalSo(s), style: 'bg-[#EEF0FE] text-[#4C3AE3] border-[#D9D4FB]' }
                           : { label: 'Awaiting Warehouse', style: 'bg-slate-50 text-slate-500 border-slate-200' };
                       }
                       case 'READY_FOR_DISPATCH':
@@ -1109,11 +1109,11 @@ export default function B2BOwnerOrdersPage() {
                       case 'DELIVERED':
                         return { label: 'Create Invoice', action: () => { populateCiFromSo(s.salesOrderNumber); setIsCiModalOpen(true); }, style: 'bg-sky-50 text-sky-700 border-sky-200' };
                       case 'INVOICED':
-                        return { label: 'Go to Invoice', action: () => setTab('invoice'), style: 'bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]' };
+                        return { label: 'Go to Invoice', action: () => setTab('invoice'), style: 'bg-[#EEF0FE] text-[#4C3AE3] border-[#D9D4FB]' };
                       case 'PARTIALLY_PAID':
                         return { label: 'Go to Payment', action: () => setTab('invoice'), style: 'bg-orange-50 text-orange-700 border-orange-200' };
                       case 'PAID':
-                        return { label: 'Mark Complete', action: () => advanceSoStatus(s, 'COMPLETED'), style: 'bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]', confirm: `Mark ${s.salesOrderNumber} as complete? This cannot be undone.` };
+                        return { label: 'Mark Complete', action: () => advanceSoStatus(s, 'COMPLETED'), style: 'bg-[#EEF0FE] text-[#4C3AE3] border-[#D9D4FB]', confirm: `Mark ${s.salesOrderNumber} as complete? This cannot be undone.` };
                       case 'COMPLETED':
                         return { label: 'Done', style: 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]' };
                       case 'CANCELLED':
@@ -1125,7 +1125,7 @@ export default function B2BOwnerOrdersPage() {
                   return (
                     <tr key={s.id} className="hover:bg-slate-50/80">
                       <td className="py-3 px-4">
-                        <div className="font-mono font-bold text-[#1e3a8a]">{s.salesOrderNumber}</div>
+                        <div className="font-mono font-bold text-[#4C3AE3]">{s.salesOrderNumber}</div>
                         {s.source === 'ONLINE_STORE' && (
                           <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
                             🛒 Online Store
@@ -1139,7 +1139,7 @@ export default function B2BOwnerOrdersPage() {
                       <td className="py-3 px-4">
                         {s.lines.map((l: any) => (
                           <div key={l.id} className="text-[11px]">
-                            <span className="font-mono text-[#1e3a8a] font-bold">{l.itemCode}</span> × {l.quantity}
+                            <span className="font-mono text-[#4C3AE3] font-bold">{l.itemCode}</span> × {l.quantity}
                           </div>
                         ))}
                       </td>
@@ -1173,7 +1173,7 @@ export default function B2BOwnerOrdersPage() {
                         <button
                           onClick={() => setViewSoModal(s)}
                           title="View full order details"
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-[#1e3a8a] hover:bg-[#eff6ff] transition-colors"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-[#4C3AE3] hover:bg-[#EEF0FE] transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -1198,7 +1198,7 @@ export default function B2BOwnerOrdersPage() {
               <h2 className="text-sm font-extrabold text-slate-900">Dispatch Note List & Status Tracking</h2>
               <p className="text-[11px] text-slate-500">Track fulfilment from allocation through to delivery. Status updates cascade automatically to the Sales Order.</p>
             </div>
-            <Link href="/dashboard/warehouse/dispatch-notes" className="text-xs font-bold text-[#1e3a8a] hover:underline flex items-center gap-1">
+            <Link href="/dashboard/warehouse/dispatch-notes" className="text-xs font-bold text-[#4C3AE3] hover:underline flex items-center gap-1">
               Open full warehouse view <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -1212,9 +1212,9 @@ export default function B2BOwnerOrdersPage() {
               <div className="text-[10px] font-mono font-bold text-amber-700 uppercase">In Picking/Packing</div>
               <div className="text-xl font-black text-amber-900">{dispatchNotes.filter((d) => ['PICKING', 'PICKED', 'PACKING', 'PACKED'].includes(d.status)).length}</div>
             </div>
-            <div className="p-3 rounded-xl" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#1e3a8a' }}>Dispatched / In Transit</div>
-              <div className="text-xl font-black" style={{ color: '#1e3a8a' }}>{dispatchNotes.filter((d) => ['DISPATCHED', 'IN_TRANSIT', 'READY_FOR_DISPATCH'].includes(d.status)).length}</div>
+            <div className="p-3 rounded-xl" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
+              <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#4C3AE3' }}>Dispatched / In Transit</div>
+              <div className="text-xl font-black" style={{ color: '#4C3AE3' }}>{dispatchNotes.filter((d) => ['DISPATCHED', 'IN_TRANSIT', 'READY_FOR_DISPATCH'].includes(d.status)).length}</div>
             </div>
             <div className="p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
               <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#166534' }}>Delivered</div>
@@ -1240,13 +1240,13 @@ export default function B2BOwnerOrdersPage() {
               <tbody className="divide-y divide-slate-100">
                 {dispatchNotes.map((d) => (
                   <tr key={d.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold text-[#1e3a8a]">{d.dispatchNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-[#4C3AE3]">{d.dispatchNumber}</td>
                     <td className="py-3 px-4 font-mono font-bold text-slate-800">{d.salesOrderNumber}</td>
                     <td className="py-3 px-4 font-bold text-slate-900">{d.customerName}</td>
                     <td className="py-3 px-4 text-[11px] font-mono text-slate-600">{d.warehouseCode}</td>
                     <td className="py-3 px-4">
                       {d.lines?.map((l: any, i: number) => (
-                        <div key={i}><span className="font-mono text-[#1e3a8a] font-bold text-[11px]">{l.itemCode}</span> · {l.itemName}</div>
+                        <div key={i}><span className="font-mono text-[#4C3AE3] font-bold text-[11px]">{l.itemCode}</span> · {l.itemName}</div>
                       ))}
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold">
@@ -1273,7 +1273,7 @@ export default function B2BOwnerOrdersPage() {
                           <Button
                             size="sm"
                             variant="secondary"
-                            className="bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1e3a8a] border border-[#bfdbfe] font-bold text-[11px] shadow-sm px-2.5 py-1"
+                            className="bg-[#EEF0FE] hover:bg-[#dbeafe] text-[#4C3AE3] border border-[#D9D4FB] font-bold text-[11px] shadow-sm px-2.5 py-1"
                             onClick={() => openDeliveryModal(d)}
                             leftIcon={<Paperclip className="w-3.5 h-3.5" />}
                           >
@@ -1284,7 +1284,7 @@ export default function B2BOwnerOrdersPage() {
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => setPodViewerDn(d)}
-                              className="p-1.5 rounded-lg bg-[#eff6ff] text-[#1e3a8a] hover:bg-[#dbeafe] border border-[#bfdbfe]"
+                              className="p-1.5 rounded-lg bg-[#EEF0FE] text-[#4C3AE3] hover:bg-[#dbeafe] border border-[#D9D4FB]"
                               title="View Proof of Delivery (POD) Document"
                               aria-label="View POD"
                             >
@@ -1300,7 +1300,7 @@ export default function B2BOwnerOrdersPage() {
                             </button>
                           </div>
                         )}
-                        <button onClick={() => window.open(`/api/dispatch-notes/${d.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a]" title="Print dispatch note">
+                        <button onClick={() => window.open(`/api/dispatch-notes/${d.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-600 hover:text-[#4C3AE3]" title="Print dispatch note">
                           <Printer className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -1335,9 +1335,9 @@ export default function B2BOwnerOrdersPage() {
               <div className="text-[10px] font-mono font-bold text-slate-500 uppercase">Total Invoices</div>
               <div className="text-lg font-black text-slate-900 mt-0.5">{customerInvoices.length}</div>
             </div>
-            <div className="p-3 rounded-2xl" style={{ background: 'rgba(239,246,255,0.7)', border: '1px solid #bfdbfe' }}>
-              <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#1e3a8a' }}>Draft / Approved</div>
-              <div className="text-lg font-black mt-0.5" style={{ color: '#1e3a8a' }}>{customerInvoices.filter((c) => ['DRAFT', 'APPROVED'].includes(c.status)).length}</div>
+            <div className="p-3 rounded-2xl" style={{ background: 'rgba(239,246,255,0.7)', border: '1px solid #D9D4FB' }}>
+              <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#4C3AE3' }}>Draft / Approved</div>
+              <div className="text-lg font-black mt-0.5" style={{ color: '#4C3AE3' }}>{customerInvoices.filter((c) => ['DRAFT', 'APPROVED'].includes(c.status)).length}</div>
             </div>
             <div className="p-3 rounded-2xl bg-sky-50/70 border border-sky-200">
               <div className="text-[10px] font-mono font-bold text-sky-700 uppercase">Sent / Viewed</div>
@@ -1373,7 +1373,7 @@ export default function B2BOwnerOrdersPage() {
                   const balance = Math.max(0, c.totalValue - (c.amountPaid || 0));
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-[#1e3a8a]">
+                      <td className="py-3 px-4 font-mono font-bold text-[#4C3AE3]">
                         {c.invoiceNumber}
                       </td>
                       <td className="py-3 px-4 text-[11px] font-mono">
@@ -1388,7 +1388,7 @@ export default function B2BOwnerOrdersPage() {
                         {c.currency} {c.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-[11px]">
-                        <div className="text-[#1e3a8a] font-bold">{c.currency} {(c.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                        <div className="text-[#4C3AE3] font-bold">{c.currency} {(c.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                         {balance > 0 && <div className="text-rose-600 text-[10px] font-semibold">Balance: {c.currency} {balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>}
                       </td>
                       <td className="py-3 px-4">
@@ -1403,7 +1403,7 @@ export default function B2BOwnerOrdersPage() {
                             <Button
                               size="sm"
                               variant="primary"
-                              className="bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white font-bold text-[11px] shadow-sm px-2.5 py-1"
+                              className="bg-[#4C3AE3] hover:bg-[#4C3AE3]/90 text-white font-bold text-[11px] shadow-sm px-2.5 py-1"
                               onClick={() => {
                                 setCpTarget(c);
                                 setCpForm({
@@ -1425,7 +1425,7 @@ export default function B2BOwnerOrdersPage() {
                           {((c.amountPaid || 0) > 0 || c.status === 'PAID') && (
                             <button
                               onClick={() => setPaymentHistoryModalCi(c)}
-                              className="p-1.5 rounded-lg bg-[#eff6ff] text-[#1e3a8a] hover:bg-[#dbeafe] border border-[#bfdbfe]"
+                              className="p-1.5 rounded-lg bg-[#EEF0FE] text-[#4C3AE3] hover:bg-[#dbeafe] border border-[#D9D4FB]"
                               title="View Payment Remittances & Receipts"
                               aria-label="View Receipts"
                             >
@@ -1455,7 +1455,7 @@ export default function B2BOwnerOrdersPage() {
                           )}
                           <button
                             onClick={() => window.open(`/api/customer-invoices/${c.id}/print`, '_blank')}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a] border border-slate-200"
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-600 hover:text-[#4C3AE3] border border-slate-200"
                             title="Print / Save Sales Invoice PDF"
                             aria-label="Print Invoice"
                           >
@@ -1519,7 +1519,7 @@ export default function B2BOwnerOrdersPage() {
                   const pendingTc = transportCosts.some((t) => t.status === 'PENDING_APPROVAL' && t.relatedPoNumbers.includes(p.poNumber));
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/80">
-                      <td className="py-3 px-4 font-mono font-bold text-[#1e3a8a]">{p.poNumber}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-[#4C3AE3]">{p.poNumber}</td>
                       <td className="py-3 px-4 font-bold text-slate-900">{p.vendorName}</td>
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{p.linkedSalesOrderNumber || '—'}</td>
                       <td className="py-3 px-4 text-right font-mono text-[11px]">
@@ -1548,10 +1548,10 @@ export default function B2BOwnerOrdersPage() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => setViewPoModal(p)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a]" title="View purchase order">
+                          <button onClick={() => setViewPoModal(p)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-600 hover:text-[#4C3AE3]" title="View purchase order">
                             <Eye className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => window.open(`/api/purchase-orders/${p.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a]" title="Print / download purchase order">
+                          <button onClick={() => window.open(`/api/purchase-orders/${p.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-600 hover:text-[#4C3AE3]" title="Print / download purchase order">
                             <Printer className="w-3.5 h-3.5" />
                           </button>
                           <button
@@ -1564,7 +1564,7 @@ export default function B2BOwnerOrdersPage() {
                               });
                             }}
                             disabled={poEditLocked}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-100 disabled:hover:text-slate-600"
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-600 hover:text-[#4C3AE3] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-100 disabled:hover:text-slate-600"
                             title={poEditLocked ? 'This PO is settled and can no longer be edited' : 'Edit delivery date, payment terms & notes'}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -1609,7 +1609,7 @@ export default function B2BOwnerOrdersPage() {
               <tbody className="divide-y divide-slate-100">
                 {vendorInvoices.map((v) => (
                   <tr key={v.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold text-[#1e3a8a]">{v.vendorInvoiceNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-[#4C3AE3]">{v.vendorInvoiceNumber}</td>
                     <td className="py-3 px-4 font-mono font-bold text-slate-800">{v.linkedPoNumber}</td>
                     <td className="py-3 px-4 font-bold text-slate-900">{v.vendorName}</td>
                     <td className="py-3 px-4 text-right font-mono font-bold">{v.currency} {v.invoiceAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
@@ -1618,12 +1618,12 @@ export default function B2BOwnerOrdersPage() {
                         <a
                           href={v.attachment.fileUrl}
                           download={v.attachment.fileName}
-                          className="text-[11px] text-[#1e3a8a] font-bold hover:underline flex items-center gap-1"
+                          className="text-[11px] text-[#4C3AE3] font-bold hover:underline flex items-center gap-1"
                         >
                           <Download className="w-3 h-3" /> {v.attachment.fileName}
                         </a>
                       ) : v.attachment ? (
-                        <span className="text-[11px] text-[#1e3a8a] font-bold">{v.attachment.fileName}</span>
+                        <span className="text-[11px] text-[#4C3AE3] font-bold">{v.attachment.fileName}</span>
                       ) : (<span className="text-slate-400 text-[11px]">—</span>)}
                     </td>
                     <td className="py-3 px-4"><StatusPill status={v.status} /></td>
@@ -1687,14 +1687,14 @@ export default function B2BOwnerOrdersPage() {
                   const variance = poAmount !== undefined ? v.invoiceAmount - poAmount : undefined;
                   return (
                   <tr key={v.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold text-[#1e3a8a]">{v.vendorInvoiceNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-[#4C3AE3]">{v.vendorInvoiceNumber}</td>
                     <td className="py-3 px-4 font-bold text-slate-900">{v.vendorName}</td>
                     <td className="py-3 px-4 text-right font-mono text-slate-600">{poAmount !== undefined ? `${v.currency} ${poAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}</td>
                     <td className="py-3 px-4 text-right font-mono font-bold">{v.currency} {v.invoiceAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className={`py-3 px-4 text-right font-mono font-bold ${variance === undefined ? 'text-slate-400' : Math.abs(variance) < 0.005 ? 'text-slate-500' : variance > 0 ? 'text-rose-700' : 'text-teal-700'}`}>
                       {variance === undefined ? '—' : `${variance > 0 ? '+' : ''}${variance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                     </td>
-                    <td className="py-3 px-4 text-right font-mono text-[#1e3a8a] font-bold">{v.currency} {v.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4 text-right font-mono text-[#4C3AE3] font-bold">{v.currency} {v.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4 text-right font-mono text-rose-700 font-bold">{v.currency} {(v.invoiceAmount - v.amountPaid).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4"><StatusPill status={v.status} /></td>
                     <td className="py-3 px-4">
@@ -1702,7 +1702,7 @@ export default function B2BOwnerOrdersPage() {
                         <a
                           href={lastPayment.receiptAttachment.fileUrl}
                           download={lastPayment.receiptAttachment.fileName}
-                          className="text-[11px] text-[#1e3a8a] font-bold hover:underline flex items-center gap-1"
+                          className="text-[11px] text-[#4C3AE3] font-bold hover:underline flex items-center gap-1"
                         >
                           <Download className="w-3 h-3" /> View
                         </a>
@@ -1746,7 +1746,7 @@ export default function B2BOwnerOrdersPage() {
               <tbody className="divide-y divide-slate-100">
                 {transportCosts.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold text-[#1e3a8a]">{t.transportCostNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-[#4C3AE3]">{t.transportCostNumber}</td>
                     <td className="py-3 px-4 font-bold text-slate-900">{t.vendorName}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{t.warehouseCode}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{t.trackingNumber}</td>
@@ -1769,7 +1769,7 @@ export default function B2BOwnerOrdersPage() {
                       <button
                         onClick={() => setViewTcModal(t)}
                         title="View full claim details"
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-[#1e3a8a] hover:bg-[#eff6ff] transition-colors inline-flex align-middle"
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-[#4C3AE3] hover:bg-[#EEF0FE] transition-colors inline-flex align-middle"
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
@@ -1805,7 +1805,7 @@ export default function B2BOwnerOrdersPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <div className="text-[10px] font-mono font-bold text-slate-400 uppercase">Outstanding Receivable</div>
-              <div className="text-xl font-black text-[#1e3a8a] font-mono mt-1">AUD {outstandingTotals.receivable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+              <div className="text-xl font-black text-[#4C3AE3] font-mono mt-1">AUD {outstandingTotals.receivable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
               <p className="text-[11px] text-slate-500 mt-1">Owed to LogiQ-On by customers</p>
             </div>
             <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
@@ -1876,7 +1876,7 @@ export default function B2BOwnerOrdersPage() {
                   return (
                     <tr key={`${r.type}_${r.id}`} className="hover:bg-slate-50/80">
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${r.type === 'RECEIVABLE' ? 'bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${r.type === 'RECEIVABLE' ? 'bg-[#EEF0FE] text-[#4C3AE3] border-[#D9D4FB]' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                           {r.type === 'RECEIVABLE' ? 'RECEIVABLE' : 'PAYABLE'}
                         </span>
                       </td>
@@ -1889,7 +1889,7 @@ export default function B2BOwnerOrdersPage() {
                       </td>
                       <td className="py-3 px-4 text-right font-mono">{r.currency} {r.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                       <td className="py-3 px-4 text-right font-mono text-slate-500">{r.currency} {r.paid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                      <td className={`py-3 px-4 text-right font-mono font-black ${r.type === 'RECEIVABLE' ? 'text-[#1e3a8a]' : 'text-rose-700'}`}>{r.currency} {r.outstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      <td className={`py-3 px-4 text-right font-mono font-black ${r.type === 'RECEIVABLE' ? 'text-[#4C3AE3]' : 'text-rose-700'}`}>{r.currency} {r.outstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                       <td className="py-3 px-4"><StatusPill status={r.status} /></td>
                     </tr>
                   );
@@ -1948,7 +1948,7 @@ export default function B2BOwnerOrdersPage() {
                 <button
                   type="button"
                   onClick={() => setIsQuickAddCustomerOpen(true)}
-                  className="text-[11px] font-bold text-[#1e3a8a] hover:text-[#1e3a8a]/80"
+                  className="text-[11px] font-bold text-[#4C3AE3] hover:text-[#4C3AE3]/80"
                 >
                   + Add New Customer
                 </button>
@@ -2027,7 +2027,7 @@ export default function B2BOwnerOrdersPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="font-bold">Items</label>
-              <button type="button" onClick={() => setSoForm({ ...soForm, lines: [...soForm.lines, { itemCode: '', itemName: '', description: '', quantity: 1, sellingPrice: 0, taxPercent: 10, moq: 1 }] })} className="text-[11px] font-bold text-[#1e3a8a]">+ Add Item</button>
+              <button type="button" onClick={() => setSoForm({ ...soForm, lines: [...soForm.lines, { itemCode: '', itemName: '', description: '', quantity: 1, sellingPrice: 0, taxPercent: 10, moq: 1 }] })} className="text-[11px] font-bold text-[#4C3AE3]">+ Add Item</button>
             </div>
             <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               <span className="col-span-6">Item</span>
@@ -2048,7 +2048,7 @@ export default function B2BOwnerOrdersPage() {
                     setSoForm({ ...soForm, lines: n });
                   }}
                 />
-                <input type="number" min={l.moq || 1} className="col-span-2 w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 placeholder:text-slate-400" placeholder="0" value={l.quantity} onChange={(e) => { const n = [...soForm.lines]; n[i].quantity = Number(e.target.value); setSoForm({ ...soForm, lines: n }); }} />
+                <input type="number" min={l.moq || 1} className="col-span-2 w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#4C3AE3] focus:ring-1 focus:ring-[#4C3AE3]/20 placeholder:text-slate-400" placeholder="0" value={l.quantity} onChange={(e) => { const n = [...soForm.lines]; n[i].quantity = Number(e.target.value); setSoForm({ ...soForm, lines: n }); }} />
                   <input type="number" step="0.01" readOnly className="col-span-3 w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold focus:outline-none cursor-not-allowed" placeholder="0.00" value={l.sellingPrice} />
                 <div className="col-span-1 flex justify-center">
                   {soForm.lines.length > 1 && (
@@ -2134,7 +2134,7 @@ export default function B2BOwnerOrdersPage() {
                   <span className="text-slate-400 font-mono">—</span>
                 )}
               </div>
-              <div><span className="text-slate-500 block">Total</span><span className="font-black text-[#1e3a8a] font-mono">{viewPoModal.currency} {viewPoModal.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+              <div><span className="text-slate-500 block">Total</span><span className="font-black text-[#4C3AE3] font-mono">{viewPoModal.currency} {viewPoModal.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
             </div>
 
             {viewPoModal.notes && (
@@ -2227,7 +2227,7 @@ export default function B2BOwnerOrdersPage() {
             <div className="grid grid-cols-3 gap-3 text-[11px] p-3 rounded-xl bg-slate-50 border border-slate-200">
               <div><span className="text-slate-500 block">Subtotal</span><span className="font-bold text-slate-800 font-mono">{viewSoModal.currency} {viewSoModal.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
               <div><span className="text-slate-500 block">Tax</span><span className="font-bold text-slate-800 font-mono">{viewSoModal.currency} {viewSoModal.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-              <div><span className="text-slate-500 block">Total</span><span className="font-black text-[#1e3a8a] font-mono">{viewSoModal.currency} {viewSoModal.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+              <div><span className="text-slate-500 block">Total</span><span className="font-black text-[#4C3AE3] font-mono">{viewSoModal.currency} {viewSoModal.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
             </div>
 
             {(() => {
@@ -2240,19 +2240,19 @@ export default function B2BOwnerOrdersPage() {
                   <div className="text-[10px] font-mono font-bold text-slate-500 uppercase mb-1">Linked Documents</div>
                   {relatedPos.map((p) => (
                     <div key={p.id} className="text-[11px] flex items-center justify-between">
-                      <span>Purchase Order <span className="font-mono font-bold text-[#1e3a8a]">{p.poNumber}</span> ({p.vendorName})</span>
+                      <span>Purchase Order <span className="font-mono font-bold text-[#4C3AE3]">{p.poNumber}</span> ({p.vendorName})</span>
                       <StatusPill status={p.status} />
                     </div>
                   ))}
                   {relatedDns.map((d) => (
                     <div key={d.id} className="text-[11px] flex items-center justify-between">
-                      <span>Dispatch Note <span className="font-mono font-bold text-[#1e3a8a]">{d.dispatchNumber}</span></span>
+                      <span>Dispatch Note <span className="font-mono font-bold text-[#4C3AE3]">{d.dispatchNumber}</span></span>
                       <StatusPill status={d.status} />
                     </div>
                   ))}
                   {relatedInvoice && (
                     <div className="text-[11px] flex items-center justify-between">
-                      <span>Sales Invoice <span className="font-mono font-bold text-[#1e3a8a]">{relatedInvoice.invoiceNumber}</span></span>
+                      <span>Sales Invoice <span className="font-mono font-bold text-[#4C3AE3]">{relatedInvoice.invoiceNumber}</span></span>
                       <StatusPill status={relatedInvoice.status} />
                     </div>
                   )}
@@ -2368,7 +2368,7 @@ export default function B2BOwnerOrdersPage() {
                       const po = purchaseOrders.find((p) => p.poNumber === a.poNumber);
                       return (
                         <tr key={i}>
-                          <td className="py-2 px-3 font-mono font-bold text-[#1e3a8a]">{a.poNumber}</td>
+                          <td className="py-2 px-3 font-mono font-bold text-[#4C3AE3]">{a.poNumber}</td>
                           <td className="py-2 px-3">{po ? <StatusPill status={po.status} /> : <span className="text-rose-500 text-[10px] font-bold">Not found</span>}</td>
                           <td className="py-2 px-3 text-right font-mono">{viewTcModal.currency} {a.poTotalValueAtClaim.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                           <td className="py-2 px-3 text-right font-mono font-bold">{viewTcModal.currency} {a.allocatedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
@@ -2388,7 +2388,7 @@ export default function B2BOwnerOrdersPage() {
             )}
 
             <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-              <div className="text-sm font-black text-[#1e3a8a] font-mono">
+              <div className="text-sm font-black text-[#4C3AE3] font-mono">
                 Total Claimed: {viewTcModal.currency} {viewTcModal.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
               <div className="flex gap-2">
@@ -2465,7 +2465,7 @@ export default function B2BOwnerOrdersPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="font-bold">Items</label>
-              <button type="button" onClick={() => setPoForm({ ...poForm, lines: [...poForm.lines, { itemCode: '', itemName: '', quantity: 1, unitCost: 0, taxPercent: 10, moq: 1 }] })} className="text-[11px] font-bold text-[#1e3a8a]">+ Add Item</button>
+              <button type="button" onClick={() => setPoForm({ ...poForm, lines: [...poForm.lines, { itemCode: '', itemName: '', quantity: 1, unitCost: 0, taxPercent: 10, moq: 1 }] })} className="text-[11px] font-bold text-[#4C3AE3]">+ Add Item</button>
             </div>
             <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               <span className="col-span-6">Item</span>
@@ -2482,7 +2482,7 @@ export default function B2BOwnerOrdersPage() {
                   placeholder="Search item..."
                   onChange={(v) => { const n = [...poForm.lines]; n[i] = { ...n[i], itemCode: v.itemCode, itemName: v.itemName, unitCost: v.unitCost || n[i].unitCost, moq: (v as any).moq || 1, quantity: Math.max(n[i].quantity, (v as any).moq || 1) }; setPoForm({ ...poForm, lines: n }); }}
                 />
-                <input type="number" min={l.moq || 1} className="col-span-2 w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 placeholder:text-slate-400" placeholder="0" value={l.quantity} onChange={(e) => { const n = [...poForm.lines]; n[i].quantity = Number(e.target.value); setPoForm({ ...poForm, lines: n }); }} />
+                <input type="number" min={l.moq || 1} className="col-span-2 w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#4C3AE3] focus:ring-1 focus:ring-[#4C3AE3]/20 placeholder:text-slate-400" placeholder="0" value={l.quantity} onChange={(e) => { const n = [...poForm.lines]; n[i].quantity = Number(e.target.value); setPoForm({ ...poForm, lines: n }); }} />
                   <input type="number" step="0.01" readOnly className="col-span-3 w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold focus:outline-none cursor-not-allowed" placeholder="0.00" value={l.unitCost} />
                 <div className="col-span-1 flex justify-center">
                   {poForm.lines.length > 1 && (
@@ -2528,8 +2528,8 @@ export default function B2BOwnerOrdersPage() {
           <div><label className="font-bold block mb-1">Billing Address</label><Input value={ciForm.billingAddress} onChange={(e) => setCiForm({ ...ciForm, billingAddress: e.target.value })} /></div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="font-bold">Items {ciForm.salesOrderNumber && <span className="text-[#1e3a8a] font-normal ml-2">(auto-populated from SO)</span>}</label>
-              <button type="button" onClick={() => setCiForm({ ...ciForm, lines: [...ciForm.lines, { itemCode: '', itemName: '', quantity: 1, unitPrice: 0, taxPercent: 10 }] })} className="text-[11px] font-bold text-[#1e3a8a]">+ Add Item</button>
+              <label className="font-bold">Items {ciForm.salesOrderNumber && <span className="text-[#4C3AE3] font-normal ml-2">(auto-populated from SO)</span>}</label>
+              <button type="button" onClick={() => setCiForm({ ...ciForm, lines: [...ciForm.lines, { itemCode: '', itemName: '', quantity: 1, unitPrice: 0, taxPercent: 10 }] })} className="text-[11px] font-bold text-[#4C3AE3]">+ Add Item</button>
             </div>
             <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               <span className="col-span-6">Item</span>
@@ -2546,8 +2546,8 @@ export default function B2BOwnerOrdersPage() {
                   placeholder="Search item..."
                   onChange={(v) => { const n = [...ciForm.lines]; n[i] = { ...n[i], itemCode: v.itemCode, itemName: v.itemName, unitPrice: v.sellingPrice || n[i].unitPrice }; setCiForm({ ...ciForm, lines: n }); }}
                 />
-                <input type="number" min="1" className="col-span-2 w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 placeholder:text-slate-400" placeholder="0" value={l.quantity} onChange={(e) => { const n = [...ciForm.lines]; n[i].quantity = Number(e.target.value); setCiForm({ ...ciForm, lines: n }); }} />
-                <input type="number" step="0.01" className="col-span-3 w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 placeholder:text-slate-400" placeholder="0.00" value={l.unitPrice} onChange={(e) => { const n = [...ciForm.lines]; n[i].unitPrice = Number(e.target.value); setCiForm({ ...ciForm, lines: n }); }} />
+                <input type="number" min="1" className="col-span-2 w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#4C3AE3] focus:ring-1 focus:ring-[#4C3AE3]/20 placeholder:text-slate-400" placeholder="0" value={l.quantity} onChange={(e) => { const n = [...ciForm.lines]; n[i].quantity = Number(e.target.value); setCiForm({ ...ciForm, lines: n }); }} />
+                <input type="number" step="0.01" className="col-span-3 w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#4C3AE3] focus:ring-1 focus:ring-[#4C3AE3]/20 placeholder:text-slate-400" placeholder="0.00" value={l.unitPrice} onChange={(e) => { const n = [...ciForm.lines]; n[i].unitPrice = Number(e.target.value); setCiForm({ ...ciForm, lines: n }); }} />
                 <div className="col-span-1 flex justify-center">
                   {ciForm.lines.length > 1 && (
                     <button type="button" onClick={() => { const n = ciForm.lines.filter((_: any, idx: number) => idx !== i); setCiForm({ ...ciForm, lines: n }); }} className="text-rose-400 hover:text-rose-600 text-[11px]">✕</button>
@@ -2599,10 +2599,10 @@ export default function B2BOwnerOrdersPage() {
               type="file"
               accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
               onChange={handleViAttachmentUpload}
-              className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#eff6ff] file:text-[#1e3a8a] hover:file:bg-[#dbeafe]"
+              className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#EEF0FE] file:text-[#4C3AE3] hover:file:bg-[#dbeafe]"
             />
             {viForm.attachment && (
-              <p className="text-[11px] text-[#1e3a8a] font-bold mt-1 flex items-center gap-1">
+              <p className="text-[11px] text-[#4C3AE3] font-bold mt-1 flex items-center gap-1">
                 <Paperclip className="w-3 h-3" /> {viForm.attachment.fileName}
               </p>
             )}
@@ -2636,10 +2636,10 @@ export default function B2BOwnerOrdersPage() {
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                 onChange={handleVpReceiptUpload}
-                className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#eff6ff] file:text-[#1e3a8a] hover:file:bg-[#dbeafe]"
+                className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#EEF0FE] file:text-[#4C3AE3] hover:file:bg-[#dbeafe]"
               />
               {vpForm.receiptAttachment && (
-                <p className="text-[11px] text-[#1e3a8a] font-bold mt-1">Attached: {vpForm.receiptAttachment.fileName}</p>
+                <p className="text-[11px] text-[#4C3AE3] font-bold mt-1">Attached: {vpForm.receiptAttachment.fileName}</p>
               )}
               <p className="text-[10px] text-slate-400 mt-1">The vendor will see this attached to their payment once recorded.</p>
             </div>
@@ -2661,14 +2661,14 @@ export default function B2BOwnerOrdersPage() {
           return (
             <form onSubmit={submitCpay} className="space-y-4 text-xs">
               {/* Header Summary & Live Balance Calculator */}
-              <div className="p-3.5 rounded-2xl space-y-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+              <div className="p-3.5 rounded-2xl space-y-2" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#1e3a8a' }}>Customer Invoice</div>
+                    <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#4C3AE3' }}>Customer Invoice</div>
                     <div className="font-extrabold text-slate-900 text-sm">{cpTarget.invoiceNumber}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#1e3a8a' }}>Billed Customer</div>
+                    <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#4C3AE3' }}>Billed Customer</div>
                     <div className="font-bold text-slate-900">{cpTarget.customerName}</div>
                   </div>
                 </div>
@@ -2684,7 +2684,7 @@ export default function B2BOwnerOrdersPage() {
                   </div>
                   <div className="bg-white/70 p-2 rounded-xl" style={{ border: '1px solid #dbeafe' }}>
                     <div className="text-[9px] text-slate-500 uppercase font-bold">Bal After Pay</div>
-                    <div className={`font-bold text-xs ${remainingAfter === 0 ? 'text-[#1e3a8a]' : 'text-amber-700'}`}>
+                    <div className={`font-bold text-xs ${remainingAfter === 0 ? 'text-[#4C3AE3]' : 'text-amber-700'}`}>
                       {cpTarget.currency} {remainingAfter.toFixed(2)}
                     </div>
                   </div>
@@ -2739,7 +2739,7 @@ export default function B2BOwnerOrdersPage() {
               {/* Remittance Receipt File Upload Zone */}
               <div className="space-y-2 pt-1">
                 <label className="text-xs font-bold text-slate-700 block">Bank Remittance Receipt / Payment Slip (Optional)</label>
-                <div className="p-3.5 border-2 border-dashed border-slate-300 hover:border-[#1e3a8a]/50 rounded-2xl bg-slate-50/50 flex flex-col items-center justify-center text-center transition-colors">
+                <div className="p-3.5 border-2 border-dashed border-slate-300 hover:border-[#4C3AE3]/50 rounded-2xl bg-slate-50/50 flex flex-col items-center justify-center text-center transition-colors">
                   <input
                     type="file"
                     id="receipt-file-upload"
@@ -2748,29 +2748,29 @@ export default function B2BOwnerOrdersPage() {
                     className="hidden"
                   />
                   <label htmlFor="receipt-file-upload" className="cursor-pointer flex flex-col items-center space-y-1">
-                    <div className="p-2 rounded-xl" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #dbeafe' }}>
+                    <div className="p-2 rounded-xl" style={{ background: '#EEF0FE', color: '#4C3AE3', border: '1px solid #dbeafe' }}>
                       <UploadCloud className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-bold text-[#1e3a8a] hover:text-[#1e3a8a]/80">Click to upload bank transfer slip / receipt PDF</span>
+                    <span className="text-xs font-bold text-[#4C3AE3] hover:text-[#4C3AE3]/80">Click to upload bank transfer slip / receipt PDF</span>
                     <span className="text-[10px] text-slate-400">Supports PDF, PNG, JPG, WEBP (Max 5MB)</span>
                   </label>
                 </div>
 
                 {cpForm.receiptAttachment && (
-                  <div className="p-2.5 rounded-xl flex items-center justify-between" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                  <div className="p-2.5 rounded-xl flex items-center justify-between" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="p-1 rounded-lg shrink-0" style={{ background: '#dbeafe', color: '#1e3a8a' }}>
+                      <div className="p-1 rounded-lg shrink-0" style={{ background: '#dbeafe', color: '#4C3AE3' }}>
                         <FileCheck className="w-3.5 h-3.5" />
                       </div>
                       <div className="min-w-0">
-                        <div className="font-bold text-xs truncate" style={{ color: '#1e3a8a' }}>{cpForm.receiptAttachment.fileName}</div>
-                        <div className="text-[10px]" style={{ color: '#1e3a8a' }}>{cpForm.receiptAttachment.fileSize || 'Attached'} · Ready to save</div>
+                        <div className="font-bold text-xs truncate" style={{ color: '#4C3AE3' }}>{cpForm.receiptAttachment.fileName}</div>
+                        <div className="text-[10px]" style={{ color: '#4C3AE3' }}>{cpForm.receiptAttachment.fileSize || 'Attached'} · Ready to save</div>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setCpForm({ ...cpForm, receiptAttachment: null, receiptFileName: '' })}
-                      className="p-1 rounded-lg hover:bg-[#dbeafe] text-[#1e3a8a]"
+                      className="p-1 rounded-lg hover:bg-[#dbeafe] text-[#4C3AE3]"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -2782,7 +2782,7 @@ export default function B2BOwnerOrdersPage() {
                 <Button type="button" variant="secondary" onClick={() => setIsCpModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" className="bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white font-bold" leftIcon={<CheckCircle2 className="w-4 h-4" />}>
+                <Button type="submit" variant="primary" className="bg-[#4C3AE3] hover:bg-[#4C3AE3]/90 text-white font-bold" leftIcon={<CheckCircle2 className="w-4 h-4" />}>
                   Record & Allocate Payment
                 </Button>
               </div>
@@ -2798,14 +2798,14 @@ export default function B2BOwnerOrdersPage() {
 
           return (
             <div className="space-y-4 text-xs">
-              <div className="p-3.5 rounded-2xl flex items-center justify-between" style={{ background: 'rgba(239,246,255,0.7)', border: '1px solid #bfdbfe' }}>
+              <div className="p-3.5 rounded-2xl flex items-center justify-between" style={{ background: 'rgba(239,246,255,0.7)', border: '1px solid #D9D4FB' }}>
                 <div>
-                  <div className="text-[10px] font-mono uppercase font-bold" style={{ color: '#1e3a8a' }}>Invoice Settlement Summary</div>
+                  <div className="text-[10px] font-mono uppercase font-bold" style={{ color: '#4C3AE3' }}>Invoice Settlement Summary</div>
                   <div className="font-extrabold text-slate-900 text-sm">{paymentHistoryModalCi.invoiceNumber} · {paymentHistoryModalCi.customerName}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] font-mono uppercase text-slate-500 font-bold">Total Paid to Date</div>
-                  <div className="font-mono font-black text-[#1e3a8a] text-sm">
+                  <div className="font-mono font-black text-[#4C3AE3] text-sm">
                     {paymentHistoryModalCi.currency} {(paymentHistoryModalCi.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} / {paymentHistoryModalCi.currency} {paymentHistoryModalCi.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                 </div>
@@ -2825,20 +2825,20 @@ export default function B2BOwnerOrdersPage() {
                   <tbody className="divide-y divide-slate-100">
                     {matchedPayments.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50/60">
-                        <td className="py-2.5 px-3 font-mono font-bold text-[#1e3a8a]">{p.paymentNumber}</td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-[#4C3AE3]">{p.paymentNumber}</td>
                         <td className="py-2.5 px-3 text-slate-700">{new Date(p.paymentDate).toLocaleDateString()}</td>
                         <td className="py-2.5 px-3">
                           <div className="font-bold text-slate-800">{p.paymentMethod}</div>
                           <div className="font-mono text-[10px] text-slate-500">{p.bankReference}</div>
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-[#1e3a8a]">
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-[#4C3AE3]">
                           {p.currency} {p.amount.toFixed(2)}
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           {p.receiptAttachment || p.receiptFileName ? (
                             <button
                               onClick={() => setReceiptViewerCp(p)}
-                              className="px-2 py-1 rounded-lg bg-[#eff6ff] text-[#1e3a8a] hover:bg-[#dbeafe] border border-[#bfdbfe] text-[10px] font-bold inline-flex items-center gap-1"
+                              className="px-2 py-1 rounded-lg bg-[#EEF0FE] text-[#4C3AE3] hover:bg-[#dbeafe] border border-[#D9D4FB] text-[10px] font-bold inline-flex items-center gap-1"
                             >
                               <Paperclip className="w-3 h-3" /> View Slip
                             </button>
@@ -2871,13 +2871,13 @@ export default function B2BOwnerOrdersPage() {
       <Modal isOpen={!!receiptViewerCp} onClose={() => setReceiptViewerCp(null)} title={`Bank Remittance Slip — ${receiptViewerCp?.paymentNumber || ''}`} maxWidth="2xl">
         {receiptViewerCp && (
           <div className="space-y-4 text-xs font-sans">
-            <div className="p-3.5 rounded-2xl flex items-center justify-between" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <div className="p-3.5 rounded-2xl flex items-center justify-between" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
               <div className="flex items-center gap-3">
-                <div className="p-2 text-white rounded-xl shadow-sm" style={{ background: '#1e3a8a' }}>
+                <div className="p-2 text-white rounded-xl shadow-sm" style={{ background: '#4C3AE3' }}>
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#1e3a8a' }}>Payment Receipt</div>
+                  <div className="text-[10px] font-mono font-bold uppercase" style={{ color: '#4C3AE3' }}>Payment Receipt</div>
                   <div className="font-black text-slate-900 text-sm">{receiptViewerCp.paymentNumber} · {receiptViewerCp.currency} {receiptViewerCp.amount?.toFixed(2)}</div>
                 </div>
               </div>
@@ -2890,7 +2890,7 @@ export default function B2BOwnerOrdersPage() {
             {receiptViewerCp.receiptAttachment?.fileData ? (
               <div className="border border-slate-200 rounded-2xl p-3 bg-slate-900/5 space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#1e3a8a]" /> {receiptViewerCp.receiptAttachment.fileName}</span>
+                  <span className="flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#4C3AE3]" /> {receiptViewerCp.receiptAttachment.fileName}</span>
                   <a
                     href={receiptViewerCp.receiptAttachment.fileData}
                     download={receiptViewerCp.receiptAttachment.fileName || 'Remittance-Slip.pdf'}
@@ -2972,7 +2972,7 @@ export default function B2BOwnerOrdersPage() {
                       <th className="py-2 px-3">Item Code</th>
                       <th className="py-2 px-3">Item Name</th>
                       <th className="py-2 px-3">Ordered</th>
-                      <th className="py-2 px-3 font-bold text-[#1e3a8a]">Allocated to Dispatch</th>
+                      <th className="py-2 px-3 font-bold text-[#4C3AE3]">Allocated to Dispatch</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
@@ -2983,7 +2983,7 @@ export default function B2BOwnerOrdersPage() {
                           <td className="py-2 px-3 font-mono font-bold text-slate-900">{l.itemCode}</td>
                           <td className="py-2 px-3 text-slate-700 truncate max-w-[200px]">{l.itemName}</td>
                           <td className="py-2 px-3">{l.quantity}</td>
-                          <td className="py-2 px-3 font-bold text-[#1e3a8a]">{allocQty}</td>
+                          <td className="py-2 px-3 font-bold text-[#4C3AE3]">{allocQty}</td>
                         </tr>
                       );
                     })}
@@ -3059,7 +3059,7 @@ export default function B2BOwnerOrdersPage() {
             {/* Line Items Delivery Acceptance */}
             <div className="space-y-2">
               <div className="text-[10px] font-mono font-bold text-slate-700 uppercase flex items-center justify-between">
-                <span className="flex items-center gap-1"><Box className="w-3.5 h-3.5 text-[#1e3a8a]" /> Delivered Items Verification</span>
+                <span className="flex items-center gap-1"><Box className="w-3.5 h-3.5 text-[#4C3AE3]" /> Delivered Items Verification</span>
                 <span className="text-slate-500 font-normal">Confirm accepted quantities & condition</span>
               </div>
               <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
@@ -3124,7 +3124,7 @@ export default function B2BOwnerOrdersPage() {
             <div className="space-y-2 pt-1">
               <label className="text-xs font-bold text-slate-700 block">Attach Customer Emailed Proof of Delivery (POD) *</label>
               
-              <div className="p-4 border-2 border-dashed border-slate-300 hover:border-[#1e3a8a]/50 rounded-2xl bg-slate-50/50 flex flex-col items-center justify-center text-center transition-colors">
+              <div className="p-4 border-2 border-dashed border-slate-300 hover:border-[#4C3AE3]/50 rounded-2xl bg-slate-50/50 flex flex-col items-center justify-center text-center transition-colors">
                 <input
                   type="file"
                   id="b2b-pod-upload"
@@ -3133,29 +3133,29 @@ export default function B2BOwnerOrdersPage() {
                   className="hidden"
                 />
                 <label htmlFor="b2b-pod-upload" className="cursor-pointer flex flex-col items-center space-y-1">
-                  <div className="p-2.5 rounded-xl" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #dbeafe' }}>
+                  <div className="p-2.5 rounded-xl" style={{ background: '#EEF0FE', color: '#4C3AE3', border: '1px solid #dbeafe' }}>
                     <UploadCloud className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-bold text-[#1e3a8a] hover:text-[#1e3a8a]/80">Click to upload customer's signed POD slip / PDF</span>
+                  <span className="text-xs font-bold text-[#4C3AE3] hover:text-[#4C3AE3]/80">Click to upload customer's signed POD slip / PDF</span>
                   <span className="text-[10px] text-slate-400">Supports PDF, PNG, JPG, WEBP (Max 5MB)</span>
                 </label>
               </div>
 
               {deliveryForm.attachment && (
-                <div className="p-3 rounded-xl flex items-center justify-between" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                <div className="p-3 rounded-xl flex items-center justify-between" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="p-1.5 rounded-lg shrink-0" style={{ background: '#dbeafe', color: '#1e3a8a' }}>
+                    <div className="p-1.5 rounded-lg shrink-0" style={{ background: '#dbeafe', color: '#4C3AE3' }}>
                       <FileCheck className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-bold text-xs truncate" style={{ color: '#1e3a8a' }}>{deliveryForm.attachment.fileName}</div>
-                      <div className="text-[10px]" style={{ color: '#1e3a8a' }}>{deliveryForm.attachment.fileSize || 'Attached'} • Ready to attach</div>
+                      <div className="font-bold text-xs truncate" style={{ color: '#4C3AE3' }}>{deliveryForm.attachment.fileName}</div>
+                      <div className="text-[10px]" style={{ color: '#4C3AE3' }}>{deliveryForm.attachment.fileSize || 'Attached'} • Ready to attach</div>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setDeliveryForm({ ...deliveryForm, attachment: null, podReference: '' })}
-                    className="p-1 rounded-lg hover:bg-[#dbeafe] text-[#1e3a8a]"
+                    className="p-1 rounded-lg hover:bg-[#dbeafe] text-[#4C3AE3]"
                     title="Remove attachment"
                   >
                     <X className="w-4 h-4" />
@@ -3261,7 +3261,7 @@ export default function B2BOwnerOrdersPage() {
                   rather than a stored PDF file. */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+                  <div className="p-1.5 rounded-lg" style={{ background: '#EEF0FE', color: '#4C3AE3' }}>
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
@@ -3272,7 +3272,7 @@ export default function B2BOwnerOrdersPage() {
                 <button
                   type="button"
                   onClick={() => window.open(`/api/customer-invoices/${sendInvoiceModalCi.id}/print`, '_blank')}
-                  className="text-[11px] font-bold text-[#1e3a8a] hover:text-[#1e3a8a]/80"
+                  className="text-[11px] font-bold text-[#4C3AE3] hover:text-[#4C3AE3]/80"
                 >
                   Preview
                 </button>
@@ -3298,7 +3298,7 @@ export default function B2BOwnerOrdersPage() {
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
                 <div className="text-[10px] font-mono uppercase text-slate-500">Invoice No.</div>
-                <div className="font-mono font-black text-[#1e3a8a]">{viewInvoiceModalCi.invoiceNumber}</div>
+                <div className="font-mono font-black text-[#4C3AE3]">{viewInvoiceModalCi.invoiceNumber}</div>
               </div>
               <div>
                 <div className="text-[10px] font-mono uppercase text-slate-500">Sales Order</div>
@@ -3348,7 +3348,7 @@ export default function B2BOwnerOrdersPage() {
               </div>
               <div className="text-right space-y-1">
                 <div className="text-slate-500 text-[11px]">Total Invoice: <span className="font-mono font-bold text-slate-900">{viewInvoiceModalCi.currency} {viewInvoiceModalCi.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                <div className="text-[#1e3a8a] font-bold text-xs">Paid: <span className="font-mono">{viewInvoiceModalCi.currency} {(viewInvoiceModalCi.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                <div className="text-[#4C3AE3] font-bold text-xs">Paid: <span className="font-mono">{viewInvoiceModalCi.currency} {(viewInvoiceModalCi.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                 <div className="text-rose-600 font-black text-sm">Balance: <span className="font-mono">{viewInvoiceModalCi.currency} {Math.max(0, viewInvoiceModalCi.totalValue - (viewInvoiceModalCi.amountPaid || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
               </div>
             </div>
@@ -3357,7 +3357,7 @@ export default function B2BOwnerOrdersPage() {
               <button
                 type="button"
                 onClick={() => window.open(`/api/customer-invoices/${viewInvoiceModalCi.id}/print`, '_blank')}
-                className="px-3.5 py-1.5 rounded-xl bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1e3a8a] font-bold text-xs flex items-center gap-1.5 border border-[#bfdbfe]"
+                className="px-3.5 py-1.5 rounded-xl bg-[#EEF0FE] hover:bg-[#dbeafe] text-[#4C3AE3] font-bold text-xs flex items-center gap-1.5 border border-[#D9D4FB]"
               >
                 <Printer className="w-3.5 h-3.5" /> Print / PDF
               </button>
@@ -3374,13 +3374,13 @@ export default function B2BOwnerOrdersPage() {
         {podViewerDn && (
           <div className="space-y-4 text-xs font-sans">
             {/* Top Certificate Header */}
-            <div className="p-4 rounded-2xl flex items-center justify-between" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <div className="p-4 rounded-2xl flex items-center justify-between" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 text-white rounded-xl shadow-sm" style={{ background: '#1e3a8a' }}>
+                <div className="p-2.5 text-white rounded-xl shadow-sm" style={{ background: '#4C3AE3' }}>
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono" style={{ background: '#dbeafe', color: '#1e3a8a' }}>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono" style={{ background: '#dbeafe', color: '#4C3AE3' }}>
                     ✓ VERIFIED PROOF OF DELIVERY (POD)
                   </div>
                   <h3 className="text-base font-black text-slate-900 mt-0.5">Delivery Confirmation</h3>
@@ -3404,7 +3404,7 @@ export default function B2BOwnerOrdersPage() {
               </div>
               <div>
                 <span className="text-slate-500 block text-[10px] font-mono uppercase">Received By</span>
-                <span className="font-bold text-[#1e3a8a]">{podViewerDn.receiverName || 'Not recorded'}</span>
+                <span className="font-bold text-[#4C3AE3]">{podViewerDn.receiverName || 'Not recorded'}</span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[10px] font-mono uppercase">Carrier</span>
@@ -3416,7 +3416,7 @@ export default function B2BOwnerOrdersPage() {
             {podViewerDn.attachment?.fileData ? (
               <div className="border border-slate-200 rounded-2xl p-3 bg-slate-900/5 space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#1e3a8a]" /> {podViewerDn.attachment.fileName}</span>
+                  <span className="flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#4C3AE3]" /> {podViewerDn.attachment.fileName}</span>
                   <a
                     href={podViewerDn.attachment.fileData}
                     download={podViewerDn.attachment.fileName || 'POD-Document.pdf'}
@@ -3448,7 +3448,7 @@ export default function B2BOwnerOrdersPage() {
               <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <div className="font-mono font-bold text-slate-700 text-xs">DOCUMENT REFERENCE: {podViewerDn.podReference || podViewerDn.attachment?.fileName || `POD-${podViewerDn.dispatchNumber}.pdf`}</div>
-                  <span className="px-2 py-0.5 rounded-full bg-[#eff6ff] text-[#1e3a8a] border border-[#bfdbfe] text-[10px] font-bold">DIGITALLY SIGNED</span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#EEF0FE] text-[#4C3AE3] border border-[#D9D4FB] text-[10px] font-bold">DIGITALLY SIGNED</span>
                 </div>
 
                 <div className="text-[11px] text-slate-600 space-y-1">
@@ -3471,7 +3471,7 @@ export default function B2BOwnerOrdersPage() {
                         <tr key={i}>
                           <td className="py-2 px-3 font-mono font-bold text-slate-900">{l.itemCode}</td>
                           <td className="py-2 px-3 text-slate-600">{l.itemName}</td>
-                          <td className="py-2 px-3 font-bold text-right text-[#1e3a8a]">{l.deliveredQty || l.dispatchQty || l.orderedQty} units</td>
+                          <td className="py-2 px-3 font-bold text-right text-[#4C3AE3]">{l.deliveredQty || l.dispatchQty || l.orderedQty} units</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3522,7 +3522,7 @@ export default function B2BOwnerOrdersPage() {
                   required
                 />
                 {allocWhCode && (
-                  <div className="text-[10px] text-[#1e3a8a] mt-1 bg-[#eff6ff] p-2 rounded">Live stock loaded for {allocWhCode}.</div>
+                  <div className="text-[10px] text-[#4C3AE3] mt-1 bg-[#EEF0FE] p-2 rounded">Live stock loaded for {allocWhCode}.</div>
                 )}
               </div>
             </div>

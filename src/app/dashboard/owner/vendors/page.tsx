@@ -322,7 +322,7 @@ export default function AdminVendorsPage() {
       accessorKey: 'user',
       cell: (v) => (
         <div className="space-y-0.5 font-mono text-[11px]">
-          <div className="font-bold" style={{ color: '#1e3a8a' }}>{v.user?.email}</div>
+          <div className="font-bold" style={{ color: '#4C3AE3' }}>{v.user?.email}</div>
           <div style={{ color: '#64748b' }}>{v.user?.fullName}</div>
         </div>
       ),
@@ -370,7 +370,7 @@ export default function AdminVendorsPage() {
               setIsDetailModalOpen(true);
             }}
             className="font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 cursor-pointer shadow-sm transition-all hover:opacity-90"
-            style={{ background: '#1e3a8a', color: '#fff' }}
+            style={{ background: '#4C3AE3', color: '#fff' }}
           >
             <Eye className="w-3.5 h-3.5" /> Inspect &amp; Review
           </button>
@@ -388,12 +388,12 @@ export default function AdminVendorsPage() {
       {/* Header Banner */}
       <div className="p-6 rounded-2xl bg-white border flex flex-col md:flex-row md:items-center justify-between gap-6" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-2xl shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-            <Building className="w-8 h-8" style={{ color: '#1e3a8a' }} />
+          <div className="p-3.5 rounded-2xl shrink-0" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
+            <Building className="w-8 h-8" style={{ color: '#4C3AE3' }} />
           </div>
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
-              <ShieldAlert className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold" style={{ background: '#EEF0FE', color: '#4C3AE3', border: '1px solid #D9D4FB' }}>
+              <ShieldAlert className="w-3.5 h-3.5" style={{ color: '#4C3AE3' }} />
               VENDOR GOVERNANCE DIRECTORY
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
@@ -409,9 +409,9 @@ export default function AdminVendorsPage() {
           type="button"
           onClick={fetchVendors}
           className="font-bold px-4 py-2.5 rounded-xl border text-xs inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap transition-all cursor-pointer hover:bg-slate-50"
-          style={{ borderColor: '#e2e8f0', color: '#1e3a8a' }}
+          style={{ borderColor: '#e2e8f0', color: '#4C3AE3' }}
         >
-          <RefreshCw className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Refresh Directory
+          <RefreshCw className="w-4 h-4" style={{ color: '#4C3AE3' }} /> Refresh Directory
         </button>
       </div>
 
@@ -479,7 +479,7 @@ export default function AdminVendorsPage() {
               </div>
               <div>
                 <span className="font-semibold block" style={{ color: '#64748b' }}>Primary Account:</span>
-                <span className="font-mono font-bold" style={{ color: '#1e3a8a' }}>{selectedVendor.user?.email}</span>
+                <span className="font-mono font-bold" style={{ color: '#4C3AE3' }}>{selectedVendor.user?.email}</span>
               </div>
               <div>
                 <span className="font-semibold block" style={{ color: '#64748b' }}>Current Lifecycle Status:</span>
@@ -513,7 +513,7 @@ export default function AdminVendorsPage() {
             {/* Compliance Docs Section */}
             <div className="space-y-3">
               <h4 className="text-sm font-extrabold flex items-center gap-2" style={{ color: '#0f172a' }}>
-                <FileText className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Submitted Compliance Documents
+                <FileText className="w-4 h-4" style={{ color: '#4C3AE3' }} /> Submitted Compliance Documents
               </h4>
 
               {selectedVendor.docs?.length === 0 ? (
@@ -552,7 +552,7 @@ export default function AdminVendorsPage() {
                           type="button"
                           onClick={() => handleOpenDoc(doc)}
                           className="px-2.5 py-1 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors hover:opacity-80"
-                          style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}
+                          style={{ background: '#EEF0FE', color: '#4C3AE3', border: '1px solid #D9D4FB' }}
                         >
                           <FileCheck className="w-3.5 h-3.5" /> View Doc
                         </button>
@@ -614,13 +614,13 @@ export default function AdminVendorsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-extrabold flex items-center gap-2" style={{ color: '#0f172a' }}>
-                  <Landmark className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Supplier Payment & Contact Details
+                  <Landmark className="w-4 h-4" style={{ color: '#4C3AE3' }} /> Supplier Payment & Contact Details
                 </h4>
                 <button
                   type="button"
                   onClick={() => openPaymentEdit(selectedVendor)}
                   className="font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 cursor-pointer transition-all hover:opacity-80"
-                  style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}
+                  style={{ background: '#EEF0FE', color: '#4C3AE3', border: '1px solid #D9D4FB' }}
                 >
                   <Save className="w-3.5 h-3.5" /> Edit Details
                 </button>
@@ -828,8 +828,8 @@ export default function AdminVendorsPage() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl space-y-4" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <div className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: '#1e3a8a' }}>
+            <div className="p-4 rounded-2xl space-y-4" style={{ background: '#EEF0FE', border: '1px solid #D9D4FB' }}>
+              <div className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: '#4C3AE3' }}>
                 <Landmark className="w-3.5 h-3.5" /> Bank Account Details (Monoova NPP Transfer)
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

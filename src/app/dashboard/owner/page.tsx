@@ -81,9 +81,9 @@ export default function PlatformOwnerDashboard() {
       unit: 'published',
       icon: ShoppingBag,
       href: '/dashboard/owner/items',
-      color: '#1e3a8a',
-      bg: '#eff6ff',
-      border: '#bfdbfe',
+      color: '#4C3AE3',
+      bg: '#EEF0FE',
+      border: '#D9D4FB',
     },
     {
       label: 'Suppliers',
@@ -120,10 +120,10 @@ export default function PlatformOwnerDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#1e3a8a' }}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #4C3AE3 0%, #06B6D4 150%)' }}>
               <LayoutDashboard className="w-4 h-4 text-white" />
             </div>
-            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#1e3a8a' }}>Platform Console</span>
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#4C3AE3' }}>Platform Console</span>
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
             Welcome back, {session?.user?.name?.split(' ')[0] || 'Owner'}
@@ -192,7 +192,7 @@ export default function PlatformOwnerDashboard() {
             onClick={runSupplierSetup}
             disabled={setupRunning}
             className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl transition-all"
-            style={{ background: '#1e3a8a', color: '#fff', opacity: setupRunning ? 0.6 : 1 }}
+            style={{ background: '#4C3AE3', color: '#fff', opacity: setupRunning ? 0.6 : 1 }}
           >
             {setupRunning ? 'Running…' : 'Run Setup'}
           </button>
@@ -219,13 +219,13 @@ export default function PlatformOwnerDashboard() {
                 style={{ borderColor: '#e2e8f0' }}
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#f8fafc' }}>
-                  <Icon className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+                  <Icon className="w-4 h-4" style={{ color: '#4C3AE3' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold leading-snug" style={{ color: '#0f172a' }}>{l.label}</p>
                   <p className="text-xs mt-0.5 leading-snug" style={{ color: '#94a3b8' }}>{l.desc}</p>
                 </div>
-                <ArrowRight className="w-4 h-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" style={{ color: '#1e3a8a' }} />
+                <ArrowRight className="w-4 h-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" style={{ color: '#4C3AE3' }} />
               </Link>
             );
           })}

@@ -88,12 +88,12 @@ export default function WarehouseDashboardPage() {
       {/* Header Banner */}
       <div className="p-6 md:p-8 rounded-3xl bg-white border shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center gap-4 min-w-0">
-          <div className="p-3.5 rounded-2xl border shrink-0" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
+          <div className="p-3.5 rounded-2xl border shrink-0" style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}>
             {isGlobal ? <Globe className="w-8 h-8" /> : <Warehouse className="w-8 h-8" />}
           </div>
           <div className="space-y-1 min-w-0">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full border text-[11px] font-bold font-mono" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
-              <ShieldCheck className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full border text-[11px] font-bold font-mono" style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}>
+              <ShieldCheck className="w-3.5 h-3.5" style={{ color: '#4C3AE3' }} />
               {isGlobal ? 'ALL WAREHOUSES' : `WAREHOUSE: ${selectedWarehouseCode}`}
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
@@ -101,15 +101,15 @@ export default function WarehouseDashboardPage() {
                 {activeWarehouse.name}
               </h1>
               {!isGlobal && (
-                <span className="px-2 py-0.5 rounded-md border text-xs font-mono font-bold shrink-0" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
+                <span className="px-2 py-0.5 rounded-md border text-xs font-mono font-bold shrink-0" style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}>
                   {activeWarehouse.code}
                 </span>
               )}
             </div>
             <p className="text-xs font-mono flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: '#64748b' }}>
-              <span><MapPin className="w-3.5 h-3.5 inline" style={{ color: '#1e3a8a' }} /> {activeWarehouse.address}</span>
+              <span><MapPin className="w-3.5 h-3.5 inline" style={{ color: '#4C3AE3' }} /> {activeWarehouse.address}</span>
               <span>•</span>
-              <span className="font-bold" style={{ color: '#1e3a8a' }}><UserCheck className="w-3.5 h-3.5 inline" /> {activeManager.name}{activeManager.email ? ` (${activeManager.email})` : ''}</span>
+              <span className="font-bold" style={{ color: '#4C3AE3' }}><UserCheck className="w-3.5 h-3.5 inline" /> {activeManager.name}{activeManager.email ? ` (${activeManager.email})` : ''}</span>
             </p>
           </div>
         </div>
@@ -121,8 +121,8 @@ export default function WarehouseDashboardPage() {
           <select
             value={selectedWarehouseCode}
             onChange={(e) => setSelectedWarehouseCode(e.target.value)}
-            className="h-[42px] px-3.5 border rounded-xl text-xs font-bold focus:outline-none focus:border-[#1e3a8a] font-mono shadow-sm w-full sm:w-auto"
-            style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e3a8a' }}
+            className="h-[42px] px-3.5 border rounded-xl text-xs font-bold focus:outline-none focus:border-[#4C3AE3] font-mono shadow-sm w-full sm:w-auto"
+            style={{ background: '#EEF0FE', borderColor: '#D9D4FB', color: '#4C3AE3' }}
           >
             <option value="ALL">🌐 All Warehouses</option>
             {warehouses.map((w) => (
@@ -139,12 +139,12 @@ export default function WarehouseDashboardPage() {
         <div className="p-6 rounded-2xl bg-white border shadow-sm space-y-2" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold uppercase" style={{ color: '#94a3b8' }}>SKUs Tracked</span>
-            <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: '#1e3a8a' }} />
+            <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: '#4C3AE3' }} />
           </div>
           <div className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>
             {new Set(filteredLedger.map((l) => l.sku)).size} SKUs
           </div>
-          <p className="text-xs font-semibold flex items-center gap-1" style={{ color: '#1e3a8a' }}>
+          <p className="text-xs font-semibold flex items-center gap-1" style={{ color: '#4C3AE3' }}>
             <TrendingUp className="w-3.5 h-3.5" /> {isGlobal ? 'Across All Facilities' : `Active at ${activeWarehouse.code}`}
           </p>
         </div>
@@ -152,10 +152,10 @@ export default function WarehouseDashboardPage() {
         <div className="p-6 rounded-2xl bg-white border shadow-sm space-y-2" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold uppercase" style={{ color: '#94a3b8' }}>{isGlobal ? 'Total Network Stock' : 'Facility Stock On Hand'}</span>
-            <Box className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+            <Box className="w-4 h-4" style={{ color: '#4C3AE3' }} />
           </div>
           <div className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{totalStockCount} Units</div>
-          <p className="text-xs font-semibold flex items-center gap-1" style={{ color: '#1e3a8a' }}>
+          <p className="text-xs font-semibold flex items-center gap-1" style={{ color: '#4C3AE3' }}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Reconciled against ledger
           </p>
         </div>
@@ -163,10 +163,10 @@ export default function WarehouseDashboardPage() {
         <div className="p-6 rounded-2xl bg-white border shadow-sm space-y-2" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold uppercase" style={{ color: '#94a3b8' }}>Stock Movements</span>
-            <History className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+            <History className="w-4 h-4" style={{ color: '#4C3AE3' }} />
           </div>
           <div className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{filteredLedger.length} Movements</div>
-          <p className="text-xs font-semibold" style={{ color: '#1e3a8a' }}>Append-Only Ledger Rows</p>
+          <p className="text-xs font-semibold" style={{ color: '#4C3AE3' }}>Append-Only Ledger Rows</p>
         </div>
       </div>
 
@@ -174,10 +174,10 @@ export default function WarehouseDashboardPage() {
       <div className="p-6 rounded-3xl bg-white border shadow-sm space-y-4" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
-            <History className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <History className="w-5 h-5" style={{ color: '#4C3AE3' }} />
             {isGlobal ? 'Recent Global Warehouse Stock Movements (All Facilities)' : `Recent Facility Stock Movements (${activeWarehouse.code})`}
           </h2>
-          <Link href="/dashboard/owner/inventory" className="text-xs font-bold hover:underline flex items-center gap-1" style={{ color: '#1e3a8a' }}>
+          <Link href="/dashboard/owner/inventory" className="text-xs font-bold hover:underline flex items-center gap-1" style={{ color: '#4C3AE3' }}>
             View Master Ledger <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>

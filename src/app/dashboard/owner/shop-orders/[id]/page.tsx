@@ -142,7 +142,7 @@ export default function ShopOrderDetailPage() {
     return (
       <div className="flex items-center justify-center py-32">
         <style>{`@keyframes _spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#1e3a8a', animation: '_spin 0.8s linear infinite' }} />
+        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#4C3AE3', animation: '_spin 0.8s linear infinite' }} />
       </div>
     );
   }
@@ -151,7 +151,7 @@ export default function ShopOrderDetailPage() {
     return (
       <div className="text-center py-32">
         <p className="text-sm font-semibold" style={{ color: '#ef4444' }}>{error || 'Order not found.'}</p>
-        <Link href="/dashboard/owner/shop-orders" className="text-xs mt-4 inline-block" style={{ color: '#1e3a8a' }}>← Back to orders</Link>
+        <Link href="/dashboard/owner/shop-orders" className="text-xs mt-4 inline-block" style={{ color: '#4C3AE3' }}>← Back to orders</Link>
       </div>
     );
   }
@@ -167,7 +167,7 @@ export default function ShopOrderDetailPage() {
     <div className="space-y-6 pb-12 max-w-7xl mx-auto">
       {/* Back + header */}
       <div>
-        <Link href="/dashboard/owner/shop-orders" className="inline-flex items-center gap-1.5 text-xs font-semibold mb-4 hover:underline" style={{ color: '#1e3a8a' }}>
+        <Link href="/dashboard/owner/shop-orders" className="inline-flex items-center gap-1.5 text-xs font-semibold mb-4 hover:underline" style={{ color: '#4C3AE3' }}>
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Shop Orders
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -236,14 +236,14 @@ export default function ShopOrderDetailPage() {
                 {i > 0 && (
                   <div style={{
                     position: 'absolute', top: 16, right: '50%', width: '100%', height: 2,
-                    background: done ? (isException ? '#ef4444' : '#1e3a8a') : '#e2e8f0',
+                    background: done ? (isException ? '#ef4444' : '#4C3AE3') : '#e2e8f0',
                     zIndex: 0,
                   }} />
                 )}
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%', position: 'relative', zIndex: 1,
-                  background: isException ? '#ef4444' : done ? '#1e3a8a' : '#f1f5f9',
-                  border: `2px solid ${isException ? '#ef4444' : done ? '#1e3a8a' : '#e2e8f0'}`,
+                  background: isException ? '#ef4444' : done ? '#4C3AE3' : '#f1f5f9',
+                  border: `2px solid ${isException ? '#ef4444' : done ? '#4C3AE3' : '#e2e8f0'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: active ? '0 0 0 4px rgba(30,58,138,0.12)' : 'none',
                 }}>
@@ -268,12 +268,12 @@ export default function ShopOrderDetailPage() {
         {/* Customer */}
         <div className="bg-white rounded-2xl border p-5 space-y-3" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center gap-2 mb-1">
-            <User className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+            <User className="w-4 h-4" style={{ color: '#4C3AE3' }} />
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Customer</p>
           </div>
           <div>
             <p className="font-bold text-sm" style={{ color: '#0f172a' }}>{order.customerName}</p>
-            <a href={`mailto:${order.customerEmail}`} className="text-xs hover:underline" style={{ color: '#1e3a8a' }}>{order.customerEmail}</a>
+            <a href={`mailto:${order.customerEmail}`} className="text-xs hover:underline" style={{ color: '#4C3AE3' }}>{order.customerEmail}</a>
           </div>
           <div className="flex items-start gap-2 pt-2 border-t" style={{ borderColor: '#f1f5f9' }}>
             <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: '#94a3b8' }} />
@@ -284,7 +284,7 @@ export default function ShopOrderDetailPage() {
         {/* Payment */}
         <div className="bg-white rounded-2xl border p-5 space-y-3" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center gap-2 mb-1">
-            <CreditCard className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+            <CreditCard className="w-4 h-4" style={{ color: '#4C3AE3' }} />
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Payment</p>
           </div>
           <div className="space-y-2">
@@ -309,7 +309,7 @@ export default function ShopOrderDetailPage() {
       {/* Items */}
       <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#e2e8f0' }}>
         <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: '#f1f5f9' }}>
-          <Package className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+          <Package className="w-4 h-4" style={{ color: '#4C3AE3' }} />
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Items Ordered</p>
         </div>
         <div className="overflow-x-auto">
@@ -342,13 +342,13 @@ export default function ShopOrderDetailPage() {
       {(order.salesOrder || order.myobPoNumber || order.poEmailSentTo || order.myobBillNumber || order.myobInvoiceNumber) && (
         <div className="bg-white rounded-2xl border p-5 space-y-3" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center gap-2 mb-1">
-            <Truck className="w-4 h-4" style={{ color: '#1e3a8a' }} />
+            <Truck className="w-4 h-4" style={{ color: '#4C3AE3' }} />
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Supplier & Fulfilment</p>
           </div>
           <div className="space-y-2">
             {(order.myobSoNumber || order.salesOrder?.salesOrderNumber) && (
               <Row label="Sales Order #" value={
-                <span className="font-mono text-xs" style={{ color: '#1e3a8a' }}>
+                <span className="font-mono text-xs" style={{ color: '#4C3AE3' }}>
                   {order.myobSoNumber || order.salesOrder?.salesOrderNumber}
                 </span>
               } />
@@ -378,7 +378,7 @@ export default function ShopOrderDetailPage() {
               <Row label="PO Emailed to" value={
                 <span className="flex items-center gap-1">
                   <Mail className="w-3 h-3" style={{ color: '#94a3b8' }} />
-                  <a href={`mailto:${order.poEmailSentTo}`} className="text-xs hover:underline" style={{ color: '#1e3a8a' }}>{order.poEmailSentTo}</a>
+                  <a href={`mailto:${order.poEmailSentTo}`} className="text-xs hover:underline" style={{ color: '#4C3AE3' }}>{order.poEmailSentTo}</a>
                 </span>
               } />
             )}
@@ -388,7 +388,7 @@ export default function ShopOrderDetailPage() {
             <Link
               href="/dashboard/owner/emails"
               className="inline-flex items-center gap-1.5 text-xs font-semibold hover:underline"
-              style={{ color: '#1e3a8a' }}
+              style={{ color: '#4C3AE3' }}
             >
               <ExternalLink className="w-3.5 h-3.5" /> View all sent emails (PO, confirmation)
             </Link>
@@ -438,8 +438,8 @@ function ActionButton({
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; color: string; border: string }> = {
     PENDING_PAYMENT: { label: 'Pending Payment', bg: '#fafafa', color: '#71717a', border: '#e4e4e7' },
-    PAID:             { label: 'Paid',             bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
-    SO_CREATED:       { label: 'SO Created',        bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
+    PAID:             { label: 'Paid',             bg: '#EEF0FE', color: '#4C3AE3', border: '#D9D4FB' },
+    SO_CREATED:       { label: 'SO Created',        bg: '#EEF0FE', color: '#4C3AE3', border: '#D9D4FB' },
     PO_SENT:          { label: 'PO Sent',           bg: '#eef2ff', color: '#4338ca', border: '#c7d2fe' },
     INVOICE_RECEIVED: { label: 'Invoice Received',  bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
     MATCH_PENDING:    { label: 'Match Pending',     bg: '#fefce8', color: '#854d0e', border: '#fde68a' },

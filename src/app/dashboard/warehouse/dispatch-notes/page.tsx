@@ -44,14 +44,14 @@ interface DispatchNote {
 // Kept deliberately separate from the navy brand color so statuses stay scannable.
 const STATUS_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   PENDING: { bg: '#fafafa', text: '#71717a', border: '#e4e4e7' },
-  ALLOCATED: { bg: '#eff6ff', text: '#1e3a8a', border: '#bfdbfe' },
+  ALLOCATED: { bg: '#EEF0FE', text: '#4C3AE3', border: '#D9D4FB' },
   PICKING: { bg: '#fefce8', text: '#854d0e', border: '#fde68a' },
   PICKED: { bg: '#fefce8', text: '#854d0e', border: '#fde68a' },
-  PACKING: { bg: '#eff6ff', text: '#1e3a8a', border: '#bfdbfe' },
-  PACKED: { bg: '#eff6ff', text: '#1e3a8a', border: '#bfdbfe' },
-  READY_FOR_DISPATCH: { bg: '#eff6ff', text: '#1e3a8a', border: '#bfdbfe' },
-  DISPATCHED: { bg: '#eff6ff', text: '#1e3a8a', border: '#bfdbfe' },
-  IN_TRANSIT: { bg: '#eff6ff', text: '#1e3a8a', border: '#bfdbfe' },
+  PACKING: { bg: '#EEF0FE', text: '#4C3AE3', border: '#D9D4FB' },
+  PACKED: { bg: '#EEF0FE', text: '#4C3AE3', border: '#D9D4FB' },
+  READY_FOR_DISPATCH: { bg: '#EEF0FE', text: '#4C3AE3', border: '#D9D4FB' },
+  DISPATCHED: { bg: '#EEF0FE', text: '#4C3AE3', border: '#D9D4FB' },
+  IN_TRANSIT: { bg: '#EEF0FE', text: '#4C3AE3', border: '#D9D4FB' },
   DELIVERED: { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
   PARTIALLY_DELIVERED: { bg: '#fefce8', text: '#854d0e', border: '#fde68a' },
   DELIVERY_EXCEPTION: { bg: '#fef2f2', text: '#991b1b', border: '#fecaca' },
@@ -473,19 +473,19 @@ export default function WarehouseDispatchNoteListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold flex items-center gap-2" style={{ color: '#0f172a' }}>
-            <ClipboardList className="w-5 h-5" style={{ color: '#1e3a8a' }} /> Dispatch Notes
+            <ClipboardList className="w-5 h-5" style={{ color: '#4C3AE3' }} /> Dispatch Notes
           </h1>
           <p className="text-sm mt-1" style={{ color: '#64748b' }}>
             Operational control view for sales-order picking, packing, dispatch, transit and delivery tracking.
           </p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} variant="primary" className="bg-[#1e3a8a] hover:bg-[#162c69]" leftIcon={<Plus className="w-4 h-4" />}>Create Dispatch Note</Button>
+        <Button onClick={() => setIsCreateOpen(true)} variant="primary" className="bg-[#4C3AE3] hover:bg-[#162c69]" leftIcon={<Plus className="w-4 h-4" />}>Create Dispatch Note</Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-white border" style={{ borderColor: '#e2e8f0' }}>
           <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>Total Dispatches</div>
-          <div className="text-2xl font-black mt-1" style={{ color: '#1e3a8a' }}>{counts.total}</div>
+          <div className="text-2xl font-black mt-1" style={{ color: '#4C3AE3' }}>{counts.total}</div>
         </div>
         <div className="p-4 rounded-2xl bg-white border" style={{ borderColor: '#e2e8f0' }}>
           <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>In Picking</div>
@@ -493,7 +493,7 @@ export default function WarehouseDispatchNoteListPage() {
         </div>
         <div className="p-4 rounded-2xl bg-white border" style={{ borderColor: '#e2e8f0' }}>
           <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>In Transit</div>
-          <div className="text-2xl font-black mt-1" style={{ color: '#1e3a8a' }}>{counts.inTransit}</div>
+          <div className="text-2xl font-black mt-1" style={{ color: '#4C3AE3' }}>{counts.inTransit}</div>
         </div>
         <div className="p-4 rounded-2xl bg-white border" style={{ borderColor: '#e2e8f0' }}>
           <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>Delivered</div>
@@ -537,12 +537,12 @@ export default function WarehouseDispatchNoteListPage() {
               filtered.map((r) => (
                 <tr key={r.id} className="border-b transition-colors hover:bg-slate-50" style={{ borderColor: '#f1f5f9' }}>
                   <td className="py-3 px-4 font-mono font-bold" style={{ color: '#0f172a' }}>{r.salesOrderNumber}</td>
-                  <td className="py-3 px-4 font-mono font-bold" style={{ color: '#1e3a8a' }}>{r.dispatchNumber}</td>
+                  <td className="py-3 px-4 font-mono font-bold" style={{ color: '#4C3AE3' }}>{r.dispatchNumber}</td>
                   <td className="py-3 px-4 font-semibold" style={{ color: '#0f172a' }}>{r.customerName}</td>
                   <td className="py-3 px-4">
                     {r.lines?.map((l: any, i: number) => (
                       <div key={i}>
-                        <span className="font-mono font-bold text-[11px]" style={{ color: '#1e3a8a' }}>{l.itemCode}</span>
+                        <span className="font-mono font-bold text-[11px]" style={{ color: '#4C3AE3' }}>{l.itemCode}</span>
                         <span className="text-[11px] ml-1" style={{ color: '#64748b' }}>{l.itemName}</span>
                       </div>
                     ))}
@@ -592,7 +592,7 @@ export default function WarehouseDispatchNoteListPage() {
                       <Button
                         size="sm"
                         variant="primary"
-                        className="bg-[#1e3a8a] hover:bg-[#162c69] text-white font-bold text-[11px] shadow-sm px-2.5 py-1"
+                        className="bg-[#4C3AE3] hover:bg-[#162c69] text-white font-bold text-[11px] shadow-sm px-2.5 py-1"
                         onClick={() => openDispatchModal(r)}
                         leftIcon={<PackageCheck className="w-3.5 h-3.5" />}
                       >
@@ -635,7 +635,7 @@ export default function WarehouseDispatchNoteListPage() {
                         size="sm"
                         variant="secondary"
                         className="font-bold text-[11px] shadow-sm px-2.5 py-1 border"
-                        style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}
+                        style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}
                         onClick={() => openDeliveryModal(r)}
                         leftIcon={<Paperclip className="w-3.5 h-3.5" />}
                       >
@@ -647,7 +647,7 @@ export default function WarehouseDispatchNoteListPage() {
                         <button
                           onClick={() => setPodViewerDn(r)}
                           className="p-1.5 rounded-lg border"
-                          style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}
+                          style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}
                           title="View Proof of Delivery (POD) Document"
                           aria-label="View POD"
                         >
@@ -663,10 +663,10 @@ export default function WarehouseDispatchNoteListPage() {
                         </button>
                       </div>
                     )}
-                    <button onClick={() => window.open(`/api/dispatch-notes/${r.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-700 hover:text-[#1e3a8a]" aria-label="Print dispatch note" title="Print dispatch note">
+                    <button onClick={() => window.open(`/api/dispatch-notes/${r.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-700 hover:text-[#4C3AE3]" aria-label="Print dispatch note" title="Print dispatch note">
                       <Printer className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => openEdit(r)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-700 hover:text-[#1e3a8a]" aria-label="Edit" title="Edit dispatch note">
+                    <button onClick={() => openEdit(r)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#EEF0FE] text-slate-700 hover:text-[#4C3AE3]" aria-label="Edit" title="Edit dispatch note">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                   </td>
@@ -721,7 +721,7 @@ export default function WarehouseDispatchNoteListPage() {
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div><span style={{ color: '#64748b' }}>Customer:</span> <span className="font-bold" style={{ color: '#0f172a' }}>{createForm.customerName || '—'}</span></div>
               <div><span style={{ color: '#64748b' }}>Delivery:</span> <span className="font-bold" style={{ color: '#0f172a' }}>{createForm.customerAddress || '—'}</span></div>
-              <div><span style={{ color: '#64748b' }}>Item:</span> <span className="font-mono font-bold" style={{ color: '#1e3a8a' }}>{createForm.lines?.[0]?.itemCode || '—'}</span> {createForm.lines?.[0]?.itemName}</div>
+              <div><span style={{ color: '#64748b' }}>Item:</span> <span className="font-mono font-bold" style={{ color: '#4C3AE3' }}>{createForm.lines?.[0]?.itemCode || '—'}</span> {createForm.lines?.[0]?.itemName}</div>
               <div><span style={{ color: '#64748b' }}>Ordered Qty:</span> <span className="font-mono font-bold" style={{ color: '#0f172a' }}>{createForm.lines?.[0]?.orderedQty}</span></div>
             </div>
           </div>
@@ -743,7 +743,7 @@ export default function WarehouseDispatchNoteListPage() {
 
           <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
             <Button type="button" variant="secondary" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" className="bg-[#1e3a8a] hover:bg-[#162c69]" leftIcon={<PackageCheck className="w-4 h-4" />}>Create Dispatch Note</Button>
+            <Button type="submit" variant="primary" className="bg-[#4C3AE3] hover:bg-[#162c69]" leftIcon={<PackageCheck className="w-4 h-4" />}>Create Dispatch Note</Button>
           </div>
         </form>
       </Modal>
@@ -800,7 +800,7 @@ export default function WarehouseDispatchNoteListPage() {
             {/* Section 2: Line Items Delivery Acceptance */}
             <div className="space-y-2">
               <div className="text-xs font-bold uppercase tracking-widest flex items-center justify-between" style={{ color: '#94a3b8' }}>
-                <span className="flex items-center gap-1"><Box className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} /> Delivered Items Verification</span>
+                <span className="flex items-center gap-1"><Box className="w-3.5 h-3.5" style={{ color: '#4C3AE3' }} /> Delivered Items Verification</span>
                 <span className="font-normal">Confirm accepted quantities & condition</span>
               </div>
               <div className="border rounded-xl overflow-hidden bg-white" style={{ borderColor: '#e2e8f0' }}>
@@ -880,7 +880,7 @@ export default function WarehouseDispatchNoteListPage() {
             <div className="space-y-2 pt-1">
               <label className="text-xs font-bold block" style={{ color: '#0f172a' }}>Proof of Delivery (POD) Attachment & Evidence *</label>
 
-              <div className="p-4 border-2 border-dashed border-slate-300 hover:border-[#1e3a8a] rounded-2xl bg-slate-50/50 flex flex-col items-center justify-center text-center transition-colors">
+              <div className="p-4 border-2 border-dashed border-slate-300 hover:border-[#4C3AE3] rounded-2xl bg-slate-50/50 flex flex-col items-center justify-center text-center transition-colors">
                 <input
                   type="file"
                   id="pod-file-upload"
@@ -889,31 +889,31 @@ export default function WarehouseDispatchNoteListPage() {
                   className="hidden"
                 />
                 <label htmlFor="pod-file-upload" className="cursor-pointer flex flex-col items-center space-y-1">
-                  <div className="p-2.5 rounded-xl border" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
+                  <div className="p-2.5 rounded-xl border" style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}>
                     <UploadCloud className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-bold" style={{ color: '#1e3a8a' }}>Click to upload signed POD docket / image</span>
+                  <span className="text-xs font-bold" style={{ color: '#4C3AE3' }}>Click to upload signed POD docket / image</span>
                   <span className="text-[10px]" style={{ color: '#94a3b8' }}>Supports PDF, PNG, JPG, WEBP (Max 5MB)</span>
                 </label>
               </div>
 
               {/* Uploaded File Pill / Preview Card */}
               {deliveryForm.attachment && (
-                <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
+                <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: '#EEF0FE', borderColor: '#D9D4FB' }}>
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="p-1.5 rounded-lg shrink-0" style={{ background: '#dbeafe', color: '#1e3a8a' }}>
+                    <div className="p-1.5 rounded-lg shrink-0" style={{ background: '#dbeafe', color: '#4C3AE3' }}>
                       <FileCheck className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-bold text-xs truncate" style={{ color: '#1e3a8a' }}>{deliveryForm.attachment.fileName}</div>
-                      <div className="text-[10px]" style={{ color: '#1e3a8a' }}>{deliveryForm.attachment.fileSize || 'Attached'} • Uploaded ready to lock</div>
+                      <div className="font-bold text-xs truncate" style={{ color: '#4C3AE3' }}>{deliveryForm.attachment.fileName}</div>
+                      <div className="text-[10px]" style={{ color: '#4C3AE3' }}>{deliveryForm.attachment.fileSize || 'Attached'} • Uploaded ready to lock</div>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setDeliveryForm({ ...deliveryForm, attachment: null, podReference: '' })}
                     className="p-1 rounded-lg hover:bg-[#dbeafe]"
-                    style={{ color: '#1e3a8a' }}
+                    style={{ color: '#4C3AE3' }}
                     title="Remove attachment"
                   >
                     <X className="w-4 h-4" />
@@ -960,13 +960,13 @@ export default function WarehouseDispatchNoteListPage() {
         {podViewerDn && (
           <div className="space-y-4 text-xs font-sans">
             {/* Top Certificate Header */}
-            <div className="p-4 rounded-2xl border flex items-center justify-between" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
+            <div className="p-4 rounded-2xl border flex items-center justify-between" style={{ background: '#EEF0FE', borderColor: '#D9D4FB' }}>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 text-white rounded-xl shadow-sm" style={{ background: '#1e3a8a' }}>
+                <div className="p-2.5 text-white rounded-xl shadow-sm" style={{ background: '#4C3AE3' }}>
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono" style={{ background: '#dbeafe', color: '#1e3a8a' }}>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono" style={{ background: '#dbeafe', color: '#4C3AE3' }}>
                     ✓ VERIFIED PROOF OF DELIVERY (POD)
                   </div>
                   <h3 className="text-base font-black mt-0.5" style={{ color: '#0f172a' }}>Commercial Delivery Certificate</h3>
@@ -990,7 +990,7 @@ export default function WarehouseDispatchNoteListPage() {
               </div>
               <div>
                 <span className="block text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>Received By</span>
-                <span className="font-bold" style={{ color: '#1e3a8a' }}>{podViewerDn.receiverName || 'Authorized Dock Supervisor'}</span>
+                <span className="font-bold" style={{ color: '#4C3AE3' }}>{podViewerDn.receiverName || 'Authorized Dock Supervisor'}</span>
               </div>
               <div>
                 <span className="block text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>Carrier</span>
@@ -1002,7 +1002,7 @@ export default function WarehouseDispatchNoteListPage() {
             {podViewerDn.attachment?.fileData ? (
               <div className="border rounded-2xl p-3 bg-slate-900/5 space-y-2" style={{ borderColor: '#e2e8f0' }}>
                 <div className="flex items-center justify-between text-xs font-bold" style={{ color: '#0f172a' }}>
-                  <span className="flex items-center gap-1.5"><FileText className="w-4 h-4" style={{ color: '#1e3a8a' }} /> {podViewerDn.attachment.fileName}</span>
+                  <span className="flex items-center gap-1.5"><FileText className="w-4 h-4" style={{ color: '#4C3AE3' }} /> {podViewerDn.attachment.fileName}</span>
                   <a
                     href={podViewerDn.attachment.fileData}
                     download={podViewerDn.attachment.fileName || 'POD-Document.pdf'}
@@ -1036,7 +1036,7 @@ export default function WarehouseDispatchNoteListPage() {
               <div className="p-4 rounded-2xl bg-white border shadow-sm space-y-3" style={{ borderColor: '#e2e8f0' }}>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <div className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>DOCUMENT REFERENCE: {podViewerDn.podReference || podViewerDn.attachment?.fileName || `POD-${podViewerDn.dispatchNumber}.pdf`}</div>
-                  <span className="px-2 py-0.5 rounded-full border text-[10px] font-bold" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>DIGITALLY SIGNED</span>
+                  <span className="px-2 py-0.5 rounded-full border text-[10px] font-bold" style={{ background: '#EEF0FE', color: '#4C3AE3', borderColor: '#D9D4FB' }}>DIGITALLY SIGNED</span>
                 </div>
 
                 <div className="text-[11px] space-y-1" style={{ color: '#64748b' }}>
@@ -1059,7 +1059,7 @@ export default function WarehouseDispatchNoteListPage() {
                         <tr key={i}>
                           <td className="py-2 px-3 font-mono font-bold" style={{ color: '#0f172a' }}>{l.itemCode}</td>
                           <td className="py-2 px-3" style={{ color: '#64748b' }}>{l.itemName}</td>
-                          <td className="py-2 px-3 font-bold text-right" style={{ color: '#1e3a8a' }}>{l.deliveredQty || l.dispatchQty || l.orderedQty} units</td>
+                          <td className="py-2 px-3 font-bold text-right" style={{ color: '#4C3AE3' }}>{l.deliveredQty || l.dispatchQty || l.orderedQty} units</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1106,9 +1106,9 @@ export default function WarehouseDispatchNoteListPage() {
             </div>
 
             {/* Destination Card */}
-            <div className="p-3.5 rounded-2xl border space-y-1" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
-              <div className="text-[10px] font-mono font-bold uppercase flex items-center gap-1" style={{ color: '#1e3a8a' }}>
-                <MapPin className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} /> Delivery Destination
+            <div className="p-3.5 rounded-2xl border space-y-1" style={{ background: '#EEF0FE', borderColor: '#D9D4FB' }}>
+              <div className="text-[10px] font-mono font-bold uppercase flex items-center gap-1" style={{ color: '#4C3AE3' }}>
+                <MapPin className="w-3.5 h-3.5" style={{ color: '#4C3AE3' }} /> Delivery Destination
               </div>
               <div className="font-bold" style={{ color: '#0f172a' }}>{pickModalDn.customerName}</div>
               <div className="text-[11px]" style={{ color: '#64748b' }}>{pickModalDn.customerAddress || 'No street address specified'}</div>
@@ -1186,14 +1186,14 @@ export default function WarehouseDispatchNoteListPage() {
               </div>
               <div className="text-right">
                 <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>Warehouse Facility</div>
-                <div className="font-bold font-mono text-xs" style={{ color: '#1e3a8a' }}>{dispatchModalDn.warehouseCode} {dispatchModalDn.warehouseName ? `• ${dispatchModalDn.warehouseName}` : ''}</div>
+                <div className="font-bold font-mono text-xs" style={{ color: '#4C3AE3' }}>{dispatchModalDn.warehouseCode} {dispatchModalDn.warehouseName ? `• ${dispatchModalDn.warehouseName}` : ''}</div>
               </div>
             </div>
 
             {/* Destination Card */}
-            <div className="p-3.5 rounded-2xl border space-y-1" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
-              <div className="text-[10px] font-mono font-bold uppercase flex items-center gap-1" style={{ color: '#1e3a8a' }}>
-                <MapPin className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} /> Delivery Destination
+            <div className="p-3.5 rounded-2xl border space-y-1" style={{ background: '#EEF0FE', borderColor: '#D9D4FB' }}>
+              <div className="text-[10px] font-mono font-bold uppercase flex items-center gap-1" style={{ color: '#4C3AE3' }}>
+                <MapPin className="w-3.5 h-3.5" style={{ color: '#4C3AE3' }} /> Delivery Destination
               </div>
               <div className="font-bold" style={{ color: '#0f172a' }}>{dispatchModalDn.customerName}</div>
               <div className="text-[11px]" style={{ color: '#64748b' }}>{dispatchModalDn.customerAddress || 'No street address specified'}</div>
@@ -1202,7 +1202,7 @@ export default function WarehouseDispatchNoteListPage() {
             {/* Line Items */}
             <div className="space-y-2">
               <div className="text-xs font-bold uppercase tracking-widest flex items-center justify-between" style={{ color: '#94a3b8' }}>
-                <span className="flex items-center gap-1"><Box className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} /> Dispatched Quantity Verification</span>
+                <span className="flex items-center gap-1"><Box className="w-3.5 h-3.5" style={{ color: '#4C3AE3' }} /> Dispatched Quantity Verification</span>
                 <span className="font-normal">Already picked — confirm outgoing quantity</span>
               </div>
               <div className="border rounded-xl overflow-hidden bg-white" style={{ borderColor: '#e2e8f0' }}>
@@ -1284,7 +1284,7 @@ export default function WarehouseDispatchNoteListPage() {
               <Button type="button" variant="secondary" onClick={() => setDispatchModalDn(null)}>
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" className="bg-[#1e3a8a] hover:bg-[#162c69] text-white font-bold" leftIcon={<Truck className="w-4 h-4" />}>
+              <Button type="submit" variant="primary" className="bg-[#4C3AE3] hover:bg-[#162c69] text-white font-bold" leftIcon={<Truck className="w-4 h-4" />}>
                 Confirm & Release Dispatch
               </Button>
             </div>
@@ -1365,7 +1365,7 @@ export default function WarehouseDispatchNoteListPage() {
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <Button type="button" variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
-              <Button type="submit" variant="primary" className="bg-[#1e3a8a] hover:bg-[#162c69]" leftIcon={<PackageCheck className="w-4 h-4" />}>Save Update</Button>
+              <Button type="submit" variant="primary" className="bg-[#4C3AE3] hover:bg-[#162c69]" leftIcon={<PackageCheck className="w-4 h-4" />}>Save Update</Button>
             </div>
           </form>
         )}

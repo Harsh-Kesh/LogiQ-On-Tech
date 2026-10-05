@@ -121,7 +121,7 @@ const SUCCESS = { background: '#f0fdf4', color: '#166534', border: '1px solid #b
 const WARNING = { background: '#fefce8', color: '#854d0e', border: '1px solid #fde68a' };
 const DANGER = { background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' };
 const NEUTRAL = { background: '#fafafa', color: '#71717a', border: '1px solid #e4e4e7' };
-const INFO = { background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' };
+const INFO = { background: '#EEF0FE', color: '#4C3AE3', border: '1px solid #D9D4FB' };
 
 const ORDER_STATUS_STYLE: Record<string, { background: string; color: string; border: string }> = {
   PAID: INFO,
@@ -193,7 +193,7 @@ function OrderFulfilmentTab({ data }: { data: ReportsData['orderFulfilment'] }) 
                 <div className="flex-1 rounded-full h-2 overflow-hidden" style={{ background: '#f1f5f9' }}>
                   <div
                     className="h-2 rounded-full"
-                    style={{ width: `${Math.max(pct, 1)}%`, background: '#1e3a8a' }}
+                    style={{ width: `${Math.max(pct, 1)}%`, background: '#4C3AE3' }}
                   />
                 </div>
                 <span className="text-xs font-mono w-6 text-right" style={{ color: '#64748b' }}>{s.count}</span>
@@ -247,7 +247,7 @@ function OrderFulfilmentTab({ data }: { data: ReportsData['orderFulfilment'] }) 
             <tbody>
               {data.recentOrders.map((o) => (
                 <tr key={o.id} className="border-b hover:bg-slate-50 transition-colors" style={{ borderColor: '#f1f5f9' }}>
-                  <td className="py-2 font-mono font-bold" style={{ color: '#1e3a8a' }}>{o.orderNumber}</td>
+                  <td className="py-2 font-mono font-bold" style={{ color: '#4C3AE3' }}>{o.orderNumber}</td>
                   <td className="py-2" style={{ color: '#0f172a' }}>{o.customerName}</td>
                   <td className="py-2"><StatusBadge status={o.status} /></td>
                   <td className="py-2 text-right font-bold" style={{ color: '#0f172a' }}>{aud(o.totalAmount)}</td>
@@ -267,7 +267,7 @@ function ProcurementTab({ data }: { data: ReportsData['procurement'] }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPI label="Open POs" value={data.openCount} sub={aud(data.openValue)} color={data.openCount > 0 ? '#1e3a8a' : '#0f172a'} />
+        <KPI label="Open POs" value={data.openCount} sub={aud(data.openValue)} color={data.openCount > 0 ? '#4C3AE3' : '#0f172a'} />
         <KPI label="Avg PO Age" value={`${data.avgAgeDays} days`} />
         <KPI label="Overdue (&gt;14 days)" value={data.overdueCount} color={data.overdueCount > 0 ? '#991b1b' : '#0f172a'} />
         <KPI label="Total Orders in Pipeline" value={data.orders.length} />
@@ -314,7 +314,7 @@ function ProcurementTab({ data }: { data: ReportsData['procurement'] }) {
             <tbody>
               {data.orders.map((o) => (
                 <tr key={o.id} className="border-b hover:bg-slate-50 transition-colors" style={{ borderColor: '#f1f5f9' }}>
-                  <td className="py-2 font-mono font-bold" style={{ color: '#1e3a8a' }}>{o.orderNumber}</td>
+                  <td className="py-2 font-mono font-bold" style={{ color: '#4C3AE3' }}>{o.orderNumber}</td>
                   <td className="py-2" style={{ color: '#0f172a' }}>{o.customerName}</td>
                   <td className="py-2 font-mono" style={{ color: '#64748b' }}>{o.myobPoNumber || '—'}</td>
                   <td className="py-2"><StatusBadge status={o.status} /></td>
@@ -426,7 +426,7 @@ function PayablesTab({ data }: { data: ReportsData['payables'] }) {
               <div className="flex-1 rounded-full h-2 overflow-hidden" style={{ background: '#f1f5f9' }}>
                 <div
                   className="h-2 rounded-full"
-                  style={{ width: `${data.totalInvoiceCount > 0 ? Math.max((s.count / data.totalInvoiceCount) * 100, 1) : 0}%`, background: '#1e3a8a' }}
+                  style={{ width: `${data.totalInvoiceCount > 0 ? Math.max((s.count / data.totalInvoiceCount) * 100, 1) : 0}%`, background: '#4C3AE3' }}
                 />
               </div>
               <span className="text-xs font-mono w-6 text-right" style={{ color: '#64748b' }}>{s.count}</span>
@@ -637,7 +637,7 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Package className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <Package className="w-5 h-5" style={{ color: '#4C3AE3' }} />
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Management Reports</h1>
           </div>
           <p className="text-sm" style={{ color: '#64748b' }}>
@@ -668,7 +668,7 @@ export default function ReportsPage() {
               }`}
               style={{ color: isActive ? '#0f172a' : '#64748b' }}
             >
-              <Icon className="w-4 h-4 shrink-0" style={{ color: isActive ? '#1e3a8a' : '#94a3b8' }} />
+              <Icon className="w-4 h-4 shrink-0" style={{ color: isActive ? '#4C3AE3' : '#94a3b8' }} />
               {label}
             </button>
           );
@@ -679,7 +679,7 @@ export default function ReportsPage() {
       {loading && (
         <div className="flex items-center justify-center py-24">
           <div className="flex items-center gap-3" style={{ color: '#94a3b8' }}>
-            <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#1e3a8a', borderTopColor: 'transparent' }} />
+            <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#4C3AE3', borderTopColor: 'transparent' }} />
             <span className="text-sm">Loading report data…</span>
           </div>
         </div>
