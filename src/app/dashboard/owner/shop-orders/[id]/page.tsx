@@ -150,8 +150,15 @@ export default function ShopOrderDetailPage() {
     });
     setSimulatingId(false);
     const data = await res.json().catch(() => ({}));
-    if (res.ok) { alert(`Invoice ${data.invoiceNumber} received from the supplier.`); load(); }
-    else alert(`Simulation failed: ${data.error || res.statusText}`);
+    if (res.ok) {
+      let msg = `Invoice ${data.invoiceNumber} received from the supplier.`;
+      if (data.matched !== undefined) {
+        msg += `\n${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`;
+        if (data.billNumber) msg += `\nSupplier bill ${data.billNumber} created — ready to pay.`;
+      }
+      alert(msg);
+      load();
+    } else alert(`Simulation failed: ${data.error || res.statusText}`);
   };
 
   const handleRunMatch = async () => {
@@ -185,8 +192,7 @@ export default function ShopOrderDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <style>{`@keyframes _spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#4C3AE3', animation: '_spin 0.8s linear infinite' }} />
+        <div className="animate-spin" style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#4C3AE3' }} />
       </div>
     );
   }

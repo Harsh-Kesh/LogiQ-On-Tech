@@ -133,7 +133,12 @@ export default function ShopOrdersPage() {
     setSimulatingId(null);
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      alert(`Invoice ${data.invoiceNumber} received from the supplier.`);
+      let msg = `Invoice ${data.invoiceNumber} received from the supplier.`;
+      if (data.matched !== undefined) {
+        msg += `\n${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`;
+        if (data.billNumber) msg += `\nSupplier bill ${data.billNumber} created — ready to pay.`;
+      }
+      alert(msg);
       load();
     } else {
       alert(`Simulation failed: ${data.error || res.statusText}`);

@@ -80,6 +80,10 @@ p { margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+  /* Loading spinners communicate real state, not decoration — forcing their
+     infinite spin down to a single near-0ms frame collapsed every one of them
+     to a frozen end-frame icon instead of an indicator that's doing something. */
+  .animate-spin { animation-duration: 1s !important; animation-iteration-count: infinite !important; }
 }
 
 /* ---------- Eyebrow / mono labels ---------- */

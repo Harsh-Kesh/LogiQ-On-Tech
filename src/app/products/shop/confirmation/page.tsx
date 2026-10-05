@@ -62,21 +62,16 @@ function ConfirmationContent() {
   if (loading) {
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <style>{`
-          @keyframes _spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-          @keyframes _pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
-        `}</style>
         <div style={{ textAlign: 'center', padding: '0 24px' }}>
-          <div style={{
+          <div className="animate-spin" style={{
             width: 52, height: 52, borderRadius: '50%',
             border: '3px solid #e2e8f0', borderTopColor: '#1e3a8a',
-            animation: '_spin 0.85s linear infinite',
             margin: '0 auto 28px',
           }} />
           <p style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 8px', letterSpacing: '-0.3px' }}>
             Confirming your order…
           </p>
-          <p style={{ fontSize: 14, color: '#94a3b8', margin: 0, animation: '_pulse 2s ease-in-out infinite' }}>
+          <p className="animate-pulse" style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>
             Processing your payment — just a moment
           </p>
         </div>

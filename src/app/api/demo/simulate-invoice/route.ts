@@ -1,13 +1,18 @@
 // Demo-only endpoint: simulates a supplier emailing a PDF invoice.
-// Creates a SupplierInvoice record and advances the order to INVOICE_RECEIVED —
-// letting you demonstrate the pipeline without real IMAP or a PDF. Running the
-// 3-way match is a separate owner-triggered step (see /api/demo/run-match).
+// Creates a SupplierInvoice record, then auto-advances through everything that's
+// pure computation — the 3-way match, then booking the supplier bill — because
+// none of that needs a human decision. It stops at BILL_CREATED: the owner still
+// has to explicitly confirm and send the actual payment (Pay Supplier), since
+// that's the one step that moves real money and should never fire on its own.
+// If the match lands on MATCH_EXCEPTION, or bill creation fails, it stops there
+// instead — /api/demo/run-match and /api/demo/create-bill cover manual retry.
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { computeSupplierPoTotal } from '@/lib/po-total';
+import { runThreeWayMatch, createSupplierBill } from '@/lib/three-way-match';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -129,11 +134,27 @@ export async function POST(req: Request) {
     },
   }).catch((err) => console.warn('[simulate-invoice] received email log failed:', err));
 
-  // Stops at INVOICE_RECEIVED — running the 3-way match is its own owner-triggered
-  // step (see /api/demo/run-match) so it shows up as its own visible pipeline stage.
+  // Auto-advance: match, then bill — both pure computation, no human judgment
+  // needed. Payment stays manual (see /api/payments/supplier).
+  const matchResult = await runThreeWayMatch(storefrontOrderId, suppInvoice.id);
+
+  let billNumber: string | null = null;
+  if (matchResult.matched) {
+    try {
+      const billResult = await createSupplierBill(storefrontOrderId, suppInvoice.id);
+      billNumber = billResult.billNumber;
+    } catch (err: any) {
+      console.error('[simulate-invoice] Auto bill creation failed:', err.message);
+      // Match is still recorded — owner can create the bill manually from here
+    }
+  }
+
   return NextResponse.json({
     success: true,
     invoiceId: suppInvoice.id,
     invoiceNumber: suppInvoice.vendorInvoiceNumber,
+    matched: matchResult.matched,
+    notes: matchResult.notes,
+    billNumber,
   });
 }
