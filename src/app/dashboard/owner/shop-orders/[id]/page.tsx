@@ -45,7 +45,6 @@ interface Order {
   threeWayMatchResult?: string | null;
   threeWayMatchNotes?: string | null;
   sektorStatus?: string | null;
-  sektorTrackingNumber?: string;
   poEmailSentTo?: string;
   poEmailSentAt?: string;
   // SO link
@@ -382,7 +381,6 @@ export default function ShopOrderDetailPage() {
             )}
             {order.myobInvoiceNumber && <Row label="Customer Invoice #" value={order.myobInvoiceNumber} mono />}
             {order.monoovaTxnId && <Row label="Payment Reference" value={order.monoovaTxnId} mono />}
-            {order.sektorTrackingNumber && <Row label="Tracking #" value={order.sektorTrackingNumber} mono />}
             {order.poEmailSentTo && (
               <Row label="PO Emailed to" value={
                 <span className="flex items-center gap-1">

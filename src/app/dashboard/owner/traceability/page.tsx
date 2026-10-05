@@ -53,8 +53,6 @@ interface SfOrder {
   monoovaStatus: string | null;
   supplierPaidAt: string | null;
   sektorStatus: string | null;
-  sektorTrackingNumber: string | null;
-  sektorStatusUpdatedAt: string | null;
   fulfilledAt: string | null;
   poEmailSentAt: string | null;
   poEmailSentTo: string | null;
@@ -338,16 +336,7 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
             </span>
           ) : '—'
         } />
-        <Row label="Tracking #" value={
-          sfOrder.sektorTrackingNumber ? (
-            <span>
-              {sfOrder.sektorTrackingNumber}
-              <span className="ml-1.5 text-[10px] font-normal" style={{ color: '#94a3b8' }}>(placeholder — no courier connected yet)</span>
-            </span>
-          ) : '—'
-        } />
         <Row label="Delivery Date" value={fmtDt(sfOrder.fulfilledAt)} />
-        <Row label="Marked Fulfilled On" value={fmtDt(sfOrder.sektorStatusUpdatedAt)} />
       </Section>
 
       {/* Accounts Payable */}

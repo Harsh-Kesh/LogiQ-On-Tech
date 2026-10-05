@@ -29,7 +29,6 @@ interface Order {
   monoovaTxnId: string | null;
   threeWayMatchResult: string | null;
   sektorStatus: string | null;
-  sektorTrackingNumber: string | null;
   salesOrder?: { salesOrderNumber: string; status: string } | null;
 }
 
@@ -416,7 +415,6 @@ export default function ShopOrdersPage() {
                   {order.myobBillNumber && <span>Bill: <strong className="text-slate-700">{order.myobBillNumber}</strong></span>}
                   {order.myobInvoiceNumber && <span>Inv: <strong className="text-emerald-700">{order.myobInvoiceNumber}</strong></span>}
                   {order.monoovaTxnId && <span>Payment Ref: <strong className="text-slate-700">{order.monoovaTxnId}</strong></span>}
-                  {order.sektorTrackingNumber && <span>Tracking: <strong className="text-slate-700">{order.sektorTrackingNumber}</strong></span>}
                   <span className="ml-auto">{fmtDate(order.createdAt)}</span>
                 </div>
               </div>

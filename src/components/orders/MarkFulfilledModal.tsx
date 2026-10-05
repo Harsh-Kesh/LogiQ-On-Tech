@@ -69,13 +69,13 @@ export default function MarkFulfilledModal({ orderId, orderNumber, onClose, onFu
           {stage === 'review' && (
             <div className="space-y-5">
               <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>
-                We don't get real delivery updates, so confirm the date the goods actually reached
-                the customer — this is what starts the warranty clock, not today's date if you're
-                marking this late.
+                We don't get real delivery updates, so this is what starts the warranty clock.
+                It's set to today — change it only if the goods actually reached the customer on
+                an earlier date and you're just getting around to marking it now.
               </p>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: '#374151' }}>
-                  Delivery Date
+                  Delivery Date <span className="font-normal normal-case" style={{ color: '#94a3b8' }}>(defaults to today)</span>
                 </label>
                 <input
                   type="date"
