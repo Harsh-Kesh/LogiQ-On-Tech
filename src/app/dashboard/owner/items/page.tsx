@@ -1046,14 +1046,24 @@ export default function MasterDataItemsPage() {
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="SKU Code (System-Generated)"
-                  value={formId ? sku : 'Will be assigned automatically on save'}
-                  readOnly
-                  disabled
-                  className="bg-slate-50 cursor-not-allowed text-slate-500"
-                  helperText="Always auto-generated — cannot be entered manually"
-                />
+                {formId ? (
+                  <Input
+                    label="SKU Code"
+                    value={sku}
+                    readOnly
+                    disabled
+                    className="bg-slate-50 cursor-not-allowed text-slate-500"
+                    helperText="Immutable once created"
+                  />
+                ) : (
+                  <Input
+                    label="SKU Code (leave blank to auto-generate)"
+                    value={sku}
+                    onChange={(e) => setSku(e.target.value)}
+                    placeholder="e.g. LQ-SCN-900"
+                    helperText="Optional — enter your own code, or leave blank and one will be assigned on save"
+                  />
+                )}
                 <Input
                   label="Barcode EAN-13 (Leave blank to auto-generate)"
                   value={barcode}

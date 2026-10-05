@@ -100,6 +100,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const {
       itemName,
+      sku: requestedSku,
       barcode,
       costPrice,
       sellingPrice,
@@ -170,17 +171,27 @@ export async function POST(req: Request) {
     const persistentProducts = await loadPersistentProducts();
     const existingItems = Object.values(persistentProducts);
 
-    // SKU is always system-generated — never accepted from the client — so it can never
-    // collide with a typo or a duplicate manual entry. Retry with a fresh sequence on the
-    // rare random collision instead of surfacing that as a governance error to the owner.
+    // SKU defaults to system-generated, but the owner can supply their own code instead
+    // (e.g. to match an existing paper catalogue or barcode scheme) — it just has to be unique.
     const existingSkus = new Set(existingItems.map((i) => i.sku.toUpperCase()));
     let finalSku = '';
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const seq = Math.floor(100 + Math.random() * 900);
-      const candidate = `LQ-${catCode}-${seq}`;
-      if (!existingSkus.has(candidate)) { finalSku = candidate; break; }
+    const customSku = requestedSku && String(requestedSku).trim() ? String(requestedSku).trim().toUpperCase() : '';
+    if (customSku) {
+      if (existingSkus.has(customSku)) {
+        return NextResponse.json(
+          { error: `Data Governance Lock: SKU '${customSku}' already exists.` },
+          { status: 400 }
+        );
+      }
+      finalSku = customSku;
+    } else {
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const seq = Math.floor(100 + Math.random() * 900);
+        const candidate = `LQ-${catCode}-${seq}`;
+        if (!existingSkus.has(candidate)) { finalSku = candidate; break; }
+      }
+      if (!finalSku) finalSku = `LQ-${catCode}-${Date.now().toString().slice(-6)}`;
     }
-    if (!finalSku) finalSku = `LQ-${catCode}-${Date.now().toString().slice(-6)}`;
 
     const finalBarcode = barcode && barcode.trim() ? barcode.trim() : `93123450${Math.floor(10000 + Math.random() * 89999)}`;
     const finalStatus = ['ACTIVE', 'DRAFT', 'DISCONTINUED'].includes(status) ? status : 'ACTIVE';

@@ -317,8 +317,22 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
 
       {/* Customer Transaction */}
       <Section icon={ShoppingCart} title="Customer Transaction" bg="#EEF0FE" color="#4C3AE3" border="#D9D4FB">
-        <Row label="Website Order #" value={sfOrder.orderNumber} />
-        <Row label="SO Number" value={salesOrder?.salesOrderNumber || sfOrder.myobSoNumber || '—'} />
+        <Row label="Website Order #" value={
+          <span>
+            {sfOrder.orderNumber}
+            <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
+              What the customer sees — on their confirmation email and receipt
+            </span>
+          </span>
+        } />
+        <Row label="SO Number" value={
+          <span>
+            {salesOrder?.salesOrderNumber || sfOrder.myobSoNumber || '—'}
+            <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
+              Our internal accounting reference — used on the PO, invoice, and in MYOB
+            </span>
+          </span>
+        } />
         <Row label="Delivery Address" value={sfOrder.deliveryAddress} />
         <Row label="Order Placed" value={fmtDt(sfOrder.createdAt)} />
         <Row label="Customer Paid At" value={fmtDt(sfOrder.paidAt)} />
@@ -561,9 +575,9 @@ export default function TraceabilityPage() {
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Global Traceability</h1>
           </div>
           <p className="text-sm max-w-md" style={{ color: '#64748b' }}>
-            The forensic view — find any order by <strong>serial number, warranty number, or
-            supplier invoice number</strong> (not just order # or customer, like Shop Orders), then
-            see its complete history: items, procurement, payments, warranty, and every email sent.
+            Search by <strong>serial number, warranty number, or supplier invoice number</strong> to
+            pull up an order's complete audit trail — procurement, payments, warranty, and every
+            email sent.
           </p>
         </div>
 

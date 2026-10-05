@@ -108,7 +108,7 @@ export default function PlatformOwnerDashboard() {
   ];
 
   const quickLinks = [
-    { label: 'Item Master Data', desc: 'Manage the 5 products in your shop catalogue', href: '/dashboard/owner/items', icon: Package },
+    { label: 'Item Master Data', desc: 'SKU and barcode registry with pricing and specifications', href: '/dashboard/owner/items', icon: Package },
     { label: 'Supplier Master Data', desc: 'Supplier contact directory and details', href: '/dashboard/owner/vendor-master', icon: Truck },
     { label: 'Customer Master Data', desc: 'Customers from shop purchases', href: '/dashboard/owner/customer-master', icon: ShoppingCart },
     { label: 'Audit Logs', desc: 'Platform activity and security events', href: '/dashboard/owner/audit-logs', icon: FileText },
