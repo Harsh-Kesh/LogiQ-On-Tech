@@ -36,8 +36,14 @@ export default function CustomerMasterDataPage() {
         if (existing) {
           existing.orderCount += 1;
           existing.totalSpend += Number(o.totalAmount) || 0;
+          // Every order from this email rolls into this same row — never a new one.
+          // Keep the name/address from whichever order is most recent, since that's
+          // the customer's current details (an older order might have a typo'd name
+          // or an address they've since moved from).
           if (new Date(o.createdAt) > new Date(existing.lastOrderDate)) {
             existing.lastOrderDate = o.createdAt;
+            existing.name = o.customerName || o.customerEmail;
+            existing.location = o.deliveryAddress || existing.location;
           }
         } else {
           map.set(key, {

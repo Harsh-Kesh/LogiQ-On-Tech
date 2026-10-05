@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createMyobPurchaseOrder, createMyobSalesOrder } from '@/lib/myob';
 import { nextDocumentNumber } from '@/lib/document-sequences';
-import { sendTransactionalEmail } from '@/lib/email';
+import { sendTransactionalEmail, renderEmailShell, emailInfoTable, emailItemsTable } from '@/lib/email';
 import { createSalesOrder } from '@/lib/sales-orders';
 
 export async function POST(req: Request) {
@@ -122,13 +122,23 @@ export async function POST(req: Request) {
   // Email PO to supplier
   const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail;
   if (supplierEmail) {
-    const poLines = sfOrder.items
-      .map((i) => `<tr><td style="padding:4px 8px;border:1px solid #e2e8f0">${i.itemCode}</td><td style="padding:4px 8px;border:1px solid #e2e8f0">${i.itemName}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center">${i.quantity}</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${Number(i.unitPrice).toFixed(2)}</td></tr>`)
-      .join('');
+    const accountsEmail = process.env.IMAP_USER || 'accounts@logiqon.com';
+    const html = renderEmailShell({
+      eyebrow: 'Purchase Order',
+      heading: `Purchase Order ${poNumber}`,
+      subheading: `Dear ${vendor?.companyName || 'Supplier'}`,
+      bodyHtml: `
+        ${sfOrder.deliveryAddress ? emailInfoTable([{ label: 'Deliver To', value: sfOrder.deliveryAddress }]) : ''}
+        ${emailItemsTable(
+          sfOrder.items.map((i) => ({ label: i.itemName, sublabel: `Our ref: ${i.itemCode}`, qty: i.quantity, unitPrice: Number(i.unitPrice), lineTotal: i.quantity * Number(i.unitPrice) })),
+          'AUD'
+        )}
+        <p style="margin:0;font-size:13px;color:#64748b">Please send your invoice to <a href="mailto:${accountsEmail}" style="color:#4C3AE3">${accountsEmail}</a> quoting PO number <strong>${poNumber}</strong>.</p>`,
+    });
     await sendTransactionalEmail({
       to: supplierEmail,
       subject: `Purchase Order ${poNumber} — LogiQ-On Tech`,
-      html: `<div style="font-family:sans-serif;max-width:680px;margin:0 auto"><h2>Purchase Order — ${poNumber}</h2><p>Dear ${vendor?.companyName || 'Supplier'},</p><p>Please find below a Purchase Order from <strong>LogiQ-On Tech</strong>.</p><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f1f5f9"><th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">SKU</th><th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">Description</th><th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">Qty</th><th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Unit Price</th></tr></thead><tbody>${poLines}</tbody></table><p>Please send your invoice to ${process.env.IMAP_USER || 'accounts@logiqon.com'} quoting PO <strong>${poNumber}</strong>.</p><p>Thank you,<br/>LogiQ-On Tech</p></div>`,
+      html,
     }).catch((err) => console.warn('PO retry email failed:', err));
   }
 

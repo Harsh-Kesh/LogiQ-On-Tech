@@ -11,7 +11,7 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { sendTransactionalEmail } from '@/lib/email';
+import { sendTransactionalEmail, renderEmailShell, emailInfoTable, emailItemsTable, emailCallout } from '@/lib/email';
 import { logAuditEvent } from '@/lib/audit';
 import { convertMyobSalesOrderToInvoice } from '@/lib/myob';
 import crypto from 'crypto';
@@ -112,77 +112,56 @@ export async function POST(req: Request) {
   const gst = +(totalInc - totalEx).toFixed(2);
   const invoiceDate = statusAt.toISOString().split('T')[0];
 
-  const itemRows = sfOrder.items.map((item) =>
-    `<tr>
-      <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9">${item.itemName}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${item.quantity}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;text-align:right">AUD ${Number(item.lineTotal).toFixed(2)}</td>
-    </tr>`
-  ).join('');
-
   if (isFinalDelivery) {
     // Full delivery email with tax invoice
+    const html = renderEmailShell({
+      eyebrow: 'Delivery Confirmation',
+      heading: 'Your order has been delivered',
+      subheading: `Hi ${sfOrder.customerName}, here's your tax invoice for your records`,
+      tone: 'success',
+      bodyHtml: `
+        ${emailInfoTable([
+          { label: 'Order #', value: sfOrder.orderNumber, accent: true },
+          { label: 'Invoice #', value: myobInvoiceNumber || 'Pending' },
+          { label: 'Tracking', value: trackingNumber || sfOrder.sektorTrackingNumber || '—' },
+        ])}
+        <p style="margin:16px 0 4px;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b">Tax Invoice</p>
+        ${emailItemsTable(
+          sfOrder.items.map((item) => ({ label: item.itemName, qty: item.quantity, lineTotal: Number(item.lineTotal) })),
+          'AUD',
+          {
+            totals: [
+              { label: 'Subtotal (ex GST)', value: `AUD ${totalEx.toFixed(2)}` },
+              { label: 'GST (10%)', value: `AUD ${gst.toFixed(2)}` },
+              { label: 'Total Paid (inc GST)', value: `AUD ${totalInc.toFixed(2)}`, strong: true },
+            ],
+          }
+        )}
+        <p style="margin:0 0 4px;font-size:11.5px;color:#94a3b8">ABN: [LogiQ-On Tech ABN] · Payment received ${sfOrder.paidAt ? new Date(sfOrder.paidAt).toLocaleDateString('en-AU') : invoiceDate}</p>
+        <p style="margin:0;font-size:13px;color:#64748b">Thank you for your business.</p>`,
+    });
     await sendTransactionalEmail({
       to: sfOrder.customerEmail,
       subject: `Delivered + Tax Invoice — ${sfOrder.orderNumber}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a">
-          <div style="background:#059669;padding:24px 32px;border-radius:8px 8px 0 0">
-            <h1 style="color:#ffffff;margin:0;font-size:20px">Order Delivered ✓</h1>
-          </div>
-          <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px">
-            <p>Hi <strong>${sfOrder.customerName}</strong>, your order has been delivered.</p>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-              <tr style="background:#f8fafc">
-                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b">Order #</td>
-                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b">Invoice #</td>
-                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b">Tracking</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 12px;font-weight:700">${sfOrder.orderNumber}</td>
-                <td style="padding:8px 12px;font-weight:700;color:#4f46e5">${myobInvoiceNumber || 'Pending'}</td>
-                <td style="padding:8px 12px">${trackingNumber || sfOrder.sektorTrackingNumber || '—'}</td>
-              </tr>
-            </table>
-            <p style="font-weight:700;font-size:14px;margin:0 0 8px">TAX INVOICE</p>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-              <thead><tr style="background:#f8fafc">
-                <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748b">Item</th>
-                <th style="padding:8px 12px;text-align:center;font-size:12px;color:#64748b">Qty</th>
-                <th style="padding:8px 12px;text-align:right;font-size:12px;color:#64748b">Total</th>
-              </tr></thead>
-              <tbody>${itemRows}</tbody>
-              <tfoot>
-                <tr><td colspan="2" style="padding:6px 12px;text-align:right;color:#64748b">Subtotal (ex GST)</td><td style="padding:6px 12px;text-align:right">AUD ${totalEx.toFixed(2)}</td></tr>
-                <tr><td colspan="2" style="padding:6px 12px;text-align:right;color:#64748b">GST (10%)</td><td style="padding:6px 12px;text-align:right">AUD ${gst.toFixed(2)}</td></tr>
-                <tr style="background:#f8fafc"><td colspan="2" style="padding:8px 12px;text-align:right;font-weight:700">Total Paid (inc GST)</td><td style="padding:8px 12px;text-align:right;font-weight:700">AUD ${totalInc.toFixed(2)}</td></tr>
-              </tfoot>
-            </table>
-            <p style="font-size:12px;color:#94a3b8">ABN: [LogiQ-On Tech ABN] | Payment received ${sfOrder.paidAt ? new Date(sfOrder.paidAt).toLocaleDateString('en-AU') : invoiceDate}</p>
-            <p style="font-size:13px;color:#64748b">Thank you,<br/><strong>LogiQ-On Tech</strong></p>
-          </div>
-        </div>`,
+      html,
     }).catch((err) => console.warn('[Sektor webhook] Delivery email failed:', err));
   } else {
     // Status update email
+    const html = renderEmailShell({
+      eyebrow: 'Order Update',
+      heading: statusLabel.replace(' ✓', ''),
+      subheading: `Order ${sfOrder.orderNumber}`,
+      bodyHtml: `
+        <p>Hi <strong>${sfOrder.customerName}</strong>, here's an update on your order.</p>
+        ${emailCallout(
+          `<strong style="display:block;font-size:14px;margin-bottom:${trackingNumber ? '6px' : '0'}">${statusLabel}</strong>${trackingNumber ? `Tracking: <strong>${trackingNumber}</strong>` : ''}`
+        )}
+        <p style="margin:0;font-size:13px;color:#64748b">Thank you for your business.</p>`,
+    });
     await sendTransactionalEmail({
       to: sfOrder.customerEmail,
       subject: `Order Update — ${sfOrder.orderNumber} — ${statusLabel.split('—')[0].trim()}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a">
-          <div style="background:#4f46e5;padding:24px 32px;border-radius:8px 8px 0 0">
-            <h1 style="color:#ffffff;margin:0;font-size:20px">Order Update</h1>
-          </div>
-          <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px">
-            <p>Hi <strong>${sfOrder.customerName}</strong>,</p>
-            <p>Here's an update on your order <strong>${sfOrder.orderNumber}</strong>:</p>
-            <div style="background:#f8fafc;border-left:4px solid #4f46e5;padding:16px 20px;margin:16px 0;border-radius:0 8px 8px 0">
-              <p style="margin:0;font-weight:700;font-size:15px">${statusLabel}</p>
-              ${trackingNumber ? `<p style="margin:8px 0 0;font-size:13px;color:#64748b">Tracking: <strong>${trackingNumber}</strong></p>` : ''}
-            </div>
-            <p style="font-size:13px;color:#64748b">Thank you,<br/><strong>LogiQ-On Tech</strong></p>
-          </div>
-        </div>`,
+      html,
     }).catch((err) => console.warn('[Sektor webhook] Status email failed:', err));
   }
 

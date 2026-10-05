@@ -4,7 +4,7 @@
 
 import { prisma } from './prisma';
 import { nextDocumentNumber } from './document-sequences';
-import { sendTransactionalEmail } from './email';
+import { sendTransactionalEmail, renderEmailShell, emailInfoTable, type EmailTone } from './email';
 
 const ALERT_BUCKETS = [180, 90, 60, 30, 14, 7, 0] as const;
 type Bucket = typeof ALERT_BUCKETS[number];
@@ -146,35 +146,32 @@ export async function runWarrantyCheck(): Promise<{ checked: number; alerted: nu
 
     if (bucketToSend !== null && rec.notificationEmails.length > 0) {
       const isExpired = bucketToSend === 0 && remainingDays < 0;
-      const label = isExpired ? 'has expired' : bucketToSend === 0 ? 'expires TODAY' : `expires in ${bucketToSend} days`;
-      const urgencyColor = remainingDays <= 0 ? '#dc2626' : remainingDays <= 14 ? '#dc2626' : remainingDays <= 30 ? '#d97706' : remainingDays <= 90 ? '#f59e0b' : '#16a34a';
+      const label = isExpired ? 'has expired' : bucketToSend === 0 ? 'expires today' : `expires in ${bucketToSend} days`;
+      const tone: EmailTone = remainingDays <= 14 ? 'danger' : remainingDays <= 90 ? 'warning' : 'brand';
       const subject =
         bucketToSend === 0
-          ? `⚠️ Warranty ${isExpired ? 'Expired' : 'Expires Today'}: ${rec.warrantyNumber} — ${rec.partNumber} (${rec.customerName || 'N/A'})`
+          ? `Warranty ${isExpired ? 'Expired' : 'Expires Today'}: ${rec.warrantyNumber} — ${rec.partNumber} (${rec.customerName || 'N/A'})`
           : `Warranty Alert (${bucketToSend} days remaining): ${rec.warrantyNumber} — ${rec.partNumber}`;
 
-      const html = `
-        <div style="font-family:sans-serif;max-width:640px;margin:0 auto;color:#0f172a">
-          <div style="background:${urgencyColor};padding:20px 28px;border-radius:8px 8px 0 0">
-            <h2 style="color:#fff;margin:0;font-size:18px">Warranty ${label}</h2>
-            <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px">Internal alert — LogiQ-On Tech operations</p>
-          </div>
-          <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;padding:24px 28px;border-radius:0 0 8px 8px">
-            <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-              <tr style="background:#f8fafc"><td colspan="2" style="padding:6px 10px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Warranty Details</td></tr>
-              <tr><td style="padding:6px 10px;color:#64748b;width:40%">Warranty #</td><td style="padding:6px 10px;font-weight:700">${rec.warrantyNumber}</td></tr>
-              <tr style="background:#f8fafc"><td style="padding:6px 10px;color:#64748b">Part</td><td style="padding:6px 10px">${rec.partNumber}${rec.partDescription ? ' — ' + rec.partDescription : ''}</td></tr>
-              <tr><td style="padding:6px 10px;color:#64748b">Customer</td><td style="padding:6px 10px"><strong>${rec.customerName || 'N/A'}</strong></td></tr>
-              <tr style="background:#f8fafc"><td style="padding:6px 10px;color:#64748b">Sales Order</td><td style="padding:6px 10px">${rec.salesOrderNumber || 'N/A'}</td></tr>
-              <tr><td style="padding:6px 10px;color:#64748b">Vendor</td><td style="padding:6px 10px">${rec.vendorName || 'N/A'}</td></tr>
-              <tr style="background:#f8fafc"><td style="padding:6px 10px;color:#64748b">Warranty Start</td><td style="padding:6px 10px">${rec.warrantyStartDate?.toISOString().split('T')[0] || 'N/A'}</td></tr>
-              <tr><td style="padding:6px 10px;color:#64748b">Expiry Date</td><td style="padding:6px 10px"><strong>${rec.warrantyExpiryDate?.toISOString().split('T')[0]}</strong></td></tr>
-              <tr style="background:#f8fafc"><td style="padding:6px 10px;color:#64748b">Days Remaining</td><td style="padding:6px 10px"><strong style="color:${urgencyColor}">${remainingDays}</strong></td></tr>
-            </table>
-            <p style="margin:16px 0 4px;font-size:13px;color:#64748b">Log in to the dashboard to review or close this warranty record.</p>
-            <p style="margin:0;font-size:12px;color:#94a3b8">LogiQ-On Tech · Warranty Management · Internal notification only</p>
-          </div>
-        </div>`;
+      const html = renderEmailShell({
+        eyebrow: 'Internal Alert',
+        heading: `Warranty ${label}`,
+        subheading: 'LogiQ-On Tech operations — not sent to the customer',
+        tone,
+        bodyHtml: `
+          ${emailInfoTable([
+            { label: 'Warranty #', value: rec.warrantyNumber, accent: true },
+            { label: 'Part', value: `${rec.partNumber}${rec.partDescription ? ' — ' + rec.partDescription : ''}` },
+            { label: 'Customer', value: rec.customerName || 'N/A' },
+            { label: 'Sales Order', value: rec.salesOrderNumber || 'N/A' },
+            { label: 'Vendor', value: rec.vendorName || 'N/A' },
+            { label: 'Warranty Start', value: rec.warrantyStartDate?.toISOString().split('T')[0] || 'N/A' },
+            { label: 'Expiry Date', value: rec.warrantyExpiryDate?.toISOString().split('T')[0] || 'N/A' },
+            { label: 'Days Remaining', value: String(remainingDays) },
+          ])}
+          <p style="margin:16px 0 4px;font-size:13px;color:#64748b">Log in to the dashboard to review or close this warranty record.</p>`,
+        footerNote: 'Warranty Management · Internal notification only',
+      });
 
       for (const email of rec.notificationEmails) {
         await sendTransactionalEmail({ to: email, subject, html }).catch(() => {});

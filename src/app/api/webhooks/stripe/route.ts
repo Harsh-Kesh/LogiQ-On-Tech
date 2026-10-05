@@ -6,7 +6,7 @@ import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { nextDocumentNumber } from '@/lib/document-sequences';
 import { createSalesOrder } from '@/lib/sales-orders';
-import { sendOrderConfirmationEmail, sendTransactionalEmail } from '@/lib/email';
+import { sendTransactionalEmail, renderEmailShell, emailInfoTable, emailItemsTable } from '@/lib/email';
 import { logAuditEvent } from '@/lib/audit';
 import { createMyobPurchaseOrder, createMyobSalesOrder, createMyobSupplierCard } from '@/lib/myob';
 
@@ -181,62 +181,36 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
 
   // Send order confirmation email with MYOB SO number
   if (salesOrder) {
-    const itemRows = resolvedLines.map((l) =>
-      `<tr>
-        <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9">${l.itemName}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${l.qty}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;text-align:right">AUD ${(l.qty * l.unitPrice * 1.1).toFixed(2)}</td>
-      </tr>`
-    ).join('');
+    const html = renderEmailShell({
+      eyebrow: 'Order Confirmation',
+      heading: `Thanks for your order, ${customerName}`,
+      subheading: "We've received your payment and it's now being processed",
+      tone: 'success',
+      bodyHtml: `
+        ${emailInfoTable([
+          { label: 'Order #', value: orderNumber, accent: true },
+          { label: 'Deliver To', value: deliveryAddress },
+        ])}
+        ${emailItemsTable(
+          resolvedLines.map((l) => ({ label: l.itemName, qty: l.qty, lineTotal: l.qty * l.unitPrice * 1.1 })),
+          'AUD',
+          { totals: [{ label: 'Total Paid', value: `AUD ${totalAmount.toFixed(2)}`, strong: true }] }
+        )}
+        <p style="margin:16px 0 8px;font-size:13px;color:#475569">What happens next:</p>
+        <ol style="font-size:13px;color:#475569;margin:0 0 20px;padding-left:20px">
+          <li>Order confirmed <em>(this email)</em></li>
+          <li>Dispatched by supplier — with tracking details</li>
+          <li>Out for delivery</li>
+          <li>Delivered — tax invoice emailed</li>
+        </ol>
+        <p style="margin:0;font-size:13px;color:#64748b">Questions? Just reply to this email and reference your order number above.</p>`,
+    });
 
     await sendTransactionalEmail({
       to: customerEmail,
       orderId: storefrontOrder.id,
       subject: `Order Confirmed — ${orderNumber}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a">
-          <div style="background:#0f172a;padding:24px 32px;border-radius:8px 8px 0 0">
-            <h1 style="color:#ffffff;margin:0;font-size:20px">Order Confirmed</h1>
-          </div>
-          <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px">
-            <p style="margin:0 0 16px">Hi <strong>${customerName}</strong>,</p>
-            <p style="margin:0 0 24px">Thank you for your order. We've received your payment and your order is now being processed.</p>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
-              <tr style="background:#f8fafc">
-                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase">Order #</td>
-                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase">Deliver To</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 12px;font-weight:700;color:#4f46e5">${orderNumber}</td>
-                <td style="padding:8px 12px;font-size:13px">${deliveryAddress}</td>
-              </tr>
-            </table>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
-              <thead>
-                <tr style="background:#f8fafc">
-                  <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748b">Item</th>
-                  <th style="padding:8px 12px;text-align:center;font-size:12px;color:#64748b">Qty</th>
-                  <th style="padding:8px 12px;text-align:right;font-size:12px;color:#64748b">Total (inc GST)</th>
-                </tr>
-              </thead>
-              <tbody>${itemRows}</tbody>
-              <tfoot>
-                <tr style="background:#f8fafc">
-                  <td colspan="2" style="padding:8px 12px;font-weight:700;text-align:right">Total Paid</td>
-                  <td style="padding:8px 12px;font-weight:700;text-align:right">AUD ${totalAmount.toFixed(2)}</td>
-                </tr>
-              </tfoot>
-            </table>
-            <p style="margin:0 0 8px;font-size:13px;color:#475569">We will email you as your order progresses. You can expect:</p>
-            <ol style="font-size:13px;color:#475569;margin:0 0 24px;padding-left:20px">
-              <li>Order confirmed ✓ <em>(this email)</em></li>
-              <li>Order dispatched by supplier — with tracking details</li>
-              <li>Out for delivery notification</li>
-              <li>Delivery confirmed + tax invoice</li>
-            </ol>
-            <p style="margin:0;font-size:13px;color:#64748b">If you have any questions please reply to this email.<br/>Thank you,<br/><strong>LogiQ-On Tech</strong></p>
-          </div>
-        </div>`,
+      html,
     }).catch((err) => console.warn('Stripe webhook: confirmation email failed:', err));
   }
 
@@ -327,46 +301,42 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
       if (!supplierEmail) {
         console.warn(`[stripe-webhook] No supplier email for PO ${poNumber} (order ${orderNumber}). Set vendor.poEmail or itemMaster.supplierEmail to enable PO emails.`);
       } else {
-        const poLines = resolvedLines.map((l) => {
-          const supplierCode = supplierCodeBySku.get(l.sku);
-          const unitCost = costOf(l.sku, l.unitPrice);
-          const supplierCodeCell = supplierCode
-            ? `<strong>${supplierCode}</strong><br/><span style="font-size:11px;color:#94a3b8">Our ref: ${l.sku}</span>`
-            : `<span style="color:#f59e0b;font-style:italic">Not configured</span><br/><span style="font-size:11px;color:#94a3b8">Our ref: ${l.sku}</span>`;
-          return `<tr>
-            <td style="padding:4px 8px;border:1px solid #e2e8f0">${supplierCodeCell}</td>
-            <td style="padding:4px 8px;border:1px solid #e2e8f0">${l.itemName}</td>
-            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center">${l.qty}</td>
-            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${unitCost.toFixed(2)}</td>
-            <td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right">AUD ${(l.qty * unitCost).toFixed(2)}</td>
-          </tr>`;
-        }).join('');
+        const accountsEmail = process.env.IMAP_USER || 'accounts@logiqon.com';
+        const poHtml = renderEmailShell({
+          eyebrow: 'Purchase Order',
+          heading: `Purchase Order ${poNumber}`,
+          subheading: `Dear ${vendor?.companyName || 'Supplier'}`,
+          bodyHtml: `
+            ${emailInfoTable([{ label: 'Deliver To', value: deliveryAddress }])}
+            ${emailItemsTable(
+              resolvedLines.map((l) => {
+                const supplierCode = supplierCodeBySku.get(l.sku);
+                return {
+                  label: l.itemName,
+                  sublabel: supplierCode
+                    ? `Supplier code: ${supplierCode} · Our ref: ${l.sku}`
+                    : `Supplier code not configured · Our ref: ${l.sku}`,
+                  qty: l.qty,
+                  unitPrice: costOf(l.sku, l.unitPrice),
+                  lineTotal: l.qty * costOf(l.sku, l.unitPrice),
+                };
+              }),
+              'AUD',
+              {
+                totals: [
+                  { label: 'Subtotal (ex GST)', value: `AUD ${poSubtotal.toFixed(2)}` },
+                  { label: 'GST', value: `AUD ${poTaxTotal.toFixed(2)}` },
+                  { label: 'Total (inc GST)', value: `AUD ${poTotal.toFixed(2)}`, strong: true },
+                ],
+              }
+            )}
+            <p style="margin:0;font-size:13px;color:#64748b">Please send your invoice to <a href="mailto:${accountsEmail}" style="color:#4C3AE3">${accountsEmail}</a> quoting PO number <strong>${poNumber}</strong>.</p>`,
+        });
         await sendTransactionalEmail({
           to: supplierEmail,
           orderId: storefrontOrder.id,
           subject: `Purchase Order ${poNumber} — LogiQ-On Tech`,
-          html: `
-            <div style="font-family:sans-serif;max-width:680px;margin:0 auto">
-              <h2 style="color:#0f172a">Purchase Order — ${poNumber}</h2>
-              <p>Dear ${vendor?.companyName || 'Supplier'},</p>
-              <p>Please find below a Purchase Order from <strong>LogiQ-On Tech</strong>.</p>
-              <p><strong>Deliver to:</strong> ${deliveryAddress}</p>
-              <table style="width:100%;border-collapse:collapse;margin:16px 0">
-                <thead><tr style="background:#f1f5f9">
-                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">Supplier Code</th>
-                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left">Description</th>
-                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">Qty</th>
-                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Unit Cost</th>
-                  <th style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">Line Total</th>
-                </tr></thead>
-                <tbody>${poLines}</tbody>
-              </table>
-              <p><strong>Total (ex GST):</strong> AUD ${poSubtotal.toFixed(2)}<br/>
-              <strong>GST:</strong> AUD ${poTaxTotal.toFixed(2)}<br/>
-              <strong>Total (inc GST):</strong> AUD ${poTotal.toFixed(2)}</p>
-              <p>Please send your invoice to <a href="mailto:${process.env.IMAP_USER || 'accounts@logiqon.com'}">${process.env.IMAP_USER || 'accounts@logiqon.com'}</a> quoting PO number <strong>${poNumber}</strong>.</p>
-              <p>Thank you,<br/>LogiQ-On Tech Procurement Team</p>
-            </div>`,
+          html: poHtml,
         }).catch((err) => console.warn('PO email failed:', err));
       }
     } catch (err) {

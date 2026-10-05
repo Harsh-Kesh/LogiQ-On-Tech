@@ -589,9 +589,7 @@ export default function TraceabilityPage() {
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Global Traceability</h1>
           </div>
           <p className="text-sm max-w-md" style={{ color: '#64748b' }}>
-            Search by <strong>serial number, warranty number, or supplier invoice number</strong> to
-            pull up an order's complete audit trail — procurement, payments, warranty, and every
-            email sent.
+            Search by <strong>serial, warranty, or invoice number</strong> for an order's full audit trail.
           </p>
         </div>
 
