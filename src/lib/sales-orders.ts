@@ -122,9 +122,15 @@ export async function loadSalesOrders(): Promise<SalesOrder[]> {
 
 // BR-012 atomic number allocation.
 export async function createSalesOrder(
-  input: Omit<SalesOrder, 'id' | 'salesOrderNumber' | 'createdAt' | 'updatedAt' | 'status'> & { status?: SalesOrderStatus }
+  input: Omit<SalesOrder, 'id' | 'salesOrderNumber' | 'createdAt' | 'updatedAt' | 'status'> & {
+    status?: SalesOrderStatus;
+    // Storefront checkout mints this order's single customer-facing number up front
+    // (see the Stripe webhook) and passes it through here so the Sales Order carries
+    // the exact same number instead of minting a second, different one of its own.
+    salesOrderNumber?: string;
+  }
 ): Promise<SalesOrder> {
-  const salesOrderNumber = await nextDocumentNumber('SO');
+  const salesOrderNumber = input.salesOrderNumber || await nextDocumentNumber('SO');
   const row = await prisma.salesOrder.create({
     data: {
       salesOrderNumber,

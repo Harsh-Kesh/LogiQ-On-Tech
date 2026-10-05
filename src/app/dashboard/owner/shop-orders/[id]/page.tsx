@@ -354,13 +354,23 @@ export default function ShopOrderDetailPage() {
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Supplier & Fulfilment</p>
           </div>
           <div className="space-y-2">
-            {(order.myobSoNumber || order.salesOrder?.salesOrderNumber) && (
-              <Row label="Sales Order #" value={
-                <span className="font-mono text-xs" style={{ color: '#4C3AE3' }}>
-                  {order.myobSoNumber || order.salesOrder?.salesOrderNumber}
-                </span>
-              } />
-            )}
+            {(() => {
+              const soNumber = order.myobSoNumber || order.salesOrder?.salesOrderNumber;
+              // Orders now share one number end-to-end, so only show this row when it's
+              // actually a different (legacy, pre-unification) reference than the order
+              // number already shown in the header above.
+              if (!soNumber || soNumber === order.orderNumber) return null;
+              return (
+                <Row label="Sales Order #" value={
+                  <span>
+                    <span className="font-mono text-xs" style={{ color: '#4C3AE3' }}>{soNumber}</span>
+                    <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
+                      Legacy internal reference from before order numbers were unified
+                    </span>
+                  </span>
+                } />
+              );
+            })()}
             {order.myobPoNumber && <Row label="Purchase Order #" value={order.myobPoNumber} mono />}
             {order.threeWayMatchNotes && (
               <Row label="3-Way Match" value={

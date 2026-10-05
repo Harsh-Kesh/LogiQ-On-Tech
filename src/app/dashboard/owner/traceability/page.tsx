@@ -317,22 +317,36 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
 
       {/* Customer Transaction */}
       <Section icon={ShoppingCart} title="Customer Transaction" bg="#EEF0FE" color="#4C3AE3" border="#D9D4FB">
-        <Row label="Website Order #" value={
-          <span>
-            {sfOrder.orderNumber}
-            <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
-              What the customer sees — on their confirmation email and receipt
-            </span>
-          </span>
-        } />
-        <Row label="SO Number" value={
-          <span>
-            {salesOrder?.salesOrderNumber || sfOrder.myobSoNumber || '—'}
-            <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
-              Our internal accounting reference — used on the PO, invoice, and in MYOB
-            </span>
-          </span>
-        } />
+        {(() => {
+          const soNumber = salesOrder?.salesOrderNumber || sfOrder.myobSoNumber || '';
+          // The storefront and the Sales Order share one number for every order placed
+          // since the numbering was unified — so there's only one row to show. Orders
+          // placed before that change may still have two different legacy numbers;
+          // only then do we show both, each explained.
+          if (!soNumber || soNumber === sfOrder.orderNumber) {
+            return <Row label="Order #" value={sfOrder.orderNumber} />;
+          }
+          return (
+            <>
+              <Row label="Website Order #" value={
+                <span>
+                  {sfOrder.orderNumber}
+                  <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
+                    What the customer sees — on their confirmation email and receipt
+                  </span>
+                </span>
+              } />
+              <Row label="SO Number" value={
+                <span>
+                  {soNumber}
+                  <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
+                    Legacy internal reference from before order numbers were unified
+                  </span>
+                </span>
+              } />
+            </>
+          );
+        })()}
         <Row label="Delivery Address" value={sfOrder.deliveryAddress} />
         <Row label="Order Placed" value={fmtDt(sfOrder.createdAt)} />
         <Row label="Customer Paid At" value={fmtDt(sfOrder.paidAt)} />

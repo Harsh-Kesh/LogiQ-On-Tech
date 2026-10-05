@@ -60,6 +60,9 @@ export async function POST(req: Request) {
         source: 'ONLINE_STORE',
         createdBy: 'admin-retry',
         status: 'DRAFT',
+        // Reuse the order number the customer already has (from checkout) instead of
+        // minting a second, different-looking one for the same order.
+        salesOrderNumber: sfOrder.orderNumber,
       });
       const myobSo = await createMyobSalesOrder({
         customerContactId: 'DEMO-CUSTOMER',

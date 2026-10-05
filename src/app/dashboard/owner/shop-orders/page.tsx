@@ -284,7 +284,10 @@ export default function ShopOrdersPage() {
             const canPay = PAY_ELIGIBLE.has(order.status);
             const canFulfill = FULFILL_ELIGIBLE.has(order.status);
             const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
-            const soNumber = order.myobSoNumber || order.salesOrder?.salesOrderNumber;
+            // Only a legacy (pre-unification) order has an SO number that differs from
+            // its order number — new orders share one number, so nothing extra to show.
+            const rawSoNumber = order.myobSoNumber || order.salesOrder?.salesOrderNumber;
+            const soNumber = rawSoNumber && rawSoNumber !== order.orderNumber ? rawSoNumber : null;
             return (
               <div key={order.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-4 flex-wrap">

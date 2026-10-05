@@ -72,8 +72,11 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
   const taxTotal = resolvedLines.reduce((s, l) => s + l.qty * l.unitPrice * (l.taxPercent / 100), 0);
   const totalAmount = subtotal + taxTotal;
 
-  // Generate the StorefrontOrder number atomically
-  const orderNumber = await nextDocumentNumber('SFO');
+  // Generate one number for this order and use it everywhere — as the Sales Order
+  // number internally/in MYOB, and as the order number the customer sees. There's no
+  // value to the customer or the owner in two different-looking identifiers for the
+  // same order, so the storefront no longer mints its own separate "SFO-..." sequence.
+  const orderNumber = await nextDocumentNumber('SO');
 
   // Create StorefrontOrder + its items in a transaction
   const storefrontOrder = await prisma.$transaction(async (tx) => {
@@ -133,6 +136,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
       source: 'ONLINE_STORE',
       createdBy: customerEmail,
       status: 'DRAFT',
+      salesOrderNumber: orderNumber,
     });
 
     // Link the SO back to the StorefrontOrder and advance status
@@ -150,7 +154,6 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
   }
 
   // Create MYOB Sales Order (goods paid but not yet shipped — SO stays open until delivery)
-  let myobSoNumber: string | null = null;
   if (salesOrder) {
     try {
       const soResult = await createMyobSalesOrder({
@@ -167,7 +170,6 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
         })),
         memo: `Sales Order ${orderNumber} — ${customerName} — prepaid online`,
       });
-      myobSoNumber = soResult.soNumber;
       await prisma.storefrontOrder.update({
         where: { id: storefrontOrder.id },
         data: { myobSoGuid: soResult.guid, myobSoNumber: soResult.soNumber },
@@ -202,12 +204,10 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
             <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
               <tr style="background:#f8fafc">
                 <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase">Order #</td>
-                <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase">Sales Order #</td>
                 <td style="padding:8px 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase">Deliver To</td>
               </tr>
               <tr>
-                <td style="padding:8px 12px;font-weight:700">${orderNumber}</td>
-                <td style="padding:8px 12px;font-weight:700;color:#4f46e5">${myobSoNumber || salesOrder.salesOrderNumber}</td>
+                <td style="padding:8px 12px;font-weight:700;color:#4f46e5">${orderNumber}</td>
                 <td style="padding:8px 12px;font-size:13px">${deliveryAddress}</td>
               </tr>
             </table>
@@ -295,7 +295,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
             unitPrice: costOf(l.sku, l.unitPrice),
             taxCode: 'GST',
           })),
-          memo: `PO for SO ${myobSoNumber || salesOrder.salesOrderNumber} — ${orderNumber} — ${customerName}`,
+          memo: `PO for Order ${orderNumber} — ${customerName}`,
         });
 
         await prisma.storefrontOrder.update({
