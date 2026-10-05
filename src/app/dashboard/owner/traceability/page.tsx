@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Search, Package, ShoppingCart, FileText, ChevronRight, ExternalLink,
   Shield, Truck, CreditCard, Mail, CheckCircle2, AlertCircle, Clock, Download
@@ -422,6 +423,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function TraceabilityPage() {
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
   const [searching, setSearching] = useState(false);
@@ -464,6 +466,14 @@ export default function TraceabilityPage() {
     setLoadingChain(false);
   }, [selectedSfOrderId]);
 
+  // Deep link from Shop Orders ("Investigate full history" button) — jump straight
+  // to this order's audit trail without making the owner search for it again.
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId) loadChain(orderId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const allResults: SearchResult[] = results
     ? [...(results.orders || []), ...(results.warranties || []), ...(results.supplierInvoices || [])]
     : [];
@@ -477,8 +487,10 @@ export default function TraceabilityPage() {
             <Search className="w-5 h-5" style={{ color: NAVY }} />
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Global Traceability</h1>
           </div>
-          <p className="text-sm" style={{ color: '#64748b' }}>
-            Search serials, orders, POs, invoices, warranties
+          <p className="text-sm max-w-md" style={{ color: '#64748b' }}>
+            The forensic view — find any order by <strong>serial number, warranty number, or
+            supplier invoice number</strong> (not just order # or customer, like Shop Orders), then
+            see its complete history: items, procurement, payments, warranty, and every email sent.
           </p>
         </div>
 
