@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Search, Package, ShoppingCart, FileText, ChevronRight, ExternalLink,
-  Shield, Truck, CreditCard, Mail, CheckCircle2, AlertCircle, Clock, Download
+  Shield, Truck, CreditCard, Mail, CheckCircle2, AlertCircle, Clock, Download, X, Loader2
 } from 'lucide-react';
 
 const NAVY = '#4C3AE3';
@@ -107,6 +107,10 @@ interface EmailLog {
   mode: string;
 }
 
+interface EmailDetail extends EmailLog {
+  html: string;
+}
+
 interface InvestigationChain {
   sfOrder: SfOrder;
   salesOrder: { id: string; salesOrderNumber: string; status: string; createdAt: string } | null;
@@ -197,11 +201,68 @@ function Section({
   );
 }
 
+// ── Email preview modal ───────────────────────────────────────────────────────
+
+function EmailPreviewModal({ emailId, onClose }: { emailId: string; onClose: () => void }) {
+  const [detail, setDetail] = useState<EmailDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/admin/emails/${emailId}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to load this email.');
+        return res.json();
+      })
+      .then((data) => { if (!cancelled) setDetail(data); })
+      .catch(() => { if (!cancelled) setError('Failed to load this email.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [emailId]);
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.6)' }} onClick={onClose}>
+      <div className="w-full max-w-2xl h-[80vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-3.5 flex items-start justify-between gap-3 border-b shrink-0" style={{ borderColor: '#e2e8f0', background: '#f8fafc' }}>
+          <div className="min-w-0">
+            <p className="text-sm font-bold truncate" style={{ color: '#0f172a' }}>{detail?.subject || 'Loading…'}</p>
+            {detail && (
+              <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>
+                {detail.mode === 'received' ? 'From' : 'To'}: {detail.to}{detail.cc ? ` · CC: ${detail.cc}` : ''} · {fmtDt(detail.sentAt)}
+              </p>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors shrink-0">
+            <X className="w-4 h-4" style={{ color: '#64748b' }} />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0">
+          {loading && (
+            <div className="flex items-center justify-center h-full gap-2" style={{ color: '#94a3b8' }}>
+              <Loader2 className="w-4 h-4 animate-spin" /> <span className="text-sm">Loading email…</span>
+            </div>
+          )}
+          {error && (
+            <div className="flex items-center justify-center h-full text-sm font-semibold" style={{ color: '#991b1b' }}>{error}</div>
+          )}
+          {!loading && detail && (
+            <iframe srcDoc={detail.html} className="w-full h-full border-0 bg-white" title={detail.subject} sandbox="allow-same-origin" />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Investigation Panel ───────────────────────────────────────────────────────
 
 function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
   const { sfOrder, salesOrder, supplierInvoice, warranties, emailLogs } = chain;
   const statusStyle = STATUS_ORDER[sfOrder.status] || STATUS_ORDER_DEFAULT;
+  const [openEmailId, setOpenEmailId] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
@@ -259,8 +320,7 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
       {/* Customer Transaction */}
       <Section icon={ShoppingCart} title="Customer Transaction" bg="#EEF0FE" color="#4C3AE3" border="#D9D4FB">
         <Row label="Website Order #" value={sfOrder.orderNumber} />
-        <Row label="Internal SO #" value={salesOrder?.salesOrderNumber || sfOrder.myobSoNumber || '—'} />
-        <Row label="MYOB SO #" value={sfOrder.myobSoNumber} />
+        <Row label="SO Number" value={salesOrder?.salesOrderNumber || sfOrder.myobSoNumber || '—'} />
         <Row label="Delivery Address" value={sfOrder.deliveryAddress} />
         <Row label="Order Placed" value={fmtDt(sfOrder.createdAt)} />
         <Row label="Customer Paid At" value={fmtDt(sfOrder.paidAt)} />
@@ -278,9 +338,16 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
             </span>
           ) : '—'
         } />
-        <Row label="Tracking #" value={sfOrder.sektorTrackingNumber} />
-        <Row label="Last Updated" value={fmtDt(sfOrder.sektorStatusUpdatedAt)} />
-        <Row label="Fulfilled At" value={fmtDt(sfOrder.fulfilledAt)} />
+        <Row label="Tracking #" value={
+          sfOrder.sektorTrackingNumber ? (
+            <span>
+              {sfOrder.sektorTrackingNumber}
+              <span className="ml-1.5 text-[10px] font-normal" style={{ color: '#94a3b8' }}>(placeholder — no courier connected yet)</span>
+            </span>
+          ) : '—'
+        } />
+        <Row label="Delivery Date" value={fmtDt(sfOrder.fulfilledAt)} />
+        <Row label="Marked Fulfilled On" value={fmtDt(sfOrder.sektorStatusUpdatedAt)} />
       </Section>
 
       {/* Accounts Payable */}
@@ -317,7 +384,15 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
               </span>
             } />
             <Row label="Matched At" value={fmtDt(supplierInvoice.matchedAt)} />
-            <Row label="MYOB Bill #" value={supplierInvoice.myobBillNumber || sfOrder.myobBillNumber} />
+            {(() => {
+              const billNumber = supplierInvoice.myobBillNumber || sfOrder.myobBillNumber;
+              // Only show as a separate row when it's genuinely a different reference —
+              // in demo mode the MYOB bill is recorded under the same supplier invoice
+              // number, so a second identical row would just repeat "Invoice #" above.
+              return billNumber && billNumber !== supplierInvoice.vendorInvoiceNumber
+                ? <Row label="MYOB Bill #" value={billNumber} />
+                : null;
+            })()}
           </>
         ) : (
           <div className="py-2 text-xs" style={{ color: '#94a3b8' }}>No supplier invoice linked yet</div>
@@ -384,19 +459,28 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
       {emailLogs.length > 0 && (
         <Section icon={Mail} title={`Email Communications (${emailLogs.length})`} bg="#f8fafc" color="#475569" border="#e2e8f0">
           {emailLogs.map((e) => (
-            <div key={e.id} className="py-2 flex items-start gap-2">
+            <button
+              key={e.id}
+              onClick={() => setOpenEmailId(e.id)}
+              className="w-full py-2 flex items-start gap-2 text-left hover:bg-slate-50 rounded-lg transition-colors -mx-1 px-1"
+            >
               <Mail className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#94a3b8' }} />
-              <div className="min-w-0">
-                <div className="text-xs font-semibold truncate" style={{ color: '#0f172a' }}>{e.subject}</div>
-                <div className="text-xs" style={{ color: '#64748b' }}>To: {e.to}{e.cc ? ` · CC: ${e.cc}` : ''}</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold truncate" style={{ color: NAVY }}>{e.subject}</div>
+                <div className="text-xs" style={{ color: '#64748b' }}>
+                  {e.mode === 'received' ? 'From' : 'To'}: {e.to}{e.cc ? ` · CC: ${e.cc}` : ''}
+                </div>
                 <div className="text-[10px] mt-0.5" style={{ color: '#94a3b8' }}>
-                  {fmtDt(e.sentAt)} · {e.mode === 'simulated' ? '(simulated)' : 'sent'}
+                  {fmtDt(e.sentAt)} · {e.mode === 'simulated' ? '(simulated)' : e.mode === 'received' ? '(simulated incoming)' : 'sent'}
                 </div>
               </div>
-            </div>
+              <ExternalLink className="w-3 h-3 shrink-0 mt-0.5" style={{ color: '#cbd5e1' }} />
+            </button>
           ))}
         </Section>
       )}
+
+      {openEmailId && <EmailPreviewModal emailId={openEmailId} onClose={() => setOpenEmailId(null)} />}
     </div>
   );
 }

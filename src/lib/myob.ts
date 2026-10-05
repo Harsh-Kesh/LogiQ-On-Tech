@@ -99,9 +99,11 @@ export interface MyobSalesOrderResult {
 export async function createMyobSalesOrder(params: MyobSalesOrderParams): Promise<MyobSalesOrderResult> {
   if (!process.env.MYOB_CLIENT_ID) {
     const fakeGuid = `DEMO-MYOB-SO-${Date.now()}`;
-    const fakeSoNumber = `SO-DEMO-${params.soNumber}`;
-    console.log(`[MYOB DEMO] Would create Sales Order ${fakeSoNumber} for customer ${params.customerContactId}`);
-    return { guid: fakeGuid, soNumber: fakeSoNumber };
+    // Demo mode keeps the MYOB SO number identical to our internal SO number —
+    // in real MYOB the SO is created with Number: params.soNumber too (see below),
+    // so there's no reason for the demo stand-in to diverge.
+    console.log(`[MYOB DEMO] Would create Sales Order ${params.soNumber} for customer ${params.customerContactId}`);
+    return { guid: fakeGuid, soNumber: params.soNumber };
   }
 
   const body = {
@@ -310,9 +312,11 @@ export interface MyobBillResult {
 export async function createMyobBill(params: MyobBillParams): Promise<MyobBillResult> {
   if (!process.env.MYOB_CLIENT_ID) {
     const fakeGuid = `DEMO-MYOB-BILL-${Date.now()}`;
-    const fakeBillNumber = `DEMO-BILL-${params.invoiceNumber}`;
+    // Demo mode keeps the MYOB Bill number identical to the supplier's invoice
+    // number — real MYOB records the bill under the same SupplierInvoiceNumber
+    // (see below), so the demo stand-in shouldn't invent a different-looking one.
     console.log(`[MYOB DEMO] Would create Bill for invoice ${params.invoiceNumber}, supplier ${params.supplierContactId}`);
-    return { guid: fakeGuid, billNumber: fakeBillNumber };
+    return { guid: fakeGuid, billNumber: params.invoiceNumber };
   }
   const body = {
     Supplier: { UID: params.supplierContactId },
