@@ -80,6 +80,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 export default function WarrantiesPage() {
   const [records, setRecords] = useState<WarrantyRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [filter, setFilter] = useState('ALL');
 
   // Close modal state
@@ -102,8 +103,18 @@ export default function WarrantiesPage() {
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/warranties');
-    if (res.ok) setRecords(await res.json());
+    setLoadError('');
+    try {
+      const res = await fetch('/api/admin/warranties');
+      if (res.ok) {
+        setRecords(await res.json());
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setLoadError(body.error || `Failed to load warranties (HTTP ${res.status}).`);
+      }
+    } catch {
+      setLoadError('Network error loading warranties.');
+    }
     setLoading(false);
   }, []);
 
@@ -305,9 +316,14 @@ export default function WarrantiesPage() {
       </div>
 
       {/* Table */}
+      {loadError && (
+        <div className="px-4 py-3 rounded-xl text-sm font-semibold" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}>
+          {loadError}
+        </div>
+      )}
       {loading ? (
         <div className="text-center py-20 text-slate-400">Loading warranties…</div>
-      ) : displayed.length === 0 ? (
+      ) : loadError ? null : displayed.length === 0 ? (
         <div className="text-center py-20 text-slate-400">No warranty records found</div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">

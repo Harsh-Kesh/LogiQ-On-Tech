@@ -423,10 +423,19 @@ export default function TraceabilityPage() {
     setSelectedSfOrderId(sfOrderId);
     setChain(null);
     setLoadingChain(true);
-    const res = await fetch(`/api/admin/traceability?id=${sfOrderId}`);
-    if (res.ok) {
-      const data = await res.json();
-      setChain(data.chain);
+    try {
+      const res = await fetch(`/api/admin/traceability?id=${sfOrderId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setChain(data.chain);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setLinkError(body.error || `Failed to load this record (HTTP ${res.status}).`);
+        setSelectedSfOrderId(null);
+      }
+    } catch {
+      setLinkError('Network error loading this record.');
+      setSelectedSfOrderId(null);
     }
     setLoadingChain(false);
   }, [selectedSfOrderId]);
