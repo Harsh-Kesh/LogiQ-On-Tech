@@ -7,7 +7,6 @@ import { Toast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Badge } from '@/components/ui/Badge';
 import { Building, Search, RefreshCw, FileText, CheckCircle2, AlertTriangle, XCircle, ShieldAlert, Eye, FileCheck, Ban, Download, TrendingUp, Clock, Star, Layers, Landmark, Save } from 'lucide-react';
 
 interface ComplianceDoc {
@@ -308,11 +307,11 @@ export default function AdminVendorsPage() {
       accessorKey: 'companyName',
       cell: (v) => (
         <div className="space-y-0.5">
-          <div className="font-bold text-slate-900 flex items-center gap-2">
-            <Building className="w-4 h-4 text-slate-500 shrink-0" />
+          <div className="font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
+            <Building className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} />
             <span>{v.companyName || 'Pending Company Registration'}</span>
           </div>
-          <div className="text-[11px] font-mono text-slate-500 pl-6">
+          <div className="text-[11px] font-mono pl-6" style={{ color: '#64748b' }}>
             {v.abnAcn ? `ABN/ACN: ${v.abnAcn}` : 'ABN/ACN: Not Provided Yet'}
           </div>
         </div>
@@ -323,8 +322,8 @@ export default function AdminVendorsPage() {
       accessorKey: 'user',
       cell: (v) => (
         <div className="space-y-0.5 font-mono text-[11px]">
-          <div className="text-indigo-700 font-bold">{v.user?.email}</div>
-          <div className="text-slate-500">{v.user?.fullName}</div>
+          <div className="font-bold" style={{ color: '#1e3a8a' }}>{v.user?.email}</div>
+          <div style={{ color: '#64748b' }}>{v.user?.fullName}</div>
         </div>
       ),
     },
@@ -332,22 +331,29 @@ export default function AdminVendorsPage() {
       header: 'Lifecycle Status',
       accessorKey: 'status',
       cell: (v) => {
-        const variant =
-          v.status === 'APPROVED'
-            ? 'indigo'
-            : v.status === 'UNDER_REVIEW'
-            ? 'amber'
-            : v.status === 'PENDING'
-            ? 'sky'
-            : 'danger';
-        return <Badge variant={variant}>{v.status}</Badge>;
+        const statusStyles: Record<string, { bg: string; color: string; border: string }> = {
+          APPROVED: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+          UNDER_REVIEW: { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+          PENDING: { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+          SUSPENDED: { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
+          REJECTED: { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
+        };
+        const s = statusStyles[v.status] || { bg: '#fafafa', color: '#71717a', border: '#e4e4e7' };
+        return (
+          <span
+            className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider"
+            style={{ background: s.bg, color: s.color, borderColor: s.border }}
+          >
+            {v.status}
+          </span>
+        );
       },
     },
     {
       header: 'Compliance Docs',
       accessorKey: 'docs',
       cell: (v) => (
-        <div className="text-xs font-mono text-slate-600 font-bold">
+        <div className="text-xs font-mono font-bold" style={{ color: '#475569' }}>
           {v.docs?.length || 0} {(v.docs?.length || 0) === 1 ? 'File' : 'Files'} Uploaded
         </div>
       ),
@@ -363,9 +369,10 @@ export default function AdminVendorsPage() {
               setSelectedVendor(v);
               setIsDetailModalOpen(true);
             }}
-            className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] font-mono flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+            className="font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 cursor-pointer shadow-sm transition-all hover:opacity-90"
+            style={{ background: '#1e3a8a', color: '#fff' }}
           >
-            <Eye className="w-3.5 h-3.5 text-indigo-300" /> Inspect &amp; Review
+            <Eye className="w-3.5 h-3.5" /> Inspect &amp; Review
           </button>
         </div>
       ),
@@ -378,21 +385,21 @@ export default function AdminVendorsPage() {
     <div className="space-y-6 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Light Header Banner */}
-      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      {/* Header Banner */}
+      <div className="p-6 rounded-2xl bg-white border flex flex-col md:flex-row md:items-center justify-between gap-6" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center gap-4">
           <div className="p-3.5 rounded-2xl shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
             <Building className="w-8 h-8" style={{ color: '#1e3a8a' }} />
           </div>
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold font-mono" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
               <ShieldAlert className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
               VENDOR GOVERNANCE DIRECTORY
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
               Vendor Onboarding &amp; Compliance
             </h1>
-            <p className="text-xs text-slate-500 font-mono">
+            <p className="text-sm" style={{ color: '#64748b' }}>
               Inspect vendor registrations, verify compliance documents, and manage status transitions.
             </p>
           </div>
@@ -401,23 +408,25 @@ export default function AdminVendorsPage() {
         <button
           type="button"
           onClick={fetchVendors}
-          className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm text-xs font-mono inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap transition-all cursor-pointer"
+          className="font-bold px-4 py-2.5 rounded-xl border text-xs inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap transition-all cursor-pointer hover:bg-slate-50"
+          style={{ borderColor: '#e2e8f0', color: '#1e3a8a' }}
         >
-          <RefreshCw className="w-4 h-4 text-indigo-600" /> Refresh Directory
+          <RefreshCw className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Refresh Directory
         </button>
       </div>
 
       {/* Filters Bar */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 rounded-2xl bg-white border flex flex-col md:flex-row md:items-center justify-between gap-4" style={{ borderColor: '#e2e8f0' }}>
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3.5 top-3" style={{ color: '#94a3b8' }} />
           <input
             type="text"
             placeholder="Search by company name, ABN/ACN, or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchVendors()}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 font-mono"
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border text-xs outline-none"
+            style={{ borderColor: '#e2e8f0', color: '#0f172a' }}
           />
         </div>
 
@@ -438,7 +447,7 @@ export default function AdminVendorsPage() {
       </div>
 
       {/* Main Data Table */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm">
+      <div className="p-5 rounded-2xl bg-white border" style={{ borderColor: '#e2e8f0' }}>
         <DataTable data={vendors} columns={columns} isLoading={loading} emptyMessage="No vendor records found matching filter criteria." />
       </div>
 
@@ -451,80 +460,99 @@ export default function AdminVendorsPage() {
         >
           <div className="space-y-6 text-xs font-sans">
             {/* Vendor Profile Metadata */}
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 border" style={{ borderColor: '#e2e8f0' }}>
               <div>
-                <span className="text-slate-500 font-semibold block">Registered Company:</span>
-                <span className="font-bold text-slate-900">{selectedVendor.companyName || 'Not Registered Yet'}</span>
+                <span className="font-semibold block" style={{ color: '#64748b' }}>Registered Company:</span>
+                <span className="font-bold" style={{ color: '#0f172a' }}>{selectedVendor.companyName || 'Not Registered Yet'}</span>
               </div>
               <div>
-                <span className="text-slate-500 font-semibold block">ABN / ACN Number:</span>
-                <span className="font-mono text-slate-900 font-bold">{selectedVendor.abnAcn || 'Not Provided'}</span>
+                <span className="font-semibold block" style={{ color: '#64748b' }}>ABN / ACN Number:</span>
+                <span className="font-mono font-bold" style={{ color: '#0f172a' }}>{selectedVendor.abnAcn || 'Not Provided'}</span>
               </div>
               <div>
-                <span className="text-slate-500 font-semibold block">Business Registered Address:</span>
-                <span className="font-bold text-slate-900">{selectedVendor.businessRegisteredAddress || 'Not Provided'}</span>
+                <span className="font-semibold block" style={{ color: '#64748b' }}>Business Registered Address:</span>
+                <span className="font-bold" style={{ color: '#0f172a' }}>{selectedVendor.businessRegisteredAddress || 'Not Provided'}</span>
               </div>
               <div>
-                <span className="text-slate-500 font-semibold block">Business Location (Trading Address):</span>
-                <span className="font-bold text-slate-900">{selectedVendor.businessLocation || '— Same as registered address —'}</span>
+                <span className="font-semibold block" style={{ color: '#64748b' }}>Business Location (Trading Address):</span>
+                <span className="font-bold" style={{ color: '#0f172a' }}>{selectedVendor.businessLocation || '— Same as registered address —'}</span>
               </div>
               <div>
-                <span className="text-slate-500 font-semibold block">Primary Account:</span>
-                <span className="font-mono text-indigo-700 font-bold">{selectedVendor.user?.email}</span>
+                <span className="font-semibold block" style={{ color: '#64748b' }}>Primary Account:</span>
+                <span className="font-mono font-bold" style={{ color: '#1e3a8a' }}>{selectedVendor.user?.email}</span>
               </div>
               <div>
-                <span className="text-slate-500 font-semibold block">Current Lifecycle Status:</span>
-                <Badge variant={selectedVendor.status === 'APPROVED' ? 'indigo' : selectedVendor.status === 'UNDER_REVIEW' ? 'amber' : 'danger'}>
-                  {selectedVendor.status}
-                </Badge>
+                <span className="font-semibold block" style={{ color: '#64748b' }}>Current Lifecycle Status:</span>
+                {(() => {
+                  const statusStyles: Record<string, { bg: string; color: string; border: string }> = {
+                    APPROVED: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+                    UNDER_REVIEW: { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+                    PENDING: { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+                    SUSPENDED: { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
+                    REJECTED: { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
+                  };
+                  const s = statusStyles[selectedVendor.status] || { bg: '#fafafa', color: '#71717a', border: '#e4e4e7' };
+                  return (
+                    <span
+                      className="inline-block mt-0.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider"
+                      style={{ background: s.bg, color: s.color, borderColor: s.border }}
+                    >
+                      {selectedVendor.status}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
 
             {selectedVendor.rejectionReason && (
-              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+              <div className="p-3.5 rounded-xl text-xs font-semibold" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}>
                 ⚠️ Rejection Reason: {selectedVendor.rejectionReason}
               </div>
             )}
 
             {/* Compliance Docs Section */}
             <div className="space-y-3">
-              <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-600" /> Submitted Compliance Documents
+              <h4 className="text-sm font-extrabold flex items-center gap-2" style={{ color: '#0f172a' }}>
+                <FileText className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Submitted Compliance Documents
               </h4>
 
               {selectedVendor.docs?.length === 0 ? (
-                <div className="p-6 rounded-2xl bg-amber-50/60 border border-amber-200 text-center text-xs text-amber-800 font-medium">
+                <div className="p-6 rounded-2xl text-center text-xs font-medium" style={{ background: '#fefce8', border: '1px solid #fde68a', color: '#854d0e' }}>
                   ⚠️ No compliance documents uploaded by vendor yet.
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {selectedVendor.docs.map((doc) => (
+                  {selectedVendor.docs.map((doc) => {
+                    const docStatusStyle =
+                      doc.status === 'APPROVED'
+                        ? { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' }
+                        : doc.status === 'REJECTED'
+                        ? { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' }
+                        : { bg: '#fefce8', color: '#854d0e', border: '#fde68a' };
+                    return (
                     <div
                       key={doc.id}
-                      className="p-3.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs"
+                      className="p-3.5 rounded-xl bg-white border flex items-center justify-between text-xs"
+                      style={{ borderColor: '#e2e8f0' }}
                     >
                       <div>
-                        <div className="font-bold text-slate-900">{doc.docType}</div>
-                        <div className="text-[11px] font-mono text-slate-500">
+                        <div className="font-bold" style={{ color: '#0f172a' }}>{doc.docType}</div>
+                        <div className="text-[11px] font-mono" style={{ color: '#64748b' }}>
                           {doc.fileName} • {(doc.fileSize / (1024 * 1024)).toFixed(2)} MB
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span
-                          className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
-                            doc.status === 'APPROVED'
-                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                              : doc.status === 'REJECTED'
-                              ? 'bg-rose-50 text-rose-700 border-rose-200'
-                              : 'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}
+                          className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border uppercase"
+                          style={{ background: docStatusStyle.bg, color: docStatusStyle.color, borderColor: docStatusStyle.border }}
                         >
                           {doc.status || 'PENDING'}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleOpenDoc(doc)}
-                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                          className="px-2.5 py-1 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors hover:opacity-80"
+                          style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}
                         >
                           <FileCheck className="w-3.5 h-3.5" /> View Doc
                         </button>
@@ -545,7 +573,8 @@ export default function AdminVendorsPage() {
                                 }
                               } catch (e) {}
                             }}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                            className="px-2.5 py-1 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm hover:opacity-90"
+                            style={{ background: '#166534', color: '#fff' }}
                           >
                             Approve
                           </button>
@@ -567,14 +596,16 @@ export default function AdminVendorsPage() {
                                 }
                               } catch (e) {}
                             }}
-                            className="px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                            className="px-2.5 py-1 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                            style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
                           >
                             Reject
                           </button>
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -582,57 +613,58 @@ export default function AdminVendorsPage() {
             {/* Supplier Payment & Contact Details Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                  <Landmark className="w-4 h-4 text-indigo-600" /> Supplier Payment & Contact Details
+                <h4 className="text-sm font-extrabold flex items-center gap-2" style={{ color: '#0f172a' }}>
+                  <Landmark className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Supplier Payment & Contact Details
                 </h4>
                 <button
                   type="button"
                   onClick={() => openPaymentEdit(selectedVendor)}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold px-3 py-1.5 rounded-xl text-[11px] font-mono flex items-center gap-1.5 cursor-pointer transition-all"
+                  className="font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 cursor-pointer transition-all hover:opacity-80"
+                  style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}
                 >
                   <Save className="w-3.5 h-3.5" /> Edit Details
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border" style={{ borderColor: '#e2e8f0' }}>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">PO Delivery Email</span>
-                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.poEmail || <span className="text-slate-400 italic">Not set</span>}</span>
+                  <span className="font-semibold block text-[11px] uppercase tracking-wide" style={{ color: '#94a3b8' }}>PO Delivery Email</span>
+                  <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{selectedVendor.poEmail || <span className="italic" style={{ color: '#94a3b8' }}>Not set</span>}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">AP / Remittance Email</span>
-                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.apEmail || <span className="text-slate-400 italic">Not set</span>}</span>
+                  <span className="font-semibold block text-[11px] uppercase tracking-wide" style={{ color: '#94a3b8' }}>AP / Remittance Email</span>
+                  <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{selectedVendor.apEmail || <span className="italic" style={{ color: '#94a3b8' }}>Not set</span>}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Payment Terms</span>
-                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.paymentTerms || <span className="text-slate-400 italic">Not set</span>}</span>
+                  <span className="font-semibold block text-[11px] uppercase tracking-wide" style={{ color: '#94a3b8' }}>Payment Terms</span>
+                  <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{selectedVendor.paymentTerms || <span className="italic" style={{ color: '#94a3b8' }}>Not set</span>}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Currency</span>
-                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.currency || 'AUD'}</span>
+                  <span className="font-semibold block text-[11px] uppercase tracking-wide" style={{ color: '#94a3b8' }}>Currency</span>
+                  <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{selectedVendor.currency || 'AUD'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Bank BSB</span>
-                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.bankBsb || <span className="text-slate-400 italic">Not set</span>}</span>
+                  <span className="font-semibold block text-[11px] uppercase tracking-wide" style={{ color: '#94a3b8' }}>Bank BSB</span>
+                  <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{selectedVendor.bankBsb || <span className="italic" style={{ color: '#94a3b8' }}>Not set</span>}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Bank Account Number</span>
-                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.bankAccountNumber || <span className="text-slate-400 italic">Not set</span>}</span>
+                  <span className="font-semibold block text-[11px] uppercase tracking-wide" style={{ color: '#94a3b8' }}>Bank Account Number</span>
+                  <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{selectedVendor.bankAccountNumber || <span className="italic" style={{ color: '#94a3b8' }}>Not set</span>}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">Bank Account Name</span>
-                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.bankAccountName || <span className="text-slate-400 italic">Not set</span>}</span>
+                  <span className="font-semibold block text-[11px] uppercase tracking-wide" style={{ color: '#94a3b8' }}>Bank Account Name</span>
+                  <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{selectedVendor.bankAccountName || <span className="italic" style={{ color: '#94a3b8' }}>Not set</span>}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px] uppercase tracking-wide font-mono">MYOB Contact ID</span>
-                  <span className="font-mono text-slate-900 font-bold text-xs">{selectedVendor.myobContactId || <span className="text-slate-400 italic">Not set</span>}</span>
+                  <span className="font-semibold block text-[11px] uppercase tracking-wide" style={{ color: '#94a3b8' }}>MYOB Contact ID</span>
+                  <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{selectedVendor.myobContactId || <span className="italic" style={{ color: '#94a3b8' }}>Not set</span>}</span>
                 </div>
               </div>
             </div>
 
             {/* State Machine Transition Controls */}
-            <div className="pt-4 border-t border-slate-200 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
+            <div className="pt-4 border-t space-y-3" style={{ borderColor: '#e2e8f0' }}>
+              <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
                 State Machine Controls (Allowed Transitions from {selectedVendor.status})
               </h4>
 
@@ -742,12 +774,12 @@ export default function AdminVendorsPage() {
           title={`Edit Payment Details: ${selectedVendor.companyName || selectedVendor.user?.email}`}
         >
           <div className="space-y-5 text-xs font-sans">
-            <p className="text-slate-500 font-mono text-[11px]">
+            <p className="text-[11px]" style={{ color: '#64748b' }}>
               These details are used for automated PO emails, Monoova bank transfers, and MYOB contact linking.
             </p>
 
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-              <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider font-mono">Contact Emails</div>
+            <div className="p-4 rounded-2xl bg-slate-50 border space-y-4" style={{ borderColor: '#e2e8f0' }}>
+              <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#475569' }}>Contact Emails</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="PO Delivery Email"
@@ -768,8 +800,8 @@ export default function AdminVendorsPage() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-              <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider font-mono">Payment Settings</div>
+            <div className="p-4 rounded-2xl bg-slate-50 border space-y-4" style={{ borderColor: '#e2e8f0' }}>
+              <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#475569' }}>Payment Settings</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Payment Terms"
@@ -778,11 +810,12 @@ export default function AdminVendorsPage() {
                   placeholder="e.g. Net 30"
                 />
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Currency</label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#475569' }}>Currency</label>
                   <select
                     value={payCurrency}
                     onChange={(e) => setPayCurrency(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-indigo-600"
+                    className="w-full px-3 py-2 rounded-xl bg-white border text-sm outline-none"
+                    style={{ borderColor: '#e2e8f0', color: '#0f172a' }}
                   >
                     <option value="AUD">AUD — Australian Dollar</option>
                     <option value="USD">USD — US Dollar</option>
@@ -795,8 +828,8 @@ export default function AdminVendorsPage() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-4">
-              <div className="text-[11px] font-bold text-indigo-800 uppercase tracking-wider font-mono flex items-center gap-2">
+            <div className="p-4 rounded-2xl space-y-4" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+              <div className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: '#1e3a8a' }}>
                 <Landmark className="w-3.5 h-3.5" /> Bank Account Details (Monoova NPP Transfer)
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -821,7 +854,7 @@ export default function AdminVendorsPage() {
               />
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="p-4 rounded-2xl bg-slate-50 border" style={{ borderColor: '#e2e8f0' }}>
               <Input
                 label="MYOB Contact ID"
                 value={payMyobContactId}
@@ -856,7 +889,7 @@ export default function AdminVendorsPage() {
           title={`Reject Application: ${selectedVendor.companyName || selectedVendor.user?.email}`}
         >
           <div className="space-y-4 text-xs font-sans">
-            <p className="text-slate-600">
+            <p style={{ color: '#475569' }}>
               Please enter the formal rejection audit reason. This note will be recorded in the audit trail and sent to the vendor.
             </p>
 

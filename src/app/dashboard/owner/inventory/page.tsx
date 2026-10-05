@@ -665,12 +665,12 @@ export default function OwnerInventoryPage() {
       accessorKey: 'itemName',
       cell: (item: StockOnHandItem) => (
         <div className="space-y-1">
-          <div className="font-extrabold text-slate-900 text-sm">{item.itemName}</div>
+          <div className="font-extrabold text-sm" style={{ color: '#0f172a' }}>{item.itemName}</div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+            <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md border" style={{ color: '#1e3a8a', background: '#eff6ff', borderColor: '#bfdbfe' }}>
               {item.sku}
             </span>
-            <span className="font-mono text-[11px] text-slate-500">EAN: {item.barcode}</span>
+            <span className="font-mono text-[11px]" style={{ color: '#64748b' }}>EAN: {item.barcode}</span>
           </div>
         </div>
       ),
@@ -679,8 +679,8 @@ export default function OwnerInventoryPage() {
       header: 'Warehouse',
       accessorKey: 'warehouseCode',
       cell: (item: StockOnHandItem) => (
-        <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
-          <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+        <div className="text-xs font-bold flex items-center gap-1" style={{ color: '#0f172a' }}>
+          <MapPin className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
           {item.warehouseName} ({item.warehouseCode})
         </div>
       ),
@@ -690,12 +690,12 @@ export default function OwnerInventoryPage() {
       accessorKey: 'vendorName',
       cell: (item: StockOnHandItem) =>
         item.vendorId ? (
-          <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg text-xs">
-            <Building className="w-3 h-3 text-indigo-600" /> {item.vendorName}
+          <span className="inline-flex items-center gap-1 font-semibold px-2.5 py-1 rounded-lg text-xs border" style={{ color: '#1e3a8a', background: '#eff6ff', borderColor: '#bfdbfe' }}>
+            <Building className="w-3 h-3" style={{ color: '#1e3a8a' }} /> {item.vendorName}
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 font-semibold text-indigo-800 bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-lg text-xs">
-            <ShieldCheck className="w-3 h-3 text-indigo-600" /> LogiQ-On Internal
+          <span className="inline-flex items-center gap-1 font-semibold px-2.5 py-1 rounded-lg text-xs border" style={{ color: '#1e3a8a', background: '#dbeafe', borderColor: '#93c5fd' }}>
+            <ShieldCheck className="w-3 h-3" style={{ color: '#1e3a8a' }} /> LogiQ-On Internal
           </span>
         ),
     },
@@ -704,8 +704,8 @@ export default function OwnerInventoryPage() {
       accessorKey: 'quantityOnHand',
       cell: (item: StockOnHandItem) => (
         <div className="space-y-0.5">
-          <div className="font-black text-slate-900 text-base font-mono">{item.quantityOnHand} units</div>
-          <div className="text-[10px] text-indigo-700 font-semibold">Available: {item.quantityAvailable} units</div>
+          <div className="font-black text-base font-mono" style={{ color: '#0f172a' }}>{item.quantityOnHand} units</div>
+          <div className="text-[10px] font-semibold" style={{ color: '#1e3a8a' }}>Available: {item.quantityAvailable} units</div>
         </div>
       ),
     },
@@ -716,23 +716,24 @@ export default function OwnerInventoryPage() {
       header: 'Movement Type & Reference',
       accessorKey: 'referenceNumber',
       cell: (entry: StockLedgerEntry) => {
+        const movementStyle =
+          entry.movementType === 'RECEIPT'
+            ? { color: '#166534', background: '#f0fdf4', borderColor: '#bbf7d0' }
+            : entry.movementType === 'ISSUE'
+            ? { color: '#991b1b', background: '#fef2f2', borderColor: '#fecaca' }
+            : { color: '#854d0e', background: '#fefce8', borderColor: '#fde68a' };
         return (
           <div className="space-y-1 text-xs">
             <div className="flex items-center gap-2">
               <span
-                className={`font-black px-2 py-0.5 rounded text-[11px] font-mono ${
-                  entry.movementType === 'RECEIPT'
-                    ? 'bg-indigo-100 text-indigo-800 border border-indigo-300'
-                    : entry.movementType === 'ISSUE'
-                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                    : 'bg-amber-100 text-amber-800 border border-amber-300'
-                }`}
+                className="font-black px-2 py-0.5 rounded text-[11px] font-mono border"
+                style={movementStyle}
               >
                 {entry.movementType}
               </span>
-              <span className="font-mono font-bold text-slate-900">{entry.referenceNumber}</span>
+              <span className="font-mono font-bold" style={{ color: '#0f172a' }}>{entry.referenceNumber}</span>
             </div>
-            <div className="text-[11px] text-slate-500">{new Date(entry.createdAt).toLocaleString()}</div>
+            <div className="text-[11px]" style={{ color: '#64748b' }}>{new Date(entry.createdAt).toLocaleString()}</div>
           </div>
         );
       },
@@ -742,8 +743,8 @@ export default function OwnerInventoryPage() {
       accessorKey: 'itemName',
       cell: (entry: StockLedgerEntry) => (
         <div className="text-xs">
-          <div className="font-bold text-slate-900">{entry.itemName}</div>
-          <div className="font-mono text-slate-500 text-[11px]">SKU: {entry.sku}</div>
+          <div className="font-bold" style={{ color: '#0f172a' }}>{entry.itemName}</div>
+          <div className="font-mono text-[11px]" style={{ color: '#64748b' }}>SKU: {entry.sku}</div>
         </div>
       ),
     },
@@ -751,7 +752,7 @@ export default function OwnerInventoryPage() {
       header: 'Warehouse',
       accessorKey: 'warehouseCode',
       cell: (entry: StockLedgerEntry) => (
-        <div className="text-xs font-mono font-semibold text-slate-700">
+        <div className="text-xs font-mono font-semibold" style={{ color: '#475569' }}>
           {entry.warehouseCode}
         </div>
       ),
@@ -762,7 +763,7 @@ export default function OwnerInventoryPage() {
       cell: (entry: StockLedgerEntry) => {
         const isPos = entry.quantityDelta > 0;
         return (
-          <span className={`font-mono font-black text-sm ${isPos ? 'text-indigo-600' : 'text-rose-600'}`}>
+          <span className="font-mono font-black text-sm" style={{ color: isPos ? '#166534' : '#991b1b' }}>
             {isPos ? `+${entry.quantityDelta}` : entry.quantityDelta} units
           </span>
         );
@@ -773,8 +774,8 @@ export default function OwnerInventoryPage() {
       accessorKey: 'reasonCode',
       cell: (entry: StockLedgerEntry) => (
         <div className="text-xs space-y-0.5">
-          <div className="text-slate-800 font-medium">{entry.reasonCode || 'System Transaction'}</div>
-          <div className="text-[10px] text-slate-400 font-mono">By: {entry.createdByEmail}</div>
+          <div className="font-medium" style={{ color: '#334155' }}>{entry.reasonCode || 'System Transaction'}</div>
+          <div className="text-[10px] font-mono" style={{ color: '#94a3b8' }}>By: {entry.createdByEmail}</div>
         </div>
       ),
     },
@@ -785,7 +786,7 @@ export default function OwnerInventoryPage() {
   const renderItemPicker = () => (
     <div className="space-y-1.5">
       <label className="text-xs font-bold text-slate-700 block">
-        Select Product Item * {userRole === 'VENDOR' && <span className="text-indigo-700 font-mono">(Your Assigned Catalog Items)</span>}
+        Select Product Item * {userRole === 'VENDOR' && <span className="font-mono" style={{ color: '#1e3a8a' }}>(Your Assigned Catalog Items)</span>}
       </label>
       <div className="relative">
         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -798,7 +799,7 @@ export default function OwnerInventoryPage() {
             setAdjItemSearch(e.target.value);
             setIsAdjItemDropdownOpen(true);
           }}
-          className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 font-semibold text-slate-900"
+          className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#1e3a8a] font-semibold text-slate-900"
         />
         {adjItem && (
           <button
@@ -862,14 +863,14 @@ export default function OwnerInventoryPage() {
                       setAdjWarehouse(whHoldingStock.warehouseCode);
                     }
                   }}
-                  className={`p-3 text-xs hover:bg-indigo-50 cursor-pointer flex items-center justify-between transition-colors ${
-                    adjItem === i.id ? 'bg-indigo-50/80 font-bold' : ''
+                  className={`p-3 text-xs hover:bg-[#eff6ff] cursor-pointer flex items-center justify-between transition-colors ${
+                    adjItem === i.id ? 'bg-[#eff6ff] font-bold' : ''
                   }`}
                 >
                   <div>
-                    <div className="font-extrabold text-slate-900">{i.itemName}</div>
-                    <div className="flex items-center gap-2 mt-0.5 font-mono text-[11px] text-slate-500">
-                      <span className="text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">{i.sku}</span>
+                    <div className="font-extrabold" style={{ color: '#0f172a' }}>{i.itemName}</div>
+                    <div className="flex items-center gap-2 mt-0.5 font-mono text-[11px]" style={{ color: '#64748b' }}>
+                      <span className="px-1.5 py-0.2 rounded font-bold border" style={{ color: '#1e3a8a', background: '#eff6ff', borderColor: '#bfdbfe' }}>{i.sku}</span>
                       <span>EAN: {i.barcode}</span>
                     </div>
                   </div>
@@ -891,25 +892,25 @@ export default function OwnerInventoryPage() {
       {userRole === 'VENDOR' && <WarehouseOpsTabs />}
 
       {/* Inventory Management Banner */}
-      <div className="p-8 rounded-3xl bg-white border border-indigo-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 font-sans">
+      <div className="p-8 rounded-3xl bg-white border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 font-sans" style={{ borderColor: '#e2e8f0' }}>
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
-            <Boxes className="w-3.5 h-3.5 text-indigo-600" /> INVENTORY MANAGEMENT
+          <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold font-mono" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
+            <Boxes className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} /> INVENTORY MANAGEMENT
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
             Inventory Management
           </h1>
-          <p className="text-xs text-slate-500 font-mono max-w-3xl">
+          <p className="text-xs font-mono max-w-3xl" style={{ color: '#64748b' }}>
             Stock levels, movement ledger, and warehouse facilities across all locations.
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button variant="outline" size="sm" onClick={fetchAllData} className="gap-2 border-indigo-200 text-indigo-800 hover:bg-indigo-50">
+          <Button variant="outline" size="sm" onClick={fetchAllData} className="gap-2" style={{ borderColor: '#bfdbfe', color: '#1e3a8a' }}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sync Ledger
           </Button>
           {isOwner && (
-            <Button onClick={() => setIsWhModalOpen(true)} size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+            <Button onClick={() => setIsWhModalOpen(true)} size="sm" className="gap-2 text-white font-bold" style={{ background: '#1e3a8a' }}>
               <Plus className="w-4 h-4" /> Add Warehouse Location
             </Button>
           )}
@@ -918,66 +919,66 @@ export default function OwnerInventoryPage() {
 
       {/* Reconciliation Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+        <div className="p-4 border bg-white shadow-sm rounded-2xl flex items-center justify-between" style={{ borderColor: '#e2e8f0' }}>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
               Total Stock On Hand
             </p>
-            <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
-              {metricStockOnHand} <span className="text-xs font-normal text-slate-500">units</span>
+            <h3 className="text-2xl font-black font-mono mt-1" style={{ color: '#0f172a' }}>
+              {metricStockOnHand} <span className="text-xs font-normal" style={{ color: '#64748b' }}>units</span>
             </h3>
-            <p className="text-[11px] text-indigo-600 font-semibold mt-1 flex items-center gap-1">
+            <p className="text-[11px] font-semibold mt-1 flex items-center gap-1" style={{ color: '#1e3a8a' }}>
               <CheckCircle2 className="w-3 h-3" /> Reconciled against ledger
             </p>
           </div>
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+          <div className="p-3 rounded-xl" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
             <Boxes className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+        <div className="p-4 border bg-white shadow-sm rounded-2xl flex items-center justify-between" style={{ borderColor: '#e2e8f0' }}>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
               Total Inbound Receipts
             </p>
-            <h3 className="text-2xl font-black text-indigo-600 font-mono mt-1">
-              +{metricTotalReceipts} <span className="text-xs font-normal text-slate-500">units</span>
+            <h3 className="text-2xl font-black font-mono mt-1" style={{ color: '#166534' }}>
+              +{metricTotalReceipts} <span className="text-xs font-normal" style={{ color: '#64748b' }}>units</span>
             </h3>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">From Goods Receipt Notes (GRN)</p>
+            <p className="text-[11px] font-medium mt-1" style={{ color: '#64748b' }}>From Goods Receipt Notes (GRN)</p>
           </div>
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+          <div className="p-3 rounded-xl" style={{ background: '#f0fdf4', color: '#166534' }}>
             <ArrowDownLeft className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+        <div className="p-4 border bg-white shadow-sm rounded-2xl flex items-center justify-between" style={{ borderColor: '#e2e8f0' }}>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
               Total Outbound Issues
             </p>
-            <h3 className="text-2xl font-black text-rose-600 font-mono mt-1">
-              -{metricTotalIssues} <span className="text-xs font-normal text-slate-500">units</span>
+            <h3 className="text-2xl font-black font-mono mt-1" style={{ color: '#991b1b' }}>
+              -{metricTotalIssues} <span className="text-xs font-normal" style={{ color: '#64748b' }}>units</span>
             </h3>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">Dispatched order shipments</p>
+            <p className="text-[11px] font-medium mt-1" style={{ color: '#64748b' }}>Dispatched order shipments</p>
           </div>
-          <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+          <div className="p-3 rounded-xl" style={{ background: '#fef2f2', color: '#991b1b' }}>
             <ArrowUpRight className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="p-4 border border-slate-200 bg-white shadow-sm rounded-2xl flex items-center justify-between">
+        <div className="p-4 border bg-white shadow-sm rounded-2xl flex items-center justify-between" style={{ borderColor: '#e2e8f0' }}>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
               Immutable Ledger Audit
             </p>
-            <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
-              {metricLedgerRows} <span className="text-xs font-normal text-slate-500">rows</span>
+            <h3 className="text-2xl font-black font-mono mt-1" style={{ color: '#0f172a' }}>
+              {metricLedgerRows} <span className="text-xs font-normal" style={{ color: '#64748b' }}>rows</span>
             </h3>
-            <p className="text-[11px] text-indigo-600 font-bold mt-1 flex items-center gap-1">
+            <p className="text-[11px] font-bold mt-1 flex items-center gap-1" style={{ color: '#1e3a8a' }}>
               <ShieldCheck className="w-3 h-3" /> Append-Only Verified
             </p>
           </div>
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+          <div className="p-3 rounded-xl" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
             <History className="w-6 h-6" />
           </div>
         </div>
@@ -988,8 +989,9 @@ export default function OwnerInventoryPage() {
         <button
           onClick={() => setActiveTab('stock')}
           className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
-            activeTab === 'stock' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-800'
+            activeTab === 'stock' ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-[#eff6ff] hover:text-[#1e3a8a]'
           }`}
+          style={activeTab === 'stock' ? { background: '#1e3a8a' } : undefined}
         >
           <Boxes className="w-4 h-4" /> Stock ({filteredStock.length})
         </button>
@@ -997,8 +999,9 @@ export default function OwnerInventoryPage() {
         <button
           onClick={() => { setActiveTab('grn'); setAdjType('RECEIPT'); }}
           className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
-            activeTab === 'grn' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-800'
+            activeTab === 'grn' ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-[#eff6ff] hover:text-[#1e3a8a]'
           }`}
+          style={activeTab === 'grn' ? { background: '#1e3a8a' } : undefined}
         >
           <ArrowDownLeft className="w-4 h-4" /> Receiving
         </button>
@@ -1006,8 +1009,9 @@ export default function OwnerInventoryPage() {
         <button
           onClick={() => { setActiveTab('adjustment'); setAdjType('ADJUSTMENT_SUB'); }}
           className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
-            activeTab === 'adjustment' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-800'
+            activeTab === 'adjustment' ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-[#eff6ff] hover:text-[#1e3a8a]'
           }`}
+          style={activeTab === 'adjustment' ? { background: '#1e3a8a' } : undefined}
         >
           <RotateCcw className="w-4 h-4" /> Adjustments
         </button>
@@ -1015,8 +1019,9 @@ export default function OwnerInventoryPage() {
         <button
           onClick={() => setActiveTab('ledger')}
           className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
-            activeTab === 'ledger' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-800'
+            activeTab === 'ledger' ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-[#eff6ff] hover:text-[#1e3a8a]'
           }`}
+          style={activeTab === 'ledger' ? { background: '#1e3a8a' } : undefined}
         >
           <History className="w-4 h-4" /> Activity Log ({filteredLedger.length})
         </button>
@@ -1024,8 +1029,9 @@ export default function OwnerInventoryPage() {
         <button
           onClick={() => setActiveTab('locations')}
           className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
-            activeTab === 'locations' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-800'
+            activeTab === 'locations' ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-[#eff6ff] hover:text-[#1e3a8a]'
           }`}
+          style={activeTab === 'locations' ? { background: '#1e3a8a' } : undefined}
         >
           <MapPin className="w-4 h-4" /> Warehouses ({warehouses.length})
         </button>
@@ -1077,8 +1083,8 @@ export default function OwnerInventoryPage() {
       {activeTab === 'stock' && (
         <div className="border border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
           <div className="p-4 flex flex-row items-center justify-between border-b border-slate-100">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Boxes className="w-4 h-4 text-indigo-600" /> Stock On Hand by Location
+            <h2 className="text-base font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
+              <Boxes className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Stock On Hand by Location
             </h2>
           </div>
           <DataTable data={filteredStock} columns={stockColumns} showSearch={false} />
@@ -1090,8 +1096,8 @@ export default function OwnerInventoryPage() {
       {activeTab === 'ledger' && (
         <div className="border border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden">
           <div className="p-4 flex flex-row items-center justify-between border-b border-slate-100">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <History className="w-4 h-4 text-indigo-600" /> Immutable Movement Ledger Audit Log
+            <h2 className="text-base font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
+              <History className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Immutable Movement Ledger Audit Log
             </h2>
             <span className="text-xs text-slate-500 font-mono">Append-Only • Uneditable Historical Records</span>
           </div>
@@ -1103,13 +1109,13 @@ export default function OwnerInventoryPage() {
       {activeTab === 'grn' && (
         <div className="space-y-6">
           <div className="border border-slate-200 bg-white shadow-sm rounded-2xl max-w-3xl mx-auto overflow-hidden font-sans">
-            <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-indigo-50/50 to-slate-50">
+            <div className="p-6 border-b border-slate-100" style={{ background: 'linear-gradient(to right, #eff6ff80, #f8fafc)' }}>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-100 text-indigo-700 border border-indigo-200">
+                <div className="p-2.5 rounded-xl border" style={{ background: '#dbeafe', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
                   <ArrowDownLeft className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-slate-900">
+                  <h2 className="text-lg font-black" style={{ color: '#0f172a' }}>
                     GRN — Goods Receipt Note
                   </h2>
                   <p className="text-xs text-slate-500 font-mono mt-0.5">
@@ -1163,9 +1169,9 @@ export default function OwnerInventoryPage() {
 
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                   <div className="text-xs text-slate-500 font-mono">
-                    <span className="text-indigo-700 font-bold">Will increment available stock balance</span>
+                    <span className="font-bold" style={{ color: '#1e3a8a' }}>Will increment available stock balance</span>
                   </div>
-                  <Button type="submit" disabled={adjSubmitting} className="font-bold text-xs gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">
+                  <Button type="submit" disabled={adjSubmitting} className="font-bold text-xs gap-2 text-white" style={{ background: '#1e3a8a' }}>
                     <CheckCircle2 className="w-4 h-4" />
                     Confirm Stock Deposit
                   </Button>
@@ -1176,13 +1182,13 @@ export default function OwnerInventoryPage() {
 
           {/* Bulk Excel Import */}
           <div className="border border-slate-200 bg-white shadow-sm rounded-2xl max-w-3xl mx-auto overflow-hidden font-sans">
-            <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-indigo-50/50 to-slate-50">
+            <div className="p-6 border-b border-slate-100" style={{ background: 'linear-gradient(to right, #eff6ff80, #f8fafc)' }}>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-100 text-indigo-700 border border-indigo-200">
+                <div className="p-2.5 rounded-xl border" style={{ background: '#dbeafe', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
                   <FileSpreadsheet className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-slate-900">Bulk Import via Excel</h2>
+                  <h2 className="text-lg font-black" style={{ color: '#0f172a' }}>Bulk Import via Excel</h2>
                   <p className="text-xs text-slate-500 font-mono mt-0.5">
                     Add a large batch of products in one go using the LogiQ-On GRN template.
                   </p>
@@ -1198,7 +1204,7 @@ export default function OwnerInventoryPage() {
 
                 <label className="flex-1">
                   <input type="file" accept=".xlsx,.xls" onChange={handleGrnFileUpload} className="hidden" />
-                  <div className="cursor-pointer h-full px-4 py-2.5 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-700 text-xs font-bold flex items-center justify-center gap-2 transition-colors">
+                  <div className="cursor-pointer h-full px-4 py-2.5 rounded-xl border border-dashed hover:bg-[#eff6ff] text-xs font-bold flex items-center justify-center gap-2 transition-colors" style={{ borderColor: '#93c5fd', background: '#eff6ff80', color: '#1e3a8a' }}>
                     <UploadCloud className="w-4 h-4" /> {grnImportFileName || 'Upload Filled Template (.xlsx)'}
                   </div>
                 </label>
@@ -1223,16 +1229,16 @@ export default function OwnerInventoryPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {grnImportRows.map((r, idx) => (
-                          <tr key={idx} className={r.error ? 'bg-rose-50/40' : ''}>
+                          <tr key={idx} style={r.error ? { background: '#fef2f2' } : undefined}>
                             <td className="py-2 px-3 font-mono text-slate-500">{idx + 1}</td>
                             <td className="py-2 px-3 font-mono font-bold text-slate-900">{r.sku || '—'}</td>
                             <td className="py-2 px-3 font-mono text-slate-700">{r.warehouseCode || '—'}</td>
                             <td className="py-2 px-3 text-right font-mono font-bold">{isNaN(r.quantity) ? '—' : r.quantity}</td>
                             <td className="py-2 px-3">
                               {r.error ? (
-                                <span className="text-rose-700 font-semibold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> {r.error}</span>
+                                <span className="font-semibold flex items-center gap-1" style={{ color: '#991b1b' }}><AlertTriangle className="w-3.5 h-3.5" /> {r.error}</span>
                               ) : (
-                                <span className="text-indigo-700 font-semibold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Ready</span>
+                                <span className="font-semibold flex items-center gap-1" style={{ color: '#166534' }}><CheckCircle2 className="w-3.5 h-3.5" /> Ready</span>
                               )}
                             </td>
                           </tr>
@@ -1244,7 +1250,7 @@ export default function OwnerInventoryPage() {
                   <div className="flex items-center justify-between pt-2">
                     <div className="text-xs font-mono text-slate-500">
                       {grnImportRows.filter((r) => !r.error).length} of {grnImportRows.length} rows ready to import
-                      {grnImportRows.some((r) => r.error) && <span className="text-rose-600 font-bold"> — fix errors and re-upload</span>}
+                      {grnImportRows.some((r) => r.error) && <span className="font-bold" style={{ color: '#991b1b' }}> — fix errors and re-upload</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => { setGrnImportRows([]); setGrnImportFileName(''); }} className="gap-1 text-xs">
@@ -1255,7 +1261,8 @@ export default function OwnerInventoryPage() {
                         size="sm"
                         disabled={grnImportSubmitting || grnImportRows.some((r) => r.error) || grnImportRows.length === 0}
                         onClick={submitGrnBulkImport}
-                        className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                        className="gap-2 text-xs text-white font-bold"
+                        style={{ background: '#1e3a8a' }}
                       >
                         <CheckCircle2 className="w-4 h-4" /> Import All Rows
                       </Button>
@@ -1271,13 +1278,13 @@ export default function OwnerInventoryPage() {
       {/* TAB: Stock Adjustment — deductions only (damage, write-off, cycle count) */}
       {activeTab === 'adjustment' && (
         <div className="border border-slate-200 bg-white shadow-sm rounded-2xl max-w-3xl mx-auto overflow-hidden font-sans">
-          <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-rose-50/50 to-slate-50">
+          <div className="p-6 border-b border-slate-100" style={{ background: 'linear-gradient(to right, #fef2f280, #f8fafc)' }}>
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-100 text-rose-700 border border-rose-200">
+              <div className="p-2.5 rounded-xl border" style={{ background: '#fee2e2', color: '#991b1b', borderColor: '#fecaca' }}>
                 <RotateCcw className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-900">
+                <h2 className="text-lg font-black" style={{ color: '#0f172a' }}>
                   Stock Adjustment
                 </h2>
                 <p className="text-xs text-slate-500 font-mono mt-0.5">
@@ -1331,9 +1338,9 @@ export default function OwnerInventoryPage() {
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                 <div className="text-xs text-slate-500 font-mono">
-                  <span className="text-rose-700 font-bold">Will decrement available stock balance</span>
+                  <span className="font-bold" style={{ color: '#991b1b' }}>Will decrement available stock balance</span>
                 </div>
-                <Button type="submit" disabled={adjSubmitting} className="font-bold text-xs gap-2 bg-rose-600 hover:bg-rose-700 text-white">
+                <Button type="submit" disabled={adjSubmitting} className="font-bold text-xs gap-2 text-white" style={{ background: '#991b1b' }}>
                   <CheckCircle2 className="w-4 h-4" />
                   Confirm Stock Deduction
                 </Button>
@@ -1421,7 +1428,7 @@ export default function OwnerInventoryPage() {
             <Button type="button" variant="outline" onClick={() => setIsWhModalOpen(false)} className="text-xs">
               Cancel
             </Button>
-            <Button type="submit" disabled={whSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-2">
+            <Button type="submit" disabled={whSubmitting} className="text-white font-bold text-xs gap-2" style={{ background: '#1e3a8a' }}>
               <Plus className="w-4 h-4" /> Save Warehouse Facility
             </Button>
           </div>

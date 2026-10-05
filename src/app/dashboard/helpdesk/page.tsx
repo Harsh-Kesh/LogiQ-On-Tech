@@ -20,37 +20,37 @@ export default function HelpdeskFallbackPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-8 space-y-6">
-      <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900">
+      <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs font-bold hover:opacity-80" style={{ color: '#64748b' }}>
         <ArrowLeft className="w-3.5 h-3.5" /> Back to dashboard
       </Link>
 
-      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5">
+      <div className="bg-white rounded-2xl border p-6 space-y-5" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-start gap-4">
-          <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700">
-            <AlertTriangle className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fefce8', border: '1px solid #fde68a', color: '#854d0e' }}>
+            <AlertTriangle className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-slate-900">MyHitch Helpdesk hand-off failed</h1>
-            <p className="text-xs text-slate-500 mt-1">{explain[errorType] || explain.unavailable}</p>
+            <h1 className="text-xl font-extrabold" style={{ color: '#0f172a' }}>MyHitch Helpdesk hand-off failed</h1>
+            <p className="text-xs mt-1" style={{ color: '#64748b' }}>{explain[errorType] || explain.unavailable}</p>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
-          <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <LifeBuoy className="w-4 h-4 text-indigo-600" /> Alternative support channels
+        <div className="p-4 rounded-2xl space-y-3 text-xs border" style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
+          <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
+            <LifeBuoy className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Alternative support channels
           </h2>
-          <div className="flex items-center gap-2 text-slate-700">
-            <Mail className="w-3.5 h-3.5 text-slate-500" />
-            <a href="mailto:support@logiqon.com.au" className="font-bold text-indigo-700 hover:underline">
+          <div className="flex items-center gap-2" style={{ color: '#0f172a' }}>
+            <Mail className="w-3.5 h-3.5" style={{ color: '#94a3b8' }} />
+            <a href="mailto:support@logiqon.com.au" className="font-bold hover:underline" style={{ color: '#1e3a8a' }}>
               support@logiqon.com.au
             </a>
           </div>
-          <div className="flex items-center gap-2 text-slate-700">
-            <Phone className="w-3.5 h-3.5 text-slate-500" />
+          <div className="flex items-center gap-2" style={{ color: '#0f172a' }}>
+            <Phone className="w-3.5 h-3.5" style={{ color: '#94a3b8' }} />
             <span className="font-mono">+61 3 9000 0000</span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">
-            Please include your organisation identifier <span className="font-mono font-bold">logiqon-tech</span> and the source screen when contacting support.
+          <p className="text-[11px] mt-2" style={{ color: '#94a3b8' }}>
+            Please include your organisation identifier <span className="font-mono font-bold" style={{ color: '#64748b' }}>logiqon-tech</span> and the source screen when contacting support.
           </p>
         </div>
       </div>

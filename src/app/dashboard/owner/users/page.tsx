@@ -159,8 +159,8 @@ export default function UserManagementPage() {
       accessorKey: 'fullName',
       cell: (row) => (
         <div>
-          <div className="font-extrabold text-slate-900">{row.fullName}</div>
-          <div className="text-xs font-mono text-slate-500">{row.email}</div>
+          <div className="font-extrabold" style={{ color: '#0f172a' }}>{row.fullName}</div>
+          <div className="text-xs font-mono" style={{ color: '#64748b' }}>{row.email}</div>
         </div>
       ),
     },
@@ -234,22 +234,23 @@ export default function UserManagementPage() {
     <div className="space-y-6 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Header Banner matching Platform Owner */}
-      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border p-6 flex flex-col md:flex-row md:items-center justify-between gap-6" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200">
-            <Users className="w-8 h-8" />
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <Users className="w-6 h-6" style={{ color: '#1e3a8a' }} />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">User Directory &amp; RBAC Control</h1>
-            <p className="text-xs text-slate-500 font-mono">Provision Accounts, Modify Roles &amp; Suspend Access</p>
+            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>User Directory &amp; RBAC Control</h1>
+            <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>Provision accounts, modify roles &amp; suspend access.</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2.5 font-bold text-xs rounded-xl shadow-sm transition-all hover:opacity-90 flex items-center gap-2 cursor-pointer"
+            style={{ background: '#1e3a8a', color: '#fff' }}
           >
             <UserPlus className="w-4 h-4" /> Provision New User
           </button>
@@ -257,7 +258,7 @@ export default function UserManagementPage() {
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4 justify-between items-center">
+      <div className="bg-white rounded-2xl border p-4 flex flex-col sm:flex-row gap-4 justify-between items-center" style={{ borderColor: '#e2e8f0' }}>
         <div className="w-full sm:w-80">
           <Input
             placeholder="Search by name or email..."
@@ -285,7 +286,7 @@ export default function UserManagementPage() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#e2e8f0' }}>
         <DataTable
           columns={columns}
           data={filteredUsers}
@@ -295,12 +296,12 @@ export default function UserManagementPage() {
       </div>
 
       {/* Bulk Upload Section */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-bl-xl font-bold text-[10px] uppercase tracking-wider">
+      <div className="p-6 rounded-2xl bg-white border space-y-4 relative overflow-hidden" style={{ borderColor: '#e2e8f0' }}>
+        <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-bold text-[10px] uppercase tracking-wider" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
           Available
         </div>
-        <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-          <Upload className="w-4 h-4 text-indigo-600" />
+        <div className="flex items-center gap-2 text-sm font-bold" style={{ color: '#0f172a' }}>
+          <Upload className="w-4 h-4" style={{ color: '#1e3a8a' }} />
           Bulk CSV Import User Provisioning
         </div>
         <FileUpload

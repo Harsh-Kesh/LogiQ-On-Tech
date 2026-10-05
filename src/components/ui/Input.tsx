@@ -36,7 +36,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             } ${rightIcon || isPassword ? 'pr-10' : ''} ${
               error
                 ? 'border-rose-400 focus:border-rose-600 focus:ring-1 focus:ring-rose-500'
-                : 'border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20'
+                : 'border-slate-200 focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20'
             } ${className}`}
             {...props}
           />

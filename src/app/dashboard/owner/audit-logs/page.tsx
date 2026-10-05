@@ -45,146 +45,151 @@ export default function AuditLogsPage() {
   });
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-            <FileText className="w-8 h-8" style={{ color: '#1e3a8a' }} />
-          </div>
-          <div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <FileText className="w-5 h-5" style={{ color: '#1e3a8a' }} />
             <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Audit Logs</h1>
-            <p className="text-xs font-mono" style={{ color: '#64748b' }}>Track security events and account activity</p>
           </div>
+          <p className="text-sm" style={{ color: '#64748b' }}>
+            Track security events and account activity across the platform.
+          </p>
         </div>
-
         <button
           onClick={fetchLogs}
           disabled={loading}
-          className="px-4 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md" style={{ background: '#1e3a8a' }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all hover:opacity-90 disabled:opacity-60 self-start sm:self-auto"
+          style={{ background: '#1e3a8a', color: '#fff' }}
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Stream
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh Stream
         </button>
       </div>
 
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 font-mono">
-            <Filter className="w-3.5 h-3.5 text-sky-600" />
-            Audit Stream Controls
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <div className="relative w-full md:w-64">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search logs by keyword..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
-              />
-            </div>
-
-            <select
-              value={moduleFilter}
-              onChange={(e) => setModuleFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-mono font-bold bg-white text-slate-700 focus:ring-2 focus:ring-sky-500 focus:outline-none"
-            >
-              <option value="ALL">All Modules</option>
-              <option value="GOVERNANCE">Governance &amp; RBAC</option>
-              <option value="VENDOR_MANAGEMENT">Vendor Directory</option>
-              <option value="WAREHOUSE_OPERATIONS">Warehouse &amp; Stock</option>
-              <option value="MASTER_DATA_MDM">Master Data (MDM)</option>
-            </select>
-
-            <span className="text-xs font-mono text-indigo-700 flex items-center gap-1 font-bold">
-              <CheckCircle2 className="w-3.5 h-3.5" /> {filteredLogs.length} / {logs.length} Filtered
-            </span>
-          </div>
+      {/* Filters */}
+      <div className="bg-white rounded-2xl border p-4 flex flex-col md:flex-row md:items-center gap-3" style={{ borderColor: '#e2e8f0' }}>
+        <div className="flex items-center gap-3 flex-1">
+          <Search className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} />
+          <input
+            type="text"
+            placeholder="Search logs by keyword..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 text-sm outline-none bg-transparent placeholder-slate-400"
+            style={{ color: '#0f172a' }}
+          />
         </div>
-
-        {loading ? (
-          <div className="py-12 text-center text-xs text-slate-500 font-mono">
-            Fetching security audit log stream...
-          </div>
-        ) : filteredLogs.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-500 font-mono">
-            No security audit log entries match the current filter selection.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-2xl border border-slate-100">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-mono">
-                  <th className="py-3.5 px-4 font-bold">Timestamp</th>
-                  <th className="py-3.5 px-4 font-bold">Action Event</th>
-                  <th className="py-3.5 px-4 font-bold">Module</th>
-                  <th className="py-3.5 px-4 font-bold">Triggered By</th>
-                  <th className="py-3.5 px-4 font-bold">Role</th>
-                  <th className="py-3.5 px-4 font-bold">Payload Inspector</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                {filteredLogs.map((log) => {
-                  const isRoleChange = log.action === 'ROLE_CHANGED';
-                  const isLogin = log.action.includes('LOGIN');
-
-                  return (
-                    <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            isRoleChange
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : isLogin
-                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          }`}
-                        >
-                          {log.action}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-900 font-bold">{log.module}</td>
-                      <td className="py-3.5 px-4 text-slate-800">{log.user?.fullName || log.user?.email || 'System'}</td>
-                      <td className="py-3.5 px-4 text-slate-600">{log.role || 'N/A'}</td>
-                      <td className="py-3.5 px-4">
-                        <button
-                          onClick={() => setSelectedPayload(log)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1 transition-colors"
-                        >
-                          <Eye className="w-3 h-3 text-sky-600" /> View Payload
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="flex items-center gap-3 shrink-0">
+          <Filter className="w-3.5 h-3.5 shrink-0" style={{ color: '#94a3b8' }} />
+          <select
+            value={moduleFilter}
+            onChange={(e) => setModuleFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border text-xs font-bold bg-white focus:outline-none"
+            style={{ borderColor: '#e2e8f0', color: '#0f172a' }}
+          >
+            <option value="ALL">All Modules</option>
+            <option value="GOVERNANCE">Governance &amp; RBAC</option>
+            <option value="VENDOR_MANAGEMENT">Vendor Directory</option>
+            <option value="WAREHOUSE_OPERATIONS">Warehouse &amp; Stock</option>
+            <option value="MASTER_DATA_MDM">Master Data (MDM)</option>
+          </select>
+          <span className="text-xs font-bold flex items-center gap-1 shrink-0" style={{ color: '#1e3a8a' }}>
+            <CheckCircle2 className="w-3.5 h-3.5" /> {filteredLogs.length} / {logs.length}
+          </span>
+        </div>
       </div>
 
-      {/* Formatted Payload Inspection Modal */}
+      {/* Table */}
+      {loading ? (
+        <div className="text-center py-16 text-sm" style={{ color: '#94a3b8' }}>Fetching audit log stream…</div>
+      ) : filteredLogs.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-2xl border" style={{ borderColor: '#e2e8f0' }}>
+          <FileText className="w-8 h-8 mx-auto mb-3" style={{ color: '#cbd5e1' }} />
+          <p className="text-sm font-semibold" style={{ color: '#475569' }}>No audit log entries match the current filters.</p>
+          <p className="text-xs mt-1" style={{ color: '#94a3b8' }}>Security events and account activity will appear here.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#e2e8f0' }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                {['Timestamp', 'Action Event', 'Module', 'Triggered By', 'Role', 'Payload'].map((h) => (
+                  <th key={h} className="py-3 px-4 text-left text-xs font-bold uppercase tracking-widest" style={{ color: '#94a3b8' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLogs.map((log) => {
+                const isRoleChange = log.action === 'ROLE_CHANGED';
+                const isLogin = log.action.includes('LOGIN');
+                const badgeStyle = isRoleChange
+                  ? { background: '#fefce8', color: '#854d0e', border: '1px solid #fde68a' }
+                  : isLogin
+                  ? { background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }
+                  : { background: '#fafafa', color: '#71717a', border: '1px solid #e4e4e7' };
+
+                return (
+                  <tr key={log.id} className="border-b transition-colors hover:bg-slate-50" style={{ borderColor: '#f1f5f9' }}>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span className="text-xs" style={{ color: '#64748b' }}>{new Date(log.timestamp).toLocaleString()}</span>
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full" style={badgeStyle}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="text-xs font-bold" style={{ color: '#0f172a' }}>{log.module}</span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="text-xs" style={{ color: '#0f172a' }}>{log.user?.fullName || log.user?.email || 'System'}</span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="text-xs" style={{ color: '#64748b' }}>{log.role || 'N/A'}</span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <button
+                        onClick={() => setSelectedPayload(log)}
+                        className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors hover:bg-slate-100"
+                        style={{ color: '#1e3a8a' }}
+                      >
+                        <Eye className="w-3 h-3" /> View
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && filteredLogs.length > 0 && (
+        <p className="text-xs text-center" style={{ color: '#94a3b8' }}>
+          {filteredLogs.length} log{filteredLogs.length !== 1 ? 's' : ''} shown.
+        </p>
+      )}
+
+      {/* Payload Inspector Modal */}
       {selectedPayload && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl border border-slate-200 font-sans">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl border" style={{ borderColor: '#e2e8f0' }}>
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: '#f1f5f9' }}>
               <div>
-                <h3 className="font-extrabold text-slate-900 text-sm">Security Event Payload Data</h3>
-                <p className="text-xs text-slate-500 font-mono">{selectedPayload.action} • {selectedPayload.module}</p>
+                <h3 className="font-extrabold text-sm" style={{ color: '#0f172a' }}>Security Event Payload</h3>
+                <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{selectedPayload.action} • {selectedPayload.module}</p>
               </div>
               <button
                 onClick={() => setSelectedPayload(null)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                style={{ color: '#94a3b8' }}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-slate-900 text-indigo-400 font-mono text-xs p-4 rounded-2xl overflow-x-auto max-h-80 border border-slate-800">
+            <div className="font-mono text-xs p-4 rounded-2xl overflow-x-auto max-h-80" style={{ background: '#0f172a', color: '#93c5fd' }}>
               <pre>
                 {(() => {
                   try {
@@ -205,7 +210,8 @@ export default function AuditLogsPage() {
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setSelectedPayload(null)}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all"
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90"
+                style={{ background: '#1e3a8a', color: '#fff' }}
               >
                 Close Inspector
               </button>

@@ -86,42 +86,43 @@ export default function WarehouseDashboardPage() {
       <WarehouseOpsTabs />
 
       {/* Header Banner */}
-      <div className="p-6 md:p-8 rounded-3xl bg-white border border-indigo-200 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+      <div className="p-6 md:p-8 rounded-3xl bg-white border shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center gap-4 min-w-0">
-          <div className="p-3.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
+          <div className="p-3.5 rounded-2xl border shrink-0" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
             {isGlobal ? <Globe className="w-8 h-8" /> : <Warehouse className="w-8 h-8" />}
           </div>
           <div className="space-y-1 min-w-0">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full border text-[11px] font-bold font-mono" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
+              <ShieldCheck className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
               {isGlobal ? 'ALL WAREHOUSES' : `WAREHOUSE: ${selectedWarehouseCode}`}
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-xl md:text-2xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
                 {activeWarehouse.name}
               </h1>
               {!isGlobal && (
-                <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 border border-indigo-300 text-xs font-mono font-bold shrink-0">
+                <span className="px-2 py-0.5 rounded-md border text-xs font-mono font-bold shrink-0" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
                   {activeWarehouse.code}
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 font-mono flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span><MapPin className="w-3.5 h-3.5 text-indigo-600 inline" /> {activeWarehouse.address}</span>
+            <p className="text-xs font-mono flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: '#64748b' }}>
+              <span><MapPin className="w-3.5 h-3.5 inline" style={{ color: '#1e3a8a' }} /> {activeWarehouse.address}</span>
               <span>•</span>
-              <span className="text-indigo-700 font-bold"><UserCheck className="w-3.5 h-3.5 inline" /> {activeManager.name}{activeManager.email ? ` (${activeManager.email})` : ''}</span>
+              <span className="font-bold" style={{ color: '#1e3a8a' }}><UserCheck className="w-3.5 h-3.5 inline" /> {activeManager.name}{activeManager.email ? ` (${activeManager.email})` : ''}</span>
             </p>
           </div>
         </div>
 
         <div className="space-y-1 shrink-0">
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">
+          <label className="text-[10px] font-bold uppercase tracking-wider block font-mono" style={{ color: '#64748b' }}>
             View Warehouse:
           </label>
           <select
             value={selectedWarehouseCode}
             onChange={(e) => setSelectedWarehouseCode(e.target.value)}
-            className="h-[42px] px-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-900 focus:outline-none focus:border-indigo-600 font-mono shadow-sm w-full sm:w-auto"
+            className="h-[42px] px-3.5 border rounded-xl text-xs font-bold focus:outline-none focus:border-[#1e3a8a] font-mono shadow-sm w-full sm:w-auto"
+            style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e3a8a' }}
           >
             <option value="ALL">🌐 All Warehouses</option>
             {warehouses.map((w) => (
@@ -135,80 +136,86 @@ export default function WarehouseDashboardPage() {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+        <div className="p-6 rounded-2xl bg-white border shadow-sm space-y-2" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase">SKUs Tracked</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+            <span className="text-xs font-mono font-bold uppercase" style={{ color: '#94a3b8' }}>SKUs Tracked</span>
+            <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: '#1e3a8a' }} />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">
+          <div className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>
             {new Set(filteredLedger.map((l) => l.sku)).size} SKUs
           </div>
-          <p className="text-xs text-indigo-600 font-semibold flex items-center gap-1">
+          <p className="text-xs font-semibold flex items-center gap-1" style={{ color: '#1e3a8a' }}>
             <TrendingUp className="w-3.5 h-3.5" /> {isGlobal ? 'Across All Facilities' : `Active at ${activeWarehouse.code}`}
           </p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+        <div className="p-6 rounded-2xl bg-white border shadow-sm space-y-2" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase">{isGlobal ? 'Total Network Stock' : 'Facility Stock On Hand'}</span>
-            <Box className="w-4 h-4 text-indigo-600" />
+            <span className="text-xs font-mono font-bold uppercase" style={{ color: '#94a3b8' }}>{isGlobal ? 'Total Network Stock' : 'Facility Stock On Hand'}</span>
+            <Box className="w-4 h-4" style={{ color: '#1e3a8a' }} />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{totalStockCount} Units</div>
-          <p className="text-xs text-indigo-600 font-semibold flex items-center gap-1">
+          <div className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{totalStockCount} Units</div>
+          <p className="text-xs font-semibold flex items-center gap-1" style={{ color: '#1e3a8a' }}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Reconciled against ledger
           </p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
+        <div className="p-6 rounded-2xl bg-white border shadow-sm space-y-2" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Stock Movements</span>
-            <History className="w-4 h-4 text-indigo-600" />
+            <span className="text-xs font-mono font-bold uppercase" style={{ color: '#94a3b8' }}>Stock Movements</span>
+            <History className="w-4 h-4" style={{ color: '#1e3a8a' }} />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{filteredLedger.length} Movements</div>
-          <p className="text-xs text-indigo-600 font-semibold">Append-Only Ledger Rows</p>
+          <div className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{filteredLedger.length} Movements</div>
+          <p className="text-xs font-semibold" style={{ color: '#1e3a8a' }}>Append-Only Ledger Rows</p>
         </div>
       </div>
 
       {/* Stock Movements Table */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+      <div className="p-6 rounded-3xl bg-white border shadow-sm space-y-4" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <History className="w-5 h-5 text-indigo-600" />
+          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
+            <History className="w-5 h-5" style={{ color: '#1e3a8a' }} />
             {isGlobal ? 'Recent Global Warehouse Stock Movements (All Facilities)' : `Recent Facility Stock Movements (${activeWarehouse.code})`}
           </h2>
-          <Link href="/dashboard/owner/inventory" className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
+          <Link href="/dashboard/owner/inventory" className="text-xs font-bold hover:underline flex items-center gap-1" style={{ color: '#1e3a8a' }}>
             View Master Ledger <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-[#f1f5f9]">
           {filteredLedger.length > 0 ? (
             filteredLedger.slice(0, 8).map((row) => (
               <div key={row.id} className="py-3 flex items-center justify-between text-xs">
                 <div className="space-y-0.5">
-                  <div className="font-bold text-slate-900 flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded font-mono text-[10px] ${row.quantityDelta > 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-rose-100 text-rose-800'}`}>
+                  <div className="font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
+                    <span
+                      className="px-2 py-0.5 rounded font-mono text-[10px]"
+                      style={row.quantityDelta > 0 ? { background: '#f0fdf4', color: '#166534' } : { background: '#fef2f2', color: '#991b1b' }}
+                    >
                       {row.movementType}
                     </span>
                     <span>{row.itemName} ({row.sku})</span>
                     {isGlobal && (
-                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                      <span className="font-mono text-[10px] px-1.5 py-0.2 rounded border" style={{ color: '#64748b', background: '#f8fafc', borderColor: '#e2e8f0' }}>
                         {row.warehouseCode}
                       </span>
                     )}
                   </div>
-                  <div className="text-slate-400 font-mono text-[11px]">
+                  <div className="font-mono text-[11px]" style={{ color: '#94a3b8' }}>
                     Ref: {row.referenceNumber} • Facility: {row.warehouseCode} • {new Date(row.createdAt).toLocaleTimeString()}
                   </div>
                 </div>
 
-                <div className={`font-mono font-black text-sm ${row.quantityDelta > 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                <div
+                  className="font-mono font-black text-sm"
+                  style={{ color: row.quantityDelta > 0 ? '#166534' : '#991b1b' }}
+                >
                   {row.quantityDelta > 0 ? `+${row.quantityDelta}` : row.quantityDelta} units
                 </div>
               </div>
             ))
           ) : (
-            <div className="py-8 text-center text-slate-400 text-xs font-mono">
+            <div className="py-8 text-center text-xs font-mono" style={{ color: '#94a3b8' }}>
               No stock movements logged for {activeWarehouse.name} ({activeWarehouse.code}) yet.
             </div>
           )}

@@ -92,15 +92,15 @@ export default function MfaEnrolPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6 font-sans">
       {isMandatory && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-2xl border flex items-start gap-3" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: '#991b1b' }} />
           <div className="text-xs">
             <div className="font-extrabold uppercase tracking-wider mb-1">MFA enrolment required</div>
             <p>Your role ({userRole}) requires multi-factor authentication before you can access commercial or financial modules. Complete pairing below to continue.</p>
           </div>
         </div>
       )}
-      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+      <div className="p-8 rounded-3xl bg-white border shadow-sm flex items-center justify-between gap-4" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-2xl shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
             <Lock className="w-8 h-8" style={{ color: '#1e3a8a' }} />
@@ -114,29 +114,30 @@ export default function MfaEnrolPage() {
         <Link
           href={targetDashboard}
           prefetch={false}
-          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5 shrink-0"
+          className="px-4 py-2 font-bold text-xs rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5 shrink-0"
+          style={{ background: '#1e3a8a', color: '#fff' }}
         >
           <span>Open {portalName}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
 
-      <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+      <div className="p-8 rounded-3xl bg-white border shadow-sm space-y-6" style={{ borderColor: '#e2e8f0' }}>
+        <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: '#f1f5f9' }}>
           <div>
-            <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-indigo-600" /> Account Security Status
+            <div className="text-sm font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
+              <ShieldCheck className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Account Security Status
             </div>
-            <div className="text-xs text-slate-500 mt-0.5 font-mono">Account: {session?.user?.email}</div>
+            <div className="text-xs mt-0.5 font-mono" style={{ color: '#64748b' }}>Account: {session?.user?.email}</div>
           </div>
-          <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <span className="px-3 py-1 rounded-full text-xs font-bold font-mono border" style={{ background: '#eff6ff', color: '#1e3a8a', borderColor: '#bfdbfe' }}>
             Role: {userRole}
           </span>
         </div>
 
         {!isEnrolled && !success && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+          <div className="p-4 rounded-2xl border text-xs font-semibold flex items-center gap-2" style={{ background: '#fefce8', borderColor: '#fde68a', color: '#854d0e' }}>
+            <AlertCircle className="w-4 h-4 shrink-0" style={{ color: '#854d0e' }} />
             <span>
               <strong>Mandatory Security Requirement:</strong> Your account requires Multi-Factor Authentication (2FA) setup. Please complete the enrolment steps below to unlock full dashboard features.
             </span>
@@ -144,24 +145,25 @@ export default function MfaEnrolPage() {
         )}
 
         {error && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+          <div className="p-4 rounded-2xl border text-xs font-semibold flex items-center gap-2" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="p-5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-semibold space-y-3">
-            <div className="flex items-center gap-2 font-bold text-sm text-indigo-900">
-              <CheckCircle2 className="w-5 h-5 text-indigo-600 shrink-0" />
+          <div className="p-5 rounded-2xl border text-xs font-semibold space-y-3" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>
+            <div className="flex items-center gap-2 font-bold text-sm" style={{ color: '#166534' }}>
+              <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: '#166534' }} />
               <span>{success}</span>
             </div>
-            <p className="text-xs text-indigo-700">Redirecting to {portalName} in a moment...</p>
+            <p className="text-xs" style={{ color: '#166534' }}>Redirecting to {portalName} in a moment...</p>
             <div className="pt-1">
               <Link
                 href={targetDashboard}
                 prefetch={false}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all"
+                style={{ background: '#1e3a8a', color: '#fff' }}
               >
                 <span>Launch {portalName} Now</span>
                 <ArrowRight className="w-4 h-4" />
@@ -171,17 +173,17 @@ export default function MfaEnrolPage() {
         )}
 
         {(session?.user as any)?.mfaEnabled && !success ? (
-          <div className="text-center py-8 space-y-5 bg-indigo-50/50 rounded-2xl border border-indigo-200 p-6">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center mx-auto">
+          <div className="text-center py-8 space-y-5 rounded-2xl border p-6" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+            <div className="w-12 h-12 rounded-2xl border flex items-center justify-center mx-auto" style={{ background: '#dcfce7', color: '#166534', borderColor: '#bbf7d0' }}>
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Two-Factor Authentication is Active</h2>
-              <p className="text-xs text-slate-600 max-w-md mx-auto mt-1">
+              <h2 className="text-base font-bold" style={{ color: '#0f172a' }}>Two-Factor Authentication is Active</h2>
+              <p className="text-xs max-w-md mx-auto mt-1" style={{ color: '#64748b' }}>
                 Your account is protected with Two-Factor Authentication. Re-configuration is locked to prevent unauthorized tampering.
               </p>
             </div>
-            <div className="inline-block px-3.5 py-1 rounded-full text-[11px] font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+            <div className="inline-block px-3.5 py-1 rounded-full text-[11px] font-mono font-bold border" style={{ background: '#dcfce7', color: '#166534', borderColor: '#bbf7d0' }}>
               Status: Enrollment Locked
             </div>
 
@@ -189,7 +191,8 @@ export default function MfaEnrolPage() {
               <Link
                 href={targetDashboard}
                 prefetch={false}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all"
+                style={{ background: '#1e3a8a', color: '#fff' }}
               >
                 <span>Proceed to {portalName}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -198,28 +201,28 @@ export default function MfaEnrolPage() {
           </div>
         ) : !qrCodeUrl ? (
           <div className="text-center py-6 space-y-4">
-            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs max-w-md mx-auto leading-relaxed" style={{ color: '#64748b' }}>
               Secure your account using Google Authenticator, Microsoft Authenticator, or Authy. Click below to generate your 2FA setup QR Code.
             </p>
-            <Button onClick={handleStartSetup} isLoading={loading}>
+            <Button onClick={handleStartSetup} isLoading={loading} style={{ background: '#1e3a8a', color: '#fff' }}>
               Generate 2FA Setup QR Code
             </Button>
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="bg-white p-2 rounded-xl border border-slate-200 shrink-0">
+            <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl border" style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
+              <div className="bg-white p-2 rounded-xl border shrink-0" style={{ borderColor: '#e2e8f0' }}>
                 <img src={qrCodeUrl} alt="MFA QR Code" className="w-36 h-36" />
               </div>
               <div className="space-y-2 text-xs">
-                <div className="font-bold text-slate-900 uppercase tracking-wider text-[11px] text-indigo-700">
+                <div className="font-bold uppercase tracking-wider text-[11px]" style={{ color: '#1e3a8a' }}>
                   Step 1: Scan with Authenticator App
                 </div>
-                <p className="text-slate-600 leading-relaxed">
+                <p className="leading-relaxed" style={{ color: '#64748b' }}>
                   Scan this QR code using Google Authenticator or Microsoft Authenticator app on your phone.
                 </p>
-                <div className="pt-1 font-mono text-[11px] text-slate-700">
-                  Secret Key: <span className="text-indigo-700 bg-white px-2 py-0.5 rounded border border-slate-200 font-bold select-all">{secret}</span>
+                <div className="pt-1 font-mono text-[11px]" style={{ color: '#475569' }}>
+                  Secret Key: <span className="bg-white px-2 py-0.5 rounded border font-bold select-all" style={{ color: '#1e3a8a', borderColor: '#e2e8f0' }}>{secret}</span>
                 </div>
               </div>
             </div>
@@ -234,7 +237,7 @@ export default function MfaEnrolPage() {
                 placeholder="e.g. 123456"
               />
 
-              <Button type="submit" variant="success" className="w-full" isLoading={loading}>
+              <Button type="submit" variant="success" className="w-full" isLoading={loading} style={{ background: '#1e3a8a', color: '#fff' }}>
                 Verify &amp; Complete Setup
               </Button>
             </form>

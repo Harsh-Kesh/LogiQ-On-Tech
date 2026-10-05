@@ -17,8 +17,8 @@ export default function MainDashboardPage() {
   }, [status, session, router]);
 
   return (
-    <div className="py-12 text-center text-xs font-mono text-slate-500 flex items-center justify-center gap-2">
-      <div className="w-4 h-4 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+    <div className="py-12 flex items-center justify-center gap-2 text-xs font-mono" style={{ color: '#64748b' }}>
+      <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#1e3a8a', borderTopColor: 'transparent' }} />
       <span>Loading your dashboard…</span>
     </div>
   );

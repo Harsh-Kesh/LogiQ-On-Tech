@@ -592,7 +592,7 @@ export default function MasterDataItemsPage() {
             )}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md" title="LogiQ-On internal SKU">
+            <span className="font-mono text-xs font-bold border px-2 py-0.5 rounded-md" style={{ color: '#1e3a8a', background: '#eff6ff', borderColor: '#bfdbfe' }} title="LogiQ-On internal SKU">
               LogiQ: {item.sku}
             </span>
             {item.supplierItemCode ? (
@@ -636,7 +636,7 @@ export default function MasterDataItemsPage() {
           <div className="space-y-0.5 text-xs font-mono">
             <div className="font-bold text-slate-900">${Number(item.sellingPrice).toFixed(2)}</div>
             <div className="text-[10px] text-slate-500">Cost: ${Number(item.costPrice).toFixed(2)}</div>
-            <div className="text-[10px] font-bold text-indigo-700">Margin: {margin}%</div>
+            <div className="text-[10px] font-bold" style={{ color: '#1e3a8a' }}>Margin: {margin}%</div>
           </div>
         );
       },
@@ -678,7 +678,7 @@ export default function MasterDataItemsPage() {
             size="sm"
             variant="ghost"
             onClick={() => openEditItemModal(item)}
-            leftIcon={<Edit2 className="w-3.5 h-3.5 text-indigo-600" />}
+            leftIcon={<Edit2 className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />}
           >
             Edit
           </Button>
@@ -747,7 +747,7 @@ export default function MasterDataItemsPage() {
           onClick={() => setActiveTab('CATEGORIES')}
           className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 shrink-0 whitespace-nowrap ${
             activeTab === 'CATEGORIES'
-              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              ? 'border-[#1e3a8a] text-[#1e3a8a] bg-blue-50/50'
               : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
@@ -759,7 +759,7 @@ export default function MasterDataItemsPage() {
           onClick={() => setActiveTab('UOM')}
           className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-all border-b-2 shrink-0 whitespace-nowrap ${
             activeTab === 'UOM'
-              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              ? 'border-[#1e3a8a] text-[#1e3a8a] bg-blue-50/50'
               : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
@@ -782,7 +782,7 @@ export default function MasterDataItemsPage() {
                   placeholder="Search Name, SKU, Barcode..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#1e3a8a] text-slate-900"
                 />
               </div>
 
@@ -821,7 +821,7 @@ export default function MasterDataItemsPage() {
               <div className="flex flex-wrap items-center gap-4">
                 {/* Price Range Filter */}
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-indigo-700 flex items-center gap-1">
+                  <span className="font-bold flex items-center gap-1" style={{ color: '#1e3a8a' }}>
                     <DollarSign className="w-3.5 h-3.5" /> Price Range ($):
                   </span>
                   <input
@@ -829,7 +829,7 @@ export default function MasterDataItemsPage() {
                     placeholder="Min $"
                     value={minPrice}
                     onChange={(e) => setMinPrice(e.target.value)}
-                    className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
+                    className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-[#1e3a8a]"
                   />
                   <span className="text-slate-400">-</span>
                   <input
@@ -837,7 +837,7 @@ export default function MasterDataItemsPage() {
                     placeholder="Max $"
                     value={maxPrice}
                     onChange={(e) => setMaxPrice(e.target.value)}
-                    className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
+                    className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-[#1e3a8a]"
                   />
                 </div>
 
@@ -845,13 +845,13 @@ export default function MasterDataItemsPage() {
 
                 {/* Technical Specification Filter */}
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-indigo-700 flex items-center gap-1">
+                  <span className="font-bold flex items-center gap-1" style={{ color: '#1e3a8a' }}>
                     <Tag className="w-3.5 h-3.5" /> Spec Filter:
                   </span>
                   <select
                     value={attrFilterKey}
                     onChange={(e) => setAttrFilterKey(e.target.value)}
-                    className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600 font-semibold"
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-[#1e3a8a] font-semibold"
                   >
                     <option value="">Select Spec Key</option>
                     {allAttrKeys.map((k) => (
@@ -865,7 +865,7 @@ export default function MasterDataItemsPage() {
                     placeholder="Spec Value (e.g. IP65)"
                     value={attrFilterVal}
                     onChange={(e) => setAttrFilterVal(e.target.value)}
-                    className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-indigo-600"
+                    className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-[#1e3a8a]"
                   />
                 </div>
               </div>
@@ -920,7 +920,7 @@ export default function MasterDataItemsPage() {
               <h2 className="text-lg font-bold text-slate-900">Categories</h2>
               <p className="text-xs text-slate-500 font-mono">Manage category hierarchy for the item catalog</p>
             </div>
-            <Button onClick={() => setIsCatModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30" leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
+            <Button onClick={() => setIsCatModalOpen(true)} className="text-white font-bold shadow-md" style={{ background: '#1e3a8a', border: '1px solid #1e40af' }} leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
               Add New Category
             </Button>
           </div>
@@ -944,7 +944,7 @@ export default function MasterDataItemsPage() {
                         setIsEditCatModalOpen(true);
                       }}
                     >
-                      <Edit2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <Edit2 className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
                     </Button>
                     <Button
                       size="sm"
@@ -969,7 +969,7 @@ export default function MasterDataItemsPage() {
               <h2 className="text-lg font-bold text-slate-900">System Units of Measure (UOM) Setup</h2>
               <p className="text-xs text-slate-500 font-mono">Standard 3PL Logistics Inventory Units</p>
             </div>
-            <Button onClick={() => setIsUomModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30" leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
+            <Button onClick={() => setIsUomModalOpen(true)} className="text-white font-bold shadow-md" style={{ background: '#1e3a8a', border: '1px solid #1e40af' }} leftIcon={<Plus className="w-4 h-4 shrink-0 text-white" />}>
               Register New UOM
             </Button>
           </div>
@@ -978,7 +978,7 @@ export default function MasterDataItemsPage() {
             {uoms.map((u) => (
               <div key={u.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-mono font-extrabold text-indigo-700 bg-indigo-100 px-2.5 py-0.5 rounded border border-indigo-200">
+                  <span className="text-sm font-mono font-extrabold px-2.5 py-0.5 rounded border" style={{ color: '#1e3a8a', background: '#eff6ff', borderColor: '#bfdbfe' }}>
                     {u.code}
                   </span>
                   <div className="flex items-center gap-1">
@@ -993,7 +993,7 @@ export default function MasterDataItemsPage() {
                         setIsEditUomModalOpen(true);
                       }}
                     >
-                      <Edit2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <Edit2 className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
                     </Button>
                     <Button
                       size="sm"
@@ -1033,7 +1033,7 @@ export default function MasterDataItemsPage() {
             {/* SECTION 1: ITEM IDENTIFICATION & NAME */}
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Package className="w-4 h-4 text-indigo-600" />
+                <Package className="w-4 h-4" style={{ color: '#1e3a8a' }} />
                 <span>1. Basic Identification & Codes</span>
               </div>
 
@@ -1067,7 +1067,7 @@ export default function MasterDataItemsPage() {
             {/* SECTION 2: SYSTEM TAXONOMY & UOM */}
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <FolderTree className="w-4 h-4 text-indigo-600" />
+                <FolderTree className="w-4 h-4" style={{ color: '#1e3a8a' }} />
                 <span>2. System Taxonomy & Unit of Measure</span>
               </div>
 
@@ -1096,7 +1096,7 @@ export default function MasterDataItemsPage() {
             {/* SECTION 3: VENDOR ALLOCATION & PRICING ENGINE */}
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-indigo-600" />
+                <DollarSign className="w-4 h-4" style={{ color: '#1e3a8a' }} />
                 <span>3. Vendor Allocation & Pricing Engine</span>
               </div>
               <p className="text-[11px] text-slate-500 -mt-2">
@@ -1181,7 +1181,8 @@ export default function MasterDataItemsPage() {
               <button
                 type="button"
                 onClick={() => setAdditionalVendors([...additionalVendors, { vendorName: '', costPrice: '' }])}
-                className="text-[11px] font-bold text-indigo-600 hover:underline"
+                className="text-[11px] font-bold hover:underline"
+                style={{ color: '#1e3a8a' }}
               >
                 + Add Another Vendor
               </button>
@@ -1195,7 +1196,8 @@ export default function MasterDataItemsPage() {
                         key={mode}
                         type="button"
                         onClick={() => setPricingMode(mode)}
-                        className={`px-2.5 py-1 transition-colors ${pricingMode === mode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                        className={`px-2.5 py-1 transition-colors ${pricingMode === mode ? 'text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                        style={pricingMode === mode ? { background: '#1e3a8a' } : undefined}
                       >
                         {mode === 'price' ? 'Enter Price' : mode === 'margin' ? 'By Margin %' : 'By Markup %'}
                       </button>
@@ -1233,7 +1235,7 @@ export default function MasterDataItemsPage() {
                       placeholder="e.g. 40 for 40% margin"
                       helperText="Selling Price = Cost ÷ (1 − Margin%)"
                     />
-                    {sellingPrice && <p className="text-xs font-semibold text-slate-700">→ Selling Price: <span className="text-indigo-700">${parseFloat(sellingPrice).toFixed(2)}</span></p>}
+                    {sellingPrice && <p className="text-xs font-semibold text-slate-700">→ Selling Price: <span style={{ color: '#1e3a8a' }}>${parseFloat(sellingPrice).toFixed(2)}</span></p>}
                   </div>
                 )}
 
@@ -1255,7 +1257,7 @@ export default function MasterDataItemsPage() {
                       placeholder="e.g. 67 for 67% markup"
                       helperText="Selling Price = Cost × (1 + Markup%)"
                     />
-                    {sellingPrice && <p className="text-xs font-semibold text-slate-700">→ Selling Price: <span className="text-indigo-700">${parseFloat(sellingPrice).toFixed(2)}</span></p>}
+                    {sellingPrice && <p className="text-xs font-semibold text-slate-700">→ Selling Price: <span style={{ color: '#1e3a8a' }}>${parseFloat(sellingPrice).toFixed(2)}</span></p>}
                   </div>
                 )}
               </div>
@@ -1290,7 +1292,7 @@ export default function MasterDataItemsPage() {
                     <span className="px-2.5 py-1 rounded-lg bg-violet-100 text-violet-800 font-bold">
                       Margin: {(((parseFloat(sellingPrice) - parseFloat(costPrice)) / parseFloat(sellingPrice)) * 100).toFixed(1)}%
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 font-bold">
+                    <span className="px-2.5 py-1 rounded-lg font-bold" style={{ background: '#dbeafe', color: '#1e3a8a' }}>
                       Markup: {(((parseFloat(sellingPrice) - parseFloat(costPrice)) / parseFloat(costPrice)) * 100).toFixed(1)}%
                     </span>
                   </div>
@@ -1302,13 +1304,14 @@ export default function MasterDataItemsPage() {
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-indigo-600" />
+                  <Tag className="w-4 h-4" style={{ color: '#1e3a8a' }} />
                   <span>4. Technical Specifications & Dynamic Key-Value Attributes</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAttrPairs([...attrPairs, { key: '', value: '' }])}
-                  className="text-xs text-indigo-600 font-bold hover:underline"
+                  className="text-xs font-bold hover:underline"
+                  style={{ color: '#1e3a8a' }}
                 >
                   + Add Spec Pair
                 </button>
@@ -1325,7 +1328,7 @@ export default function MasterDataItemsPage() {
                       updated[idx].key = e.target.value;
                       setAttrPairs(updated);
                     }}
-                    className="w-1/2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                    className="w-1/2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-[#1e3a8a]"
                   />
                   <input
                     type="text"
@@ -1336,7 +1339,7 @@ export default function MasterDataItemsPage() {
                       updated[idx].value = e.target.value;
                       setAttrPairs(updated);
                     }}
-                    className="w-1/2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-600"
+                    className="w-1/2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-[#1e3a8a]"
                   />
                   {attrPairs.length > 1 && (
                     <button
@@ -1354,7 +1357,7 @@ export default function MasterDataItemsPage() {
             {/* SECTION 5: SUPPLY CHAIN & WARRANTY */}
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Shield className="w-4 h-4 text-indigo-600" />
+                <Shield className="w-4 h-4" style={{ color: '#1e3a8a' }} />
                 <span>5. Supply Chain Codes & Warranty</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1369,7 +1372,7 @@ export default function MasterDataItemsPage() {
                 <Input label="Warranty Period (months)" type="number" min="0" value={warrantyPeriodMonths} onChange={(e) => setWarrantyPeriodMonths(e.target.value)} placeholder="12" />
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">Warranty Start Rule</label>
-                  <select value={warrantyStartRule} onChange={(e) => setWarrantyStartRule(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-indigo-600">
+                  <select value={warrantyStartRule} onChange={(e) => setWarrantyStartRule(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-[#1e3a8a]">
                     <option value="DELIVERY_DATE">Delivery Date</option>
                     <option value="INVOICE_DATE">Supplier Invoice Date</option>
                     <option value="INSTALLATION_DATE">Installation / Commissioning Date</option>
@@ -1377,11 +1380,11 @@ export default function MasterDataItemsPage() {
                 </div>
                 <div className="flex flex-col gap-3 pt-5">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={serialTracked} onChange={(e) => setSerialTracked(e.target.checked)} className="w-4 h-4 rounded accent-indigo-600" />
+                    <input type="checkbox" checked={serialTracked} onChange={(e) => setSerialTracked(e.target.checked)} className="w-4 h-4 rounded" style={{ accentColor: '#1e3a8a' }} />
                     <span className="text-sm font-semibold text-slate-700">Serial Number Tracking</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={batchTracked} onChange={(e) => setBatchTracked(e.target.checked)} className="w-4 h-4 rounded accent-indigo-600" />
+                    <input type="checkbox" checked={batchTracked} onChange={(e) => setBatchTracked(e.target.checked)} className="w-4 h-4 rounded" style={{ accentColor: '#1e3a8a' }} />
                     <span className="text-sm font-semibold text-slate-700">Batch Number Tracking</span>
                   </label>
                 </div>
@@ -1397,7 +1400,7 @@ export default function MasterDataItemsPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
+                className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-[#1e3a8a] text-slate-900"
                 placeholder="Enter technical details, dimensions, weight, operating conditions..."
               />
             </div>
@@ -1406,7 +1409,7 @@ export default function MasterDataItemsPage() {
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <Store className="w-4 h-4 text-indigo-600" />
+                  <Store className="w-4 h-4" style={{ color: '#1e3a8a' }} />
                   <span>6. Public Storefront Listing</span>
                 </div>
                 <button
@@ -1415,8 +1418,9 @@ export default function MasterDataItemsPage() {
                   aria-checked={publishToStore}
                   onClick={() => setPublishToStore((v) => !v)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
-                    publishToStore ? 'bg-indigo-600' : 'bg-slate-300'
+                    publishToStore ? '' : 'bg-slate-300'
                   }`}
+                  style={publishToStore ? { background: '#1e3a8a' } : undefined}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${publishToStore ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -1433,7 +1437,7 @@ export default function MasterDataItemsPage() {
                       value={storeDescription}
                       onChange={(e) => setStoreDescription(e.target.value)}
                       rows={3}
-                      className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900"
+                      className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-[#1e3a8a] text-slate-900"
                       placeholder="Customer-facing description shown on the storefront — features, use cases, what's in the box..."
                     />
                   </div>
@@ -1477,7 +1481,7 @@ export default function MasterDataItemsPage() {
               <Button type="button" variant="secondary" onClick={() => setIsItemModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" isLoading={submitting} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">
+              <Button type="submit" isLoading={submitting} className="text-white font-bold shadow-md" style={{ background: '#1e3a8a', border: '1px solid #1e40af' }}>
                 {formId ? 'Update Item Master' : 'Save & Register Item'}
               </Button>
             </div>
@@ -1521,7 +1525,7 @@ export default function MasterDataItemsPage() {
               <div className="grid grid-cols-2 gap-4 text-xs font-mono border-t border-slate-200 pt-3">
                 <div>
                   <span className="text-slate-400 block">SKU Code:</span>
-                  <span className="font-bold text-indigo-700">{selectedItem.sku}</span>
+                  <span className="font-bold" style={{ color: '#1e3a8a' }}>{selectedItem.sku}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Barcode EAN:</span>
@@ -1562,17 +1566,17 @@ export default function MasterDataItemsPage() {
                 return (
                   <div className="border-t border-slate-200 pt-3 space-y-2">
                     <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px] block flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-indigo-600" /> Linked Supplier Details
+                      <Building2 className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} /> Linked Supplier Details
                     </span>
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       {vendor?.companyName && (
                         <div><span className="text-slate-400 block font-sans">Company:</span><span className="font-bold text-slate-900">{vendor.companyName}</span></div>
                       )}
                       {poEmail && (
-                        <div><span className="text-slate-400 block font-sans">PO Email:</span><a href={`mailto:${poEmail}`} className="font-bold text-indigo-700 hover:underline">{poEmail}</a></div>
+                        <div><span className="text-slate-400 block font-sans">PO Email:</span><a href={`mailto:${poEmail}`} className="font-bold hover:underline" style={{ color: '#1e3a8a' }}>{poEmail}</a></div>
                       )}
                       {apEmail && (
-                        <div><span className="text-slate-400 block font-sans">AP Email:</span><a href={`mailto:${apEmail}`} className="font-bold text-indigo-700 hover:underline">{apEmail}</a></div>
+                        <div><span className="text-slate-400 block font-sans">AP Email:</span><a href={`mailto:${apEmail}`} className="font-bold hover:underline" style={{ color: '#1e3a8a' }}>{apEmail}</a></div>
                       )}
                       {selectedItem.supplierItemCode && (
                         <div><span className="text-slate-400 block font-sans">Supplier Code:</span><span className="font-mono font-bold text-emerald-700">{selectedItem.supplierItemCode}</span></div>
@@ -1590,8 +1594,8 @@ export default function MasterDataItemsPage() {
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(selectedItem.attributes).map(([k, v]) => (
-                      <span key={k} className="px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 font-semibold text-xs">
-                        <span className="font-bold text-indigo-900">{k}:</span> {v}
+                      <span key={k} className="px-2.5 py-1 rounded-lg border font-semibold text-xs" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e3a8a' }}>
+                        <span className="font-bold" style={{ color: '#1e3a8a' }}>{k}:</span> {v}
                       </span>
                     ))}
                   </div>
@@ -1602,7 +1606,7 @@ export default function MasterDataItemsPage() {
             {/* Lifecycle Status History Timeline */}
             <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
-                <Clock className="w-4 h-4 text-indigo-600" />
+                <Clock className="w-4 h-4" style={{ color: '#1e3a8a' }} />
                 <span>Lifecycle Status Change Audit History</span>
               </div>
 
@@ -1610,7 +1614,7 @@ export default function MasterDataItemsPage() {
                 <div className="space-y-2 border-l-2 border-slate-200 pl-4 ml-1">
                   {selectedItem.statusHistory.map((sh, idx) => (
                     <div key={idx} className="relative space-y-0.5">
-                      <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-600 border-2 border-white" />
+                      <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white" style={{ background: '#1e3a8a' }} />
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900">
                           {sh.from} ➔ {sh.to}
@@ -1644,7 +1648,7 @@ export default function MasterDataItemsPage() {
         <div className="space-y-4">
           <p className="text-xs text-slate-600 leading-relaxed">
             Upload a <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">.csv</span> file containing headers:
-            <span className="font-mono text-indigo-600 block mt-1">
+            <span className="font-mono block mt-1" style={{ color: '#1e3a8a' }}>
               itemName, sku, barcode, costPrice, sellingPrice, category, uom
             </span>
           </p>
@@ -1682,7 +1686,7 @@ export default function MasterDataItemsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsCatModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Create Category</Button>
+            <Button type="submit" className="text-white font-bold shadow-md" style={{ background: '#1e3a8a', border: '1px solid #1e40af' }}>Create Category</Button>
           </div>
         </form>
       </Modal>
@@ -1700,7 +1704,7 @@ export default function MasterDataItemsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsEditCatModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Update Category</Button>
+            <Button type="submit" className="text-white font-bold shadow-md" style={{ background: '#1e3a8a', border: '1px solid #1e40af' }}>Update Category</Button>
           </div>
         </form>
       </Modal>
@@ -1732,7 +1736,7 @@ export default function MasterDataItemsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsUomModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Register UOM</Button>
+            <Button type="submit" className="text-white font-bold shadow-md" style={{ background: '#1e3a8a', border: '1px solid #1e40af' }}>Register UOM</Button>
           </div>
         </form>
       </Modal>
@@ -1755,7 +1759,7 @@ export default function MasterDataItemsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsEditUomModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/25 border border-indigo-500/30">Update UOM</Button>
+            <Button type="submit" className="text-white font-bold shadow-md" style={{ background: '#1e3a8a', border: '1px solid #1e40af' }}>Update UOM</Button>
           </div>
         </form>
       </Modal>

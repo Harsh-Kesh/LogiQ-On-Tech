@@ -12,16 +12,16 @@ interface BadgeProps {
 export function Badge({ children, variant = 'indigo', size = 'sm', className = '' }: BadgeProps) {
   const variantStyles: Record<BadgeVariant, string> = {
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    indigo: 'bg-[#eff6ff] text-[#1e3a8a] border-[#bfdbfe]',
     teal: 'bg-teal-50 text-teal-700 border-teal-200',
-    success: 'bg-teal-50 text-teal-700 border-teal-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-    warning: 'bg-amber-50 text-amber-700 border-amber-200',
+    success: 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]',
+    amber: 'bg-[#fefce8] text-[#854d0e] border-[#fde68a]',
+    warning: 'bg-[#fefce8] text-[#854d0e] border-[#fde68a]',
     sky: 'bg-sky-50 text-sky-700 border-sky-200',
-    rose: 'bg-rose-50 text-rose-700 border-rose-200',
-    danger: 'bg-rose-50 text-rose-700 border-rose-200',
+    rose: 'bg-[#fef2f2] text-[#991b1b] border-[#fecaca]',
+    danger: 'bg-[#fef2f2] text-[#991b1b] border-[#fecaca]',
     slate: 'bg-slate-100 text-slate-700 border-slate-200',
-    neutral: 'bg-slate-100 text-slate-700 border-slate-200',
+    neutral: 'bg-[#fafafa] text-[#71717a] border-[#e4e4e7]',
   };
 
   const sizeStyles = {

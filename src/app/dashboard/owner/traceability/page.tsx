@@ -8,6 +8,8 @@ import {
   Shield, Truck, CreditCard, Mail, CheckCircle2, AlertCircle, Clock, Download
 } from 'lucide-react';
 
+const NAVY = '#1e3a8a';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface SearchResult {
@@ -124,35 +126,41 @@ function fmtDt(iso: string | null | undefined): string {
   return new Date(iso).toLocaleString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-const STATUS_ORDER: Record<string, string> = {
-  PAID: 'bg-blue-100 text-blue-700',
-  SO_CREATED: 'bg-cyan-100 text-cyan-700',
-  PO_SENT: 'bg-violet-100 text-violet-700',
-  INVOICE_RECEIVED: 'bg-amber-100 text-amber-700',
-  MATCHED: 'bg-emerald-100 text-emerald-700',
-  MATCH_EXCEPTION: 'bg-red-100 text-red-700',
-  BILL_CREATED: 'bg-indigo-100 text-indigo-700',
-  SUPPLIER_PAID: 'bg-teal-100 text-teal-700',
-  FULFILLED: 'bg-green-100 text-green-700',
-  CANCELLED: 'bg-slate-100 text-slate-500',
-};
+interface BadgeStyle { label?: string; bg: string; color: string; border: string }
 
-const WARRANTY_STATUS: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-700',
-  FINAL_SIX_MONTHS: 'bg-amber-100 text-amber-700',
-  EXPIRING_SOON: 'bg-orange-100 text-orange-700',
-  EXPIRED: 'bg-red-100 text-red-700',
-  PENDING_DATA: 'bg-slate-100 text-slate-600',
-  CLOSED: 'bg-slate-100 text-slate-500',
+const STATUS_ORDER: Record<string, BadgeStyle> = {
+  PAID:              { bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
+  SO_CREATED:        { bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
+  PO_SENT:           { bg: '#eef2ff', color: '#4338ca', border: '#c7d2fe' },
+  INVOICE_RECEIVED:  { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
+  MATCH_PENDING:     { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+  MATCHED:           { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+  MATCH_EXCEPTION:   { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
+  BILL_CREATED:      { bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4' },
+  PAYMENT_SCHEDULED: { bg: '#ecfeff', color: '#0e7490', border: '#a5f3fc' },
+  SUPPLIER_PAID:     { bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+  FULFILLED:         { bg: '#ecfdf5', color: '#15803d', border: '#86efac' },
+  CANCELLED:         { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
 };
+const STATUS_ORDER_DEFAULT: BadgeStyle = { bg: '#fafafa', color: '#71717a', border: '#e4e4e7' };
+
+const WARRANTY_STATUS: Record<string, BadgeStyle> = {
+  ACTIVE:           { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+  FINAL_SIX_MONTHS: { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+  EXPIRING_SOON:    { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+  EXPIRED:          { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
+  PENDING_DATA:     { bg: '#fafafa', color: '#71717a', border: '#e4e4e7' },
+  CLOSED:           { bg: '#fafafa', color: '#71717a', border: '#e4e4e7' },
+};
+const WARRANTY_STATUS_DEFAULT: BadgeStyle = { bg: '#fafafa', color: '#71717a', border: '#e4e4e7' };
 
 // ── Row component ─────────────────────────────────────────────────────────────
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 py-1.5">
-      <span className="text-xs text-slate-400 w-36 shrink-0 pt-0.5">{label}</span>
-      <span className="text-xs text-slate-900 font-medium break-all">{value ?? '—'}</span>
+      <span className="text-xs w-36 shrink-0 pt-0.5" style={{ color: '#94a3b8' }}>{label}</span>
+      <span className="text-xs font-medium break-all" style={{ color: '#0f172a' }}>{value ?? '—'}</span>
     </div>
   );
 }
@@ -162,19 +170,23 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 function Section({
   icon: Icon,
   title,
+  bg,
   color,
+  border,
   children,
   badge,
 }: {
   icon: any;
   title: string;
+  bg: string;
   color: string;
+  border: string;
   children: React.ReactNode;
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden">
-      <div className={`flex items-center gap-2 px-4 py-2.5 ${color}`}>
+    <div className="border rounded-xl overflow-hidden" style={{ borderColor: '#e2e8f0' }}>
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ background: bg, color, borderColor: border }}>
         <Icon className="w-3.5 h-3.5 shrink-0" />
         <span className="text-xs font-bold uppercase tracking-wider flex-1">{title}</span>
         {badge}
@@ -188,7 +200,7 @@ function Section({
 
 function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
   const { sfOrder, salesOrder, supplierInvoice, warranties, emailLogs } = chain;
-  const statusColor = STATUS_ORDER[sfOrder.status] || 'bg-slate-100 text-slate-600';
+  const statusStyle = STATUS_ORDER[sfOrder.status] || STATUS_ORDER_DEFAULT;
 
   return (
     <div className="space-y-4">
@@ -196,27 +208,30 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
       <div className="flex items-start justify-between gap-3 px-1">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-lg font-bold text-slate-900">{sfOrder.orderNumber}</span>
-            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${statusColor}`}>
+            <span className="text-lg font-bold" style={{ color: '#0f172a' }}>{sfOrder.orderNumber}</span>
+            <span
+              className="px-2.5 py-0.5 rounded-full text-[11px] font-bold"
+              style={{ background: statusStyle.bg, color: statusStyle.color, border: `1px solid ${statusStyle.border}` }}
+            >
               {sfOrder.status.replace(/_/g, ' ')}
             </span>
           </div>
-          <div className="text-sm text-slate-500 mt-0.5">{sfOrder.customerName} · {sfOrder.customerEmail}</div>
+          <div className="text-sm mt-0.5" style={{ color: '#64748b' }}>{sfOrder.customerName} · {sfOrder.customerEmail}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-lg font-bold text-slate-900">
+          <div className="text-lg font-black font-mono" style={{ color: NAVY }}>
             {sfOrder.currency} {sfOrder.totalAmount.toFixed(2)}
           </div>
-          <div className="text-xs text-slate-400">{fmt(sfOrder.createdAt)}</div>
+          <div className="text-xs" style={{ color: '#94a3b8' }}>{fmt(sfOrder.createdAt)}</div>
         </div>
       </div>
 
       {/* Items */}
-      <Section icon={Package} title="Items Ordered" color="bg-slate-50 text-slate-700 border-b border-slate-200">
+      <Section icon={Package} title="Items Ordered" bg="#f8fafc" color="#475569" border="#e2e8f0">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-400">
+              <tr style={{ color: '#94a3b8' }}>
                 <th className="text-left py-2 pr-3 font-semibold">Item</th>
                 <th className="text-right py-2 pr-3 font-semibold">Qty</th>
                 <th className="text-right py-2 pr-3 font-semibold">Unit</th>
@@ -227,12 +242,12 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
               {sfOrder.items.map((item) => (
                 <tr key={item.itemCode}>
                   <td className="py-2 pr-3">
-                    <div className="font-semibold text-slate-800">{item.itemCode}</div>
-                    <div className="text-slate-500">{item.itemName}</div>
+                    <div className="font-semibold" style={{ color: '#0f172a' }}>{item.itemCode}</div>
+                    <div style={{ color: '#64748b' }}>{item.itemName}</div>
                   </td>
-                  <td className="py-2 pr-3 text-right font-mono">{item.quantity}</td>
-                  <td className="py-2 pr-3 text-right font-mono">{sfOrder.currency} {item.unitPrice.toFixed(2)}</td>
-                  <td className="py-2 text-right font-mono font-semibold">{sfOrder.currency} {item.lineTotal.toFixed(2)}</td>
+                  <td className="py-2 pr-3 text-right font-mono" style={{ color: '#0f172a' }}>{item.quantity}</td>
+                  <td className="py-2 pr-3 text-right font-mono" style={{ color: '#0f172a' }}>{sfOrder.currency} {item.unitPrice.toFixed(2)}</td>
+                  <td className="py-2 text-right font-mono font-semibold" style={{ color: '#0f172a' }}>{sfOrder.currency} {item.lineTotal.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -241,7 +256,7 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
       </Section>
 
       {/* Customer Transaction */}
-      <Section icon={ShoppingCart} title="Customer Transaction" color="bg-blue-50 text-blue-800 border-b border-blue-100">
+      <Section icon={ShoppingCart} title="Customer Transaction" bg="#eff6ff" color="#1e3a8a" border="#bfdbfe">
         <Row label="Website Order #" value={sfOrder.orderNumber} />
         <Row label="Internal SO #" value={salesOrder?.salesOrderNumber || sfOrder.myobSoNumber || '—'} />
         <Row label="MYOB SO #" value={sfOrder.myobSoNumber} />
@@ -251,13 +266,13 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
       </Section>
 
       {/* Procurement & Fulfilment */}
-      <Section icon={Truck} title="Procurement & Fulfilment" color="bg-violet-50 text-violet-800 border-b border-violet-100">
+      <Section icon={Truck} title="Procurement & Fulfilment" bg="#eef2ff" color="#4338ca" border="#c7d2fe">
         <Row label="MYOB PO #" value={sfOrder.myobPoNumber} />
         <Row label="PO Sent To" value={sfOrder.poEmailSentTo} />
         <Row label="PO Sent At" value={fmtDt(sfOrder.poEmailSentAt)} />
         <Row label="Delivery Status" value={
           sfOrder.sektorStatus ? (
-            <span className="px-2 py-0.5 rounded bg-violet-100 text-violet-700 font-bold text-[10px]">
+            <span className="px-2 py-0.5 rounded font-bold text-[10px]" style={{ background: '#eef2ff', color: '#4338ca' }}>
               {sfOrder.sektorStatus}
             </span>
           ) : '—'
@@ -268,14 +283,15 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
       </Section>
 
       {/* Accounts Payable */}
-      <Section icon={CreditCard} title="Accounts Payable" color="bg-amber-50 text-amber-800 border-b border-amber-100"
+      <Section icon={CreditCard} title="Accounts Payable" bg="#fefce8" color="#854d0e" border="#fde68a"
         badge={
           sfOrder.threeWayMatchResult ? (
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-              sfOrder.threeWayMatchResult === 'MATCHED'
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-            }`}>
+            <span
+              className="px-2 py-0.5 rounded text-[10px] font-bold"
+              style={sfOrder.threeWayMatchResult === 'MATCHED'
+                ? { background: '#f0fdf4', color: '#166534' }
+                : { background: '#fef2f2', color: '#991b1b' }}
+            >
               {sfOrder.threeWayMatchResult === 'MATCHED' ? '✓ 3WM Passed' : '⚠ 3WM Exception'}
             </span>
           ) : null
@@ -288,11 +304,14 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
             <Row label="Invoice Date" value={fmt(supplierInvoice.invoiceDate)} />
             <Row label="Invoice Amount" value={`AUD ${supplierInvoice.invoiceAmount.toFixed(2)}`} />
             <Row label="Invoice Status" value={
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                supplierInvoice.status === 'APPROVED' ? 'bg-green-100 text-green-700'
-                : supplierInvoice.status === 'DISPUTED' ? 'bg-red-100 text-red-700'
-                : 'bg-slate-100 text-slate-600'
-              }`}>
+              <span
+                className="px-2 py-0.5 rounded text-[10px] font-bold"
+                style={
+                  supplierInvoice.status === 'APPROVED' ? { background: '#f0fdf4', color: '#166534' }
+                  : supplierInvoice.status === 'DISPUTED' ? { background: '#fef2f2', color: '#991b1b' }
+                  : { background: '#fafafa', color: '#71717a' }
+                }
+              >
                 {supplierInvoice.status}
               </span>
             } />
@@ -300,12 +319,12 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
             <Row label="MYOB Bill #" value={supplierInvoice.myobBillNumber || sfOrder.myobBillNumber} />
           </>
         ) : (
-          <div className="py-2 text-xs text-slate-400">No supplier invoice linked yet</div>
+          <div className="py-2 text-xs" style={{ color: '#94a3b8' }}>No supplier invoice linked yet</div>
         )}
         <Row label="Supplier Inv. Rcvd" value={fmtDt(sfOrder.supplierInvoiceReceivedAt)} />
         <Row label="3WM Notes" value={
           sfOrder.threeWayMatchNotes ? (
-            <span className="text-slate-600">{sfOrder.threeWayMatchNotes}</span>
+            <span style={{ color: '#64748b' }}>{sfOrder.threeWayMatchNotes}</span>
           ) : '—'
         } />
         <Row label="Monoova Txn ID" value={sfOrder.monoovaTxnId} />
@@ -315,12 +334,14 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
 
       {/* Warranties */}
       {warranties.length > 0 && (
-        <Section icon={Shield} title={`Warranty Records (${warranties.length})`} color="bg-emerald-50 text-emerald-800 border-b border-emerald-100">
-          {warranties.map((w, idx) => (
+        <Section icon={Shield} title={`Warranty Records (${warranties.length})`} bg="#f0fdf4" color="#166534" border="#bbf7d0">
+          {warranties.map((w, idx) => {
+            const wBadge = WARRANTY_STATUS[w.status] || WARRANTY_STATUS_DEFAULT;
+            return (
             <div key={w.id} className={idx > 0 ? 'pt-3 mt-3 border-t border-slate-100' : ''}>
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-bold text-xs text-slate-800">{w.warrantyNumber}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${WARRANTY_STATUS[w.status] || 'bg-slate-100 text-slate-600'}`}>
+                <span className="font-bold text-xs" style={{ color: '#0f172a' }}>{w.warrantyNumber}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: wBadge.bg, color: wBadge.color }}>
                   {w.status.replace(/_/g, ' ')}
                 </span>
               </div>
@@ -335,7 +356,7 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
               <Row label="Period" value={`${w.warrantyPeriodMonths} months`} />
               {w.remainingDays !== null && (
                 <Row label="Remaining Days" value={
-                  <span className={w.remainingDays <= 30 ? 'text-red-600 font-bold' : w.remainingDays <= 180 ? 'text-amber-600 font-bold' : 'text-green-700 font-bold'}>
+                  <span className="font-bold" style={{ color: w.remainingDays <= 30 ? '#991b1b' : w.remainingDays <= 180 ? '#854d0e' : '#166534' }}>
                     {w.remainingDays} days
                   </span>
                 } />
@@ -344,7 +365,8 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
                 <Row label="Evidence Files" value={
                   <a
                     href={`/dashboard/owner/warranties?id=${w.id}`}
-                    className="text-indigo-600 hover:underline flex items-center gap-1"
+                    className="hover:underline flex items-center gap-1"
+                    style={{ color: NAVY }}
                   >
                     <Download className="w-3 h-3" />
                     {w.evidence.length} file{w.evidence.length !== 1 ? 's' : ''} attached
@@ -352,20 +374,21 @@ function InvestigationPanel({ chain }: { chain: InvestigationChain }) {
                 } />
               )}
             </div>
-          ))}
+            );
+          })}
         </Section>
       )}
 
       {/* Email Communications */}
       {emailLogs.length > 0 && (
-        <Section icon={Mail} title={`Email Communications (${emailLogs.length})`} color="bg-slate-50 text-slate-700 border-b border-slate-200">
+        <Section icon={Mail} title={`Email Communications (${emailLogs.length})`} bg="#f8fafc" color="#475569" border="#e2e8f0">
           {emailLogs.map((e) => (
             <div key={e.id} className="py-2 flex items-start gap-2">
-              <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+              <Mail className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#94a3b8' }} />
               <div className="min-w-0">
-                <div className="text-xs font-semibold text-slate-800 truncate">{e.subject}</div>
-                <div className="text-xs text-slate-500">To: {e.to}{e.cc ? ` · CC: ${e.cc}` : ''}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
+                <div className="text-xs font-semibold truncate" style={{ color: '#0f172a' }}>{e.subject}</div>
+                <div className="text-xs" style={{ color: '#64748b' }}>To: {e.to}{e.cc ? ` · CC: ${e.cc}` : ''}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: '#94a3b8' }}>
                   {fmtDt(e.sentAt)} · {e.mode === 'simulated' ? '(simulated)' : 'sent'}
                 </div>
               </div>
@@ -385,11 +408,12 @@ const TYPE_ICON: Record<string, any> = {
   SUPPLIER_INVOICE: FileText,
 };
 
-const TYPE_COLOR: Record<string, string> = {
-  WARRANTY: 'bg-green-100 text-green-700',
-  STOREFRONT_ORDER: 'bg-blue-100 text-blue-700',
-  SUPPLIER_INVOICE: 'bg-violet-100 text-violet-700',
+const TYPE_COLOR: Record<string, BadgeStyle> = {
+  WARRANTY: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+  STOREFRONT_ORDER: { bg: '#eff6ff', color: '#1e3a8a', border: '#bfdbfe' },
+  SUPPLIER_INVOICE: { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
 };
+const TYPE_COLOR_DEFAULT: BadgeStyle = { bg: '#fafafa', color: '#71717a', border: '#e4e4e7' };
 
 const TYPE_LABEL: Record<string, string> = {
   WARRANTY: 'Warranty',
@@ -449,84 +473,88 @@ export default function TraceabilityPage() {
       {/* ── Left: Search + results ── */}
       <div className="w-80 shrink-0 flex flex-col gap-4">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: '#0f172a' }}>Global Traceability</h1>
-          <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Search className="w-5 h-5" style={{ color: NAVY }} />
+            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Global Traceability</h1>
+          </div>
+          <p className="text-sm" style={{ color: '#64748b' }}>
             Search serials, orders, POs, invoices, warranties
           </p>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <div className="bg-white rounded-2xl border p-4 flex items-center gap-3" style={{ borderColor: '#e2e8f0' }}>
+          <Search className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} />
           <input
             type="text"
             value={query}
             onChange={(e) => { setQuery(e.target.value); search(e.target.value); }}
             placeholder="Serial, order #, PO, customer…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm shadow-sm"
+            className="flex-1 text-sm outline-none bg-transparent placeholder-slate-400"
+            style={{ color: '#0f172a' }}
           />
           {searching && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent animate-spin shrink-0" style={{ borderColor: NAVY, borderTopColor: 'transparent' }} />
           )}
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-1.5">
           {linkError && (
-            <div className="px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+            <div className="px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: '#fefce8', color: '#854d0e', border: '1px solid #fde68a' }}>
               {linkError}
             </div>
           )}
           {results && allResults.length === 0 && (
-            <div className="text-center py-12 text-slate-400 text-sm">No results for "{query}"</div>
+            <div className="text-center py-12 text-sm" style={{ color: '#94a3b8' }}>No results for "{query}"</div>
           )}
 
           {allResults.map((item) => {
             const Icon = TYPE_ICON[item.type] || Search;
-            const color = TYPE_COLOR[item.type] || 'bg-slate-100 text-slate-600';
+            const color = TYPE_COLOR[item.type] || TYPE_COLOR_DEFAULT;
             const label = TYPE_LABEL[item.type] || item.type;
             const isSelected = item.sfOrderId === selectedSfOrderId;
+            const cardStyle = isSelected
+              ? { borderColor: '#bfdbfe', background: '#eff6ff' }
+              : item.sfOrderId
+              ? { borderColor: '#e2e8f0', background: '#fff' }
+              : { borderColor: '#f1f5f9', background: '#f8fafc' };
             return (
               <button
                 key={`${item.type}-${item.id}`}
                 onClick={() => item.sfOrderId ? loadChain(item.sfOrderId) : setLinkError(`Could not find a linked order for "${item.title}".`)}
-                className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
-                  isSelected
-                    ? 'border-indigo-400 bg-indigo-50 shadow-sm'
-                    : item.sfOrderId
-                    ? 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'
-                    : 'border-slate-100 bg-slate-50 hover:border-amber-300'
-                }`}
+                className="w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all hover:shadow-sm"
+                style={cardStyle}
               >
-                <div className={`p-1.5 rounded-lg shrink-0 ${color}`}>
+                <div className="p-1.5 rounded-lg shrink-0" style={{ background: color.bg, color: color.color }}>
                   <Icon className="w-3.5 h-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-semibold text-slate-900 text-xs">{item.title}</span>
-                    <span className={`px-1.5 py-px rounded text-[9px] font-bold ${color}`}>{label}</span>
+                    <span className="font-semibold text-xs" style={{ color: '#0f172a' }}>{item.title}</span>
+                    <span className="px-1.5 py-px rounded text-[9px] font-bold" style={{ background: color.bg, color: color.color }}>{label}</span>
                   </div>
-                  <div className="text-xs text-slate-600 mt-0.5 truncate">{item.subtitle}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5 truncate">{item.meta}</div>
+                  <div className="text-xs mt-0.5 truncate" style={{ color: '#64748b' }}>{item.subtitle}</div>
+                  <div className="text-[10px] mt-0.5 truncate" style={{ color: '#94a3b8' }}>{item.meta}</div>
                 </div>
-                {item.sfOrderId && <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 mt-0.5" />}
+                {item.sfOrderId && <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#cbd5e1' }} />}
               </button>
             );
           })}
 
           {!results && !searching && (
             <div className="text-center py-16">
-              <Search className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-slate-400 text-xs">Start typing to search the supply chain</p>
+              <Search className="w-10 h-10 mx-auto mb-3" style={{ color: '#cbd5e1' }} />
+              <p className="text-xs" style={{ color: '#94a3b8' }}>Start typing to search the supply chain</p>
             </div>
           )}
         </div>
       </div>
 
       {/* ── Right: Investigation Panel ── */}
-      <div className="flex-1 min-w-0 border-l border-slate-200 pl-6 overflow-y-auto">
+      <div className="flex-1 min-w-0 border-l pl-6 overflow-y-auto" style={{ borderColor: '#e2e8f0' }}>
         {loadingChain && (
           <div className="flex items-center justify-center h-64">
-            <div className="flex items-center gap-3 text-slate-400">
-              <div className="w-5 h-5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+            <div className="flex items-center gap-3" style={{ color: '#94a3b8' }}>
+              <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: NAVY, borderTopColor: 'transparent' }} />
               <span className="text-sm">Loading investigation chain…</span>
             </div>
           </div>
@@ -536,11 +564,11 @@ export default function TraceabilityPage() {
 
         {!loadingChain && !chain && (
           <div className="flex flex-col items-center justify-center h-64 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <Search className="w-7 h-7 text-slate-300" />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: '#f8fafc' }}>
+              <Search className="w-7 h-7" style={{ color: '#cbd5e1' }} />
             </div>
-            <h2 className="text-sm font-semibold text-slate-500">Select a result to investigate</h2>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs">
+            <h2 className="text-sm font-semibold" style={{ color: '#475569' }}>Select a result to investigate</h2>
+            <p className="text-xs mt-1 max-w-xs" style={{ color: '#94a3b8' }}>
               The full audit trail — items, procurement, fulfilment, accounts payable, warranties, and email communications — will appear here.
             </p>
           </div>

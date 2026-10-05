@@ -160,7 +160,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           {/* SECTION 1: COMPANY IDENTITY */}
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-indigo-600" />
+              <Building2 className="w-4 h-4 text-[#1e3a8a]" />
               <span>1. Company Identity</span>
             </div>
             <Input label="Business / Company Name" required value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g. Apex Hardware Pty Ltd" disabled={isEdit} />
@@ -173,7 +173,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           {/* SECTION 2: PROCUREMENT EMAILS */}
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <Mail className="w-4 h-4 text-indigo-600" />
+              <Mail className="w-4 h-4 text-[#1e3a8a]" />
               <span>2. Procurement Emails</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -200,7 +200,7 @@ function SupplierForm({ initial, onSave, onClose }: FormProps) {
           {/* SECTION 3: BANK DETAILS FOR PAYMENT */}
           <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-indigo-600" />
+              <CreditCard className="w-4 h-4 text-[#1e3a8a]" />
               <span>3. Bank Details for Payment</span>
             </div>
             <p className="text-[11px] text-slate-500 -mt-1">

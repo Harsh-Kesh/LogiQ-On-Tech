@@ -11,7 +11,6 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Badge } from '@/components/ui/Badge';
 import { Toast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 import { FileUpload } from '@/components/ui/FileUpload';
@@ -73,6 +72,53 @@ interface Product {
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+// LogiQ semantic status palette — purely presentational, buckets every status string
+// used on this page into one of the four semantic colors (never the navy brand color).
+function statusBucket(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  switch (status) {
+    case 'APPROVED':
+    case 'ACTIVE':
+    case 'FULLY_SUPPLIED':
+    case 'PAID':
+    case 'CLOSED':
+      return 'success';
+    case 'PENDING':
+    case 'PENDING_APPROVAL':
+    case 'UNDER_REVIEW':
+    case 'DRAFT':
+    case 'SENT_TO_VENDOR':
+    case 'PARTIALLY_SUPPLIED':
+    case 'PARTIALLY_PAID':
+    case 'ON_HOLD':
+      return 'warning';
+    case 'REJECTED':
+    case 'SUSPENDED':
+    case 'DISPUTED':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+const STATUS_PALETTE: Record<'success' | 'warning' | 'danger' | 'neutral', { bg: string; border: string; color: string }> = {
+  success: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534' },
+  warning: { bg: '#fefce8', border: '#fde68a', color: '#854d0e' },
+  danger: { bg: '#fef2f2', border: '#fecaca', color: '#991b1b' },
+  neutral: { bg: '#fafafa', border: '#e4e4e7', color: '#71717a' },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const palette = STATUS_PALETTE[statusBucket(status)];
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
+      style={{ background: palette.bg, borderColor: palette.border, color: palette.color }}
+    >
+      {status.replace(/_/g, ' ')}
+    </span>
+  );
+}
 
 export default function VendorDashboardPage() {
   const { data: session } = useSession();
@@ -523,18 +569,18 @@ export default function VendorDashboardPage() {
       {/* Light Header Banner Card (Matching Owner Console UI Styling) */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0">
-            <Building className="w-8 h-8" />
+          <div className="p-3.5 rounded-2xl shrink-0" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+            <Building className="w-8 h-8" style={{ color: '#1e3a8a' }} />
           </div>
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold font-mono">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-[11px] font-bold font-mono" style={{ background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
+              <ShieldCheck className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />
               VENDOR PORTAL • ATO COMPLIANCE & CATALOG
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
               Vendor Operations Portal
             </h1>
-            <p className="text-xs text-slate-500 font-mono">
+            <p className="text-xs font-mono" style={{ color: '#64748b' }}>
               Manage statutory registration, upload compliance documents, and publish products.
             </p>
           </div>
@@ -542,20 +588,8 @@ export default function VendorDashboardPage() {
 
         {vendor && (
           <div className="flex items-center gap-2 font-mono shrink-0">
-            <span className="text-xs font-bold text-slate-500">Account Status:</span>
-            <Badge
-              variant={
-                vendor.status === 'APPROVED'
-                  ? 'indigo'
-                  : vendor.status === 'UNDER_REVIEW'
-                  ? 'amber'
-                  : vendor.status === 'PENDING'
-                  ? 'sky'
-                  : 'danger'
-              }
-            >
-              {vendor.status}
-            </Badge>
+            <span className="text-xs font-bold" style={{ color: '#64748b' }}>Account Status:</span>
+            <StatusBadge status={vendor.status} />
           </div>
         )}
       </div>
@@ -570,37 +604,23 @@ export default function VendorDashboardPage() {
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center font-mono">
+              <div className="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center font-mono" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
                 1
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Company Registration Details</h3>
+              <h3 className="text-lg font-bold" style={{ color: '#0f172a' }}>Company Registration Details</h3>
             </div>
-            {vendor && (
-              <Badge
-                variant={
-                  vendor.status === 'APPROVED'
-                    ? 'indigo'
-                    : vendor.status === 'UNDER_REVIEW'
-                    ? 'amber'
-                    : vendor.status === 'PENDING'
-                    ? 'sky'
-                    : 'danger'
-                }
-              >
-                {vendor.status}
-              </Badge>
-            )}
+            {vendor && <StatusBadge status={vendor.status} />}
           </div>
 
           {vendor?.status === 'REJECTED' && vendor.rejectionReason && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+            <div className="p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
               <XCircle className="w-4 h-4 shrink-0" />
               <span>Rejected by Platform Owner: {vendor.rejectionReason}</span>
             </div>
           )}
 
           {profileError && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+            <div className="p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{profileError}</span>
             </div>
@@ -658,20 +678,20 @@ export default function VendorDashboardPage() {
         <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center font-mono">
+              <div className="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center font-mono" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
                 2
               </div>
               <h3 className="text-lg font-bold text-slate-900">Upload Compliance Documents</h3>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold flex items-center gap-2">
+          <div className="p-3 rounded-xl text-[11px] font-semibold flex items-center gap-2" style={{ background: '#fefce8', border: '1px solid #fde68a', color: '#854d0e' }}>
             <Lock className="w-3.5 h-3.5 shrink-0" />
             <span>Each document type can only be uploaded once. Once submitted, it's locked for Platform Owner review — you won't be able to view, download, or replace it unless it's rejected. If it's rejected, you'll be able to upload a corrected file for that type.</span>
           </div>
 
           {fileValidationError && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+            <div className="p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{fileValidationError}</span>
             </div>
@@ -705,7 +725,7 @@ export default function VendorDashboardPage() {
                     type="file"
                     accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                     onChange={handleFileSelect}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-indigo-600 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-[#1e3a8a] file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#eff6ff] file:text-[#1e3a8a] hover:file:bg-[#dbeafe] cursor-pointer"
                   />
                 </div>
 
@@ -722,7 +742,7 @@ export default function VendorDashboardPage() {
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-600" />
+            <FileText className="w-5 h-5" style={{ color: '#1e3a8a' }} />
             <h3 className="text-lg font-bold text-slate-900">Compliance Document Repository</h3>
           </div>
           <span className="text-xs font-mono text-slate-500 font-bold">
@@ -760,9 +780,7 @@ export default function VendorDashboardPage() {
                       {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : new Date().toLocaleDateString()}
                     </td>
                     <td className="py-3.5 px-4">
-                      <Badge variant={doc.status === 'APPROVED' ? 'indigo' : doc.status === 'REJECTED' ? 'danger' : 'amber'}>
-                        {doc.status}
-                      </Badge>
+                      <StatusBadge status={doc.status} />
                     </td>
                   </tr>
                 ))}
@@ -776,7 +794,7 @@ export default function VendorDashboardPage() {
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2">
-            <Package className="w-5 h-5 text-indigo-600" />
+            <Package className="w-5 h-5" style={{ color: '#1e3a8a' }} />
             <div>
               <h3 className="text-lg font-bold text-slate-900">Product Catalog (Assigned to Your Vendor Account)</h3>
               <p className="text-xs text-slate-500 font-mono">Read-only view of the products the Platform Owner has assigned to you, with pricing and taxonomy details.</p>
@@ -798,7 +816,7 @@ export default function VendorDashboardPage() {
               placeholder="Search catalog by Item Name, SKU, or Barcode..."
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 font-mono"
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#1e3a8a] font-mono"
             />
           </div>
         </div>
@@ -831,7 +849,7 @@ export default function VendorDashboardPage() {
                       <div className="space-y-0.5">
                         <div className="font-extrabold text-slate-900 text-xs">{p.itemName}</div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#1e3a8a', background: '#eff6ff', border: '1px solid #bfdbfe' }}>
                             {p.sku}
                           </span>
                           <span className="font-mono text-[10px] text-slate-500">EAN: {p.barcode}</span>
@@ -853,9 +871,7 @@ export default function VendorDashboardPage() {
                       {p.moq || 1} units
                     </td>
                     <td className="py-3.5 px-4">
-                      <Badge variant={p.status === 'ACTIVE' ? 'indigo' : p.status === 'DRAFT' ? 'amber' : 'neutral'}>
-                        {p.status}
-                      </Badge>
+                      <StatusBadge status={p.status} />
                     </td>
                     <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-700">
                       ${Number(p.costPrice || 0).toFixed(2)}
@@ -865,7 +881,7 @@ export default function VendorDashboardPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => { setSelectedProduct(p); setIsProductDetailOpen(true); }}
-                        leftIcon={<Eye className="w-3.5 h-3.5 text-indigo-600" />}
+                        leftIcon={<Eye className="w-3.5 h-3.5" style={{ color: '#1e3a8a' }} />}
                       >
                         View Product Details
                       </Button>
@@ -902,9 +918,7 @@ export default function VendorDashboardPage() {
               )}
               <div className="flex items-center justify-between">
                 <div className="text-base font-extrabold text-slate-900">{selectedProduct.itemName}</div>
-                <Badge variant={selectedProduct.status === 'ACTIVE' ? 'indigo' : selectedProduct.status === 'DRAFT' ? 'amber' : 'neutral'}>
-                  {selectedProduct.status}
-                </Badge>
+                <StatusBadge status={selectedProduct.status} />
               </div>
 
               {selectedProduct.description && <div className="text-xs text-slate-600 leading-relaxed">{selectedProduct.description}</div>}
@@ -912,7 +926,7 @@ export default function VendorDashboardPage() {
               <div className="grid grid-cols-2 gap-4 text-xs font-mono border-t border-slate-200 pt-3">
                 <div>
                   <span className="text-slate-400 block">SKU Code:</span>
-                  <span className="font-bold text-indigo-700">{selectedProduct.sku}</span>
+                  <span className="font-bold" style={{ color: '#1e3a8a' }}>{selectedProduct.sku}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Barcode EAN:</span>
@@ -939,8 +953,8 @@ export default function VendorDashboardPage() {
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(selectedProduct.attributes).map(([k, v]) => (
-                      <span key={k} className="px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 font-semibold text-xs">
-                        <span className="font-bold text-indigo-900">{k}:</span> {v}
+                      <span key={k} className="px-2.5 py-1 rounded-lg font-semibold text-xs" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a' }}>
+                        <span className="font-bold">{k}:</span> {v}
                       </span>
                     ))}
                   </div>
@@ -951,13 +965,13 @@ export default function VendorDashboardPage() {
             {selectedProduct.statusHistory && selectedProduct.statusHistory.length > 0 && (
               <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  <Clock className="w-4 h-4 text-indigo-600" />
+                  <Clock className="w-4 h-4" style={{ color: '#1e3a8a' }} />
                   <span>Lifecycle Status Change Audit History</span>
                 </div>
                 <div className="space-y-2 border-l-2 border-slate-200 pl-4 ml-1">
                   {selectedProduct.statusHistory.map((sh, idx) => (
                     <div key={idx} className="relative space-y-0.5">
-                      <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-600 border-2 border-white" />
+                      <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white" style={{ background: '#1e3a8a' }} />
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900">{sh.from} ➔ {sh.to}</span>
                         <span className="text-[10px] text-slate-400 font-mono">{new Date(sh.changedAt).toLocaleString()}</span>
@@ -987,7 +1001,7 @@ export default function VendorDashboardPage() {
         <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
           <div className="border-b border-slate-100 pb-5">
             <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-indigo-600" /> Procurement
+              <ClipboardList className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Procurement
             </div>
             <h3 className="text-lg font-bold text-slate-900">Purchase Orders</h3>
             <p className="text-xs text-slate-500 mt-0.5">Purchase orders assigned to your organisation. Confirm an order, then dispatch its stock from the warehouse — supply status updates automatically once you do.</p>
@@ -1019,12 +1033,12 @@ export default function VendorDashboardPage() {
                   const pendingTc = transportCosts.some((t) => t.status === 'PENDING_APPROVAL' && t.relatedPoNumbers.includes(p.poNumber));
                   return (
                   <tr key={p.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">{p.poNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#1e3a8a' }}>{p.poNumber}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{p.linkedSalesOrderNumber || '—'}</td>
                     <td className="py-3 px-4">
                       {(p.lines || []).map((l: any, i: number) => (
                         <div key={i} className="text-[11px]">
-                          <span className="font-mono text-indigo-700 font-bold">{l.itemCode}</span> × {l.quantity}
+                          <span className="font-mono font-bold" style={{ color: '#1e3a8a' }}>{l.itemCode}</span> × {l.quantity}
                         </div>
                       ))}
                     </td>
@@ -1032,7 +1046,7 @@ export default function VendorDashboardPage() {
                       {p.transportCost ? (
                         <span className="text-slate-600">{p.currency} {p.transportCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                       ) : pendingTc ? (
-                        <span className="text-amber-700 font-bold flex items-center justify-end gap-1"><AlertTriangle className="w-3 h-3" /> Pending approval</span>
+                        <span className="font-bold flex items-center justify-end gap-1" style={{ color: '#854d0e' }}><AlertTriangle className="w-3 h-3" /> Pending approval</span>
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
@@ -1040,21 +1054,14 @@ export default function VendorDashboardPage() {
                     <td className="py-3 px-4 text-right font-mono font-bold">{p.currency} {p.totalValue?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4 text-[11px]">{p.paymentTerms}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                        p.status === 'APPROVED' || p.status === 'SENT_TO_VENDOR' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                        p.status === 'VENDOR_CONFIRMED' ? 'bg-teal-50 text-teal-700 border-teal-200' :
-                        p.status === 'PARTIALLY_SUPPLIED' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        p.status === 'FULLY_SUPPLIED' ? 'bg-sky-50 text-sky-700 border-sky-200' :
-                        p.status === 'PAID' || p.status === 'CLOSED' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                        'bg-slate-100 text-slate-700 border-slate-200'
-                      }`}>{p.status.replace(/_/g, ' ')}</span>
+                      <StatusBadge status={p.status} />
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => setViewPoModal(p)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600" title="View purchase order">
+                        <button onClick={() => setViewPoModal(p)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a]" title="View purchase order">
                           <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => window.open(`/api/purchase-orders/${p.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600" title="Print / download purchase order">
+                        <button onClick={() => window.open(`/api/purchase-orders/${p.id}/print`, '_blank')} className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#eff6ff] text-slate-600 hover:text-[#1e3a8a]" title="Print / download purchase order">
                           <Printer className="w-3.5 h-3.5" />
                         </button>
                         {vendorSafeNext.length > 0 ? (
@@ -1097,7 +1104,7 @@ export default function VendorDashboardPage() {
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-[10px] font-mono font-bold text-slate-500 uppercase">Status</div>
                 <div className="mt-0.5">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-indigo-50 text-indigo-700 border-indigo-200">{viewPoModal.status.replace(/_/g, ' ')}</span>
+                  <StatusBadge status={viewPoModal.status} />
                 </div>
                 <div className="text-[11px] text-slate-500 mt-1">Payment Terms: <span className="font-bold text-slate-700">{viewPoModal.paymentTerms}</span></div>
               </div>
@@ -1130,14 +1137,14 @@ export default function VendorDashboardPage() {
             </div>
 
             {viewPoModal.transportCost > 0 && (
-              <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+              <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: '#fefce8', border: '1px solid #fde68a', color: '#854d0e' }}>
                 <span className="font-bold flex items-center gap-1.5"><Route className="w-3.5 h-3.5" /> Approved Transport Cost (included in total)</span>
                 <span className="font-mono font-bold">{viewPoModal.currency} {viewPoModal.transportCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
               </div>
             )}
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <div className="mr-auto text-sm font-black text-indigo-700 font-mono">
+              <div className="mr-auto text-sm font-black font-mono" style={{ color: '#1e3a8a' }}>
                 Total: {viewPoModal.currency} {viewPoModal.totalValue?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
               <Button type="button" variant="outline" onClick={() => setViewPoModal(null)}>Close</Button>
@@ -1160,7 +1167,7 @@ export default function VendorDashboardPage() {
           <div className="border-b border-slate-100 pb-5 flex items-center justify-between">
             <div>
               <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Route className="w-4 h-4 text-indigo-600" /> Freight
+                <Route className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Freight
               </div>
               <h3 className="text-lg font-bold text-slate-900">Transport Costs</h3>
               <p className="text-xs text-slate-500 mt-0.5">A claim covers one shipment: pick the dispatch notes that went out together from one warehouse, enter the tracking number and total freight cost, and it splits across whichever POs those dispatches belong to. The Platform Owner reviews and approves before it's added to those PO totals; you can't invoice a PO until it's fully supplied and free of a pending claim.</p>
@@ -1182,19 +1189,15 @@ export default function VendorDashboardPage() {
               <tbody className="divide-y divide-slate-100">
                 {transportCosts.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">{t.transportCostNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#1e3a8a' }}>{t.transportCostNumber}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{t.warehouseCode}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{t.trackingNumber}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{(t.relatedPoNumbers || []).join(', ')}</td>
                     <td className="py-3 px-4 text-right font-mono font-bold">{t.currency} {t.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                        t.status === 'APPROVED' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                        t.status === 'REJECTED' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                        'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}>{t.status.replace(/_/g, ' ')}</span>
+                      <StatusBadge status={t.status} />
                       {t.status === 'REJECTED' && t.rejectionReason && (
-                        <div className="text-[10px] text-rose-600 mt-1 max-w-[220px]">{t.rejectionReason}</div>
+                        <div className="text-[10px] mt-1 max-w-[220px]" style={{ color: '#991b1b' }}>{t.rejectionReason}</div>
                       )}
                     </td>
                   </tr>
@@ -1214,7 +1217,7 @@ export default function VendorDashboardPage() {
                   value={tcForm.warehouseCode}
                   onChange={(e) => setTcForm({ ...tcForm, warehouseCode: e.target.value, dnNumbers: [] })}
                   required
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-indigo-600 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#1e3a8a] bg-white"
                 >
                   <option value="">-- Select the warehouse this shipment left from --</option>
                   {claimableWarehouses.map((wh) => (
@@ -1258,7 +1261,7 @@ export default function VendorDashboardPage() {
                     {tcRelatedPoPreview.map((p) => (
                       <div key={p.poNumber} className="flex items-center justify-between px-3 py-2 text-[11px]">
                         <span className="font-mono font-bold text-slate-900">{p.poNumber}</span>
-                        <span className="text-indigo-700 font-bold">≈ {vendorPOs[0]?.currency || 'AUD'} {p.amount.toFixed(2)}</span>
+                        <span className="font-bold" style={{ color: '#1e3a8a' }}>≈ {vendorPOs[0]?.currency || 'AUD'} {p.amount.toFixed(2)}</span>
                       </div>
                     ))}
                     {tcRelatedPoPreview.length === 0 && (
@@ -1288,7 +1291,7 @@ export default function VendorDashboardPage() {
           <div className="border-b border-slate-100 pb-5 flex items-center justify-between">
             <div>
               <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-600" /> Invoicing
+                <FileText className="w-4 h-4" style={{ color: '#1e3a8a' }} /> Invoicing
               </div>
               <h3 className="text-lg font-bold text-slate-900">Invoice Submission</h3>
               <p className="text-xs text-slate-500 mt-0.5">Submit invoices against confirmed purchase orders. Track approval and payment status.</p>
@@ -1313,28 +1316,21 @@ export default function VendorDashboardPage() {
                   const lastPayment = v.payments && v.payments.length > 0 ? v.payments[v.payments.length - 1] : null;
                   return (
                   <tr key={v.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">{v.vendorInvoiceNumber}</td>
+                    <td className="py-3 px-4 font-mono font-bold" style={{ color: '#1e3a8a' }}>{v.vendorInvoiceNumber}</td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-600">{v.linkedPoNumber}</td>
                     <td className="py-3 px-4 text-right font-mono font-bold">{v.currency} {v.invoiceAmount?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4 text-[11px]">{v.dueDate ? new Date(v.dueDate).toLocaleDateString() : '—'}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                        v.status === 'APPROVED' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                        v.status === 'REJECTED' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                        v.status === 'PAID' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' :
-                        v.status === 'ON_HOLD' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                        v.status === 'DISPUTED' ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200' :
-                        v.status === 'PARTIALLY_PAID' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-slate-100 text-slate-700 border-slate-200'
-                      }`}>{v.status.replace(/_/g, ' ')}</span>
+                      <StatusBadge status={v.status} />
                     </td>
-                    <td className="py-3 px-4 text-right font-mono text-indigo-700 font-bold">{v.currency} {(v.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold" style={{ color: '#1e3a8a' }}>{v.currency} {(v.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4">
                       {lastPayment?.receiptAttachment?.fileUrl ? (
                         <a
                           href={lastPayment.receiptAttachment.fileUrl}
                           download={lastPayment.receiptAttachment.fileName}
-                          className="text-[11px] text-indigo-700 font-bold hover:underline flex items-center gap-1"
+                          className="text-[11px] font-bold hover:underline flex items-center gap-1"
+                          style={{ color: '#1e3a8a' }}
                         >
                           <Download className="w-3 h-3" /> View
                         </a>
@@ -1373,7 +1369,7 @@ export default function VendorDashboardPage() {
                 </div>
               </div>
               {viSubmitForm.linkedPoNumber && transportCosts.some((t) => t.status === 'PENDING_APPROVAL' && t.relatedPoNumbers.includes(viSubmitForm.linkedPoNumber)) && (
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-bold flex items-center gap-2">
+                <div className="p-3 rounded-xl font-bold flex items-center gap-2" style={{ background: '#fefce8', border: '1px solid #fde68a', color: '#854d0e' }}>
                   <AlertTriangle className="w-4 h-4 shrink-0" /> This PO has a transport cost claim awaiting owner approval. You cannot invoice it until that's resolved.
                 </div>
               )}
@@ -1393,10 +1389,10 @@ export default function VendorDashboardPage() {
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                   onChange={handleViAttachmentUpload}
-                  className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#eff6ff] file:text-[#1e3a8a] hover:file:bg-[#dbeafe]"
                 />
                 {viSubmitForm.attachment && (
-                  <p className="text-[11px] text-indigo-700 font-bold mt-1">Attached: {viSubmitForm.attachment.fileName}</p>
+                  <p className="text-[11px] font-bold mt-1" style={{ color: '#1e3a8a' }}>Attached: {viSubmitForm.attachment.fileName}</p>
                 )}
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">

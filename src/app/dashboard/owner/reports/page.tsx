@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import {
   BarChart2, Truck, GitMerge, CreditCard, AlertTriangle,
-  TrendingUp, TrendingDown, Package, Clock, CheckCircle2,
+  Package, Clock, CheckCircle2,
   XCircle, RefreshCw,
 } from 'lucide-react';
 
@@ -116,23 +116,30 @@ function aud(v: number): string {
   return `AUD ${v.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const ORDER_STATUS_COLOR: Record<string, string> = {
-  PAID: 'bg-blue-100 text-blue-700',
-  SO_CREATED: 'bg-cyan-100 text-cyan-700',
-  PO_SENT: 'bg-violet-100 text-violet-700',
-  INVOICE_RECEIVED: 'bg-amber-100 text-amber-700',
-  MATCHED: 'bg-emerald-100 text-emerald-700',
-  MATCH_EXCEPTION: 'bg-red-100 text-red-700',
-  BILL_CREATED: 'bg-indigo-100 text-indigo-700',
-  SUPPLIER_PAID: 'bg-teal-100 text-teal-700',
-  FULFILLED: 'bg-green-100 text-green-700',
-  CANCELLED: 'bg-slate-100 text-slate-500',
+// Semantic color tokens — statuses stay scannable by meaning, not brand chrome.
+const SUCCESS = { background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' };
+const WARNING = { background: '#fefce8', color: '#854d0e', border: '1px solid #fde68a' };
+const DANGER = { background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' };
+const NEUTRAL = { background: '#fafafa', color: '#71717a', border: '1px solid #e4e4e7' };
+const INFO = { background: '#eff6ff', color: '#1e3a8a', border: '1px solid #bfdbfe' };
+
+const ORDER_STATUS_STYLE: Record<string, { background: string; color: string; border: string }> = {
+  PAID: INFO,
+  SO_CREATED: INFO,
+  PO_SENT: INFO,
+  INVOICE_RECEIVED: WARNING,
+  MATCHED: SUCCESS,
+  MATCH_EXCEPTION: DANGER,
+  BILL_CREATED: INFO,
+  SUPPLIER_PAID: SUCCESS,
+  FULFILLED: SUCCESS,
+  CANCELLED: NEUTRAL,
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const color = ORDER_STATUS_COLOR[status] || 'bg-slate-100 text-slate-600';
+  const style = ORDER_STATUS_STYLE[status] || NEUTRAL;
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${color}`}>
+    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold" style={style}>
       {status.replace(/_/g, ' ')}
     </span>
   );
@@ -140,12 +147,12 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
-function KPI({ label, value, sub, color = 'text-slate-900' }: { label: string; value: React.ReactNode; sub?: string; color?: string }) {
+function KPI({ label, value, sub, color = '#0f172a' }: { label: string; value: React.ReactNode; sub?: string; color?: string }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-4 py-4">
-      <div className="text-xs text-slate-500 font-medium mb-1">{label}</div>
-      <div className={`text-xl font-bold ${color}`}>{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+    <div className="bg-white rounded-2xl border px-4 py-4" style={{ borderColor: '#e2e8f0' }}>
+      <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#94a3b8' }}>{label}</div>
+      <div className="text-xl font-black font-mono" style={{ color }}>{value}</div>
+      {sub && <div className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{sub}</div>}
     </div>
   );
 }
@@ -175,22 +182,22 @@ function OrderFulfilmentTab({ data }: { data: ReportsData['orderFulfilment'] }) 
       </div>
 
       {/* Status breakdown */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Orders by Status</h3>
+      <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+        <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Orders by Status</h3>
         <div className="space-y-2">
           {data.byStatus.sort((a, b) => b.count - a.count).map((s) => {
             const pct = data.totalCount > 0 ? (s.count / data.totalCount) * 100 : 0;
             return (
               <div key={s.status} className="flex items-center gap-3">
                 <StatusBadge status={s.status} />
-                <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div className="flex-1 rounded-full h-2 overflow-hidden" style={{ background: '#f1f5f9' }}>
                   <div
-                    className="h-2 rounded-full bg-indigo-400"
-                    style={{ width: `${Math.max(pct, 1)}%` }}
+                    className="h-2 rounded-full"
+                    style={{ width: `${Math.max(pct, 1)}%`, background: '#1e3a8a' }}
                   />
                 </div>
-                <span className="text-xs font-mono text-slate-600 w-6 text-right">{s.count}</span>
-                <span className="text-xs text-slate-400 w-24 text-right">{aud(s.value)}</span>
+                <span className="text-xs font-mono w-6 text-right" style={{ color: '#64748b' }}>{s.count}</span>
+                <span className="text-xs w-24 text-right" style={{ color: '#94a3b8' }}>{aud(s.value)}</span>
               </div>
             );
           })}
@@ -199,22 +206,22 @@ function OrderFulfilmentTab({ data }: { data: ReportsData['orderFulfilment'] }) 
 
       {/* Top customers */}
       {data.topCustomers.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Top Customers by Value</h3>
+        <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+          <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Top Customers by Value</h3>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-100">
-                <th className="text-left py-1.5 font-semibold">Customer</th>
-                <th className="text-right py-1.5 font-semibold">Orders</th>
-                <th className="text-right py-1.5 font-semibold">Total Value</th>
+              <tr className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Customer</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Orders</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Total Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {data.topCustomers.map((c) => (
-                <tr key={c.name}>
-                  <td className="py-2 font-medium text-slate-800">{c.name}</td>
-                  <td className="py-2 text-right text-slate-600">{c.count}</td>
-                  <td className="py-2 text-right font-semibold text-slate-800">{aud(c.value)}</td>
+                <tr key={c.name} className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                  <td className="py-2 font-semibold" style={{ color: '#0f172a' }}>{c.name}</td>
+                  <td className="py-2 text-right" style={{ color: '#64748b' }}>{c.count}</td>
+                  <td className="py-2 text-right font-bold" style={{ color: '#0f172a' }}>{aud(c.value)}</td>
                 </tr>
               ))}
             </tbody>
@@ -223,29 +230,29 @@ function OrderFulfilmentTab({ data }: { data: ReportsData['orderFulfilment'] }) 
       )}
 
       {/* Recent orders */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Recent Orders</h3>
+      <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+        <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Recent Orders</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-100">
-                <th className="text-left py-1.5 font-semibold">Order #</th>
-                <th className="text-left py-1.5 font-semibold">Customer</th>
-                <th className="text-left py-1.5 font-semibold">Status</th>
-                <th className="text-right py-1.5 font-semibold">Amount</th>
-                <th className="text-right py-1.5 font-semibold">Placed</th>
-                <th className="text-right py-1.5 font-semibold">Fulfilled</th>
+              <tr className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Order #</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Customer</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Status</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Amount</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Placed</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Fulfilled</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {data.recentOrders.map((o) => (
-                <tr key={o.id} className="hover:bg-slate-50">
-                  <td className="py-2 font-mono font-semibold text-indigo-700">{o.orderNumber}</td>
-                  <td className="py-2 text-slate-700">{o.customerName}</td>
+                <tr key={o.id} className="border-b hover:bg-slate-50 transition-colors" style={{ borderColor: '#f1f5f9' }}>
+                  <td className="py-2 font-mono font-bold" style={{ color: '#1e3a8a' }}>{o.orderNumber}</td>
+                  <td className="py-2" style={{ color: '#0f172a' }}>{o.customerName}</td>
                   <td className="py-2"><StatusBadge status={o.status} /></td>
-                  <td className="py-2 text-right font-semibold">{aud(o.totalAmount)}</td>
-                  <td className="py-2 text-right text-slate-500">{fmt(o.createdAt)}</td>
-                  <td className="py-2 text-right text-slate-500">{fmt(o.fulfilledAt)}</td>
+                  <td className="py-2 text-right font-bold" style={{ color: '#0f172a' }}>{aud(o.totalAmount)}</td>
+                  <td className="py-2 text-right" style={{ color: '#64748b' }}>{fmt(o.createdAt)}</td>
+                  <td className="py-2 text-right" style={{ color: '#64748b' }}>{fmt(o.fulfilledAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -260,29 +267,29 @@ function ProcurementTab({ data }: { data: ReportsData['procurement'] }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPI label="Open POs" value={data.openCount} sub={aud(data.openValue)} color={data.openCount > 0 ? 'text-violet-700' : 'text-slate-900'} />
+        <KPI label="Open POs" value={data.openCount} sub={aud(data.openValue)} color={data.openCount > 0 ? '#1e3a8a' : '#0f172a'} />
         <KPI label="Avg PO Age" value={`${data.avgAgeDays} days`} />
-        <KPI label="Overdue (&gt;14 days)" value={data.overdueCount} color={data.overdueCount > 0 ? 'text-red-600' : 'text-slate-900'} />
+        <KPI label="Overdue (&gt;14 days)" value={data.overdueCount} color={data.overdueCount > 0 ? '#991b1b' : '#0f172a'} />
         <KPI label="Total Orders in Pipeline" value={data.orders.length} />
       </div>
 
       {data.byVendor.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Orders by Vendor / Supplier</h3>
+        <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+          <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Orders by Vendor / Supplier</h3>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-100">
-                <th className="text-left py-1.5 font-semibold">Vendor Email</th>
-                <th className="text-right py-1.5 font-semibold">Orders</th>
-                <th className="text-right py-1.5 font-semibold">Total Value</th>
+              <tr className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Vendor Email</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Orders</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Total Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {data.byVendor.map((v) => (
-                <tr key={v.vendor}>
-                  <td className="py-2 text-slate-700 truncate max-w-[220px]">{v.vendor}</td>
-                  <td className="py-2 text-right">{v.count}</td>
-                  <td className="py-2 text-right font-semibold">{aud(v.value)}</td>
+                <tr key={v.vendor} className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                  <td className="py-2 truncate max-w-[220px]" style={{ color: '#0f172a' }}>{v.vendor}</td>
+                  <td className="py-2 text-right" style={{ color: '#64748b' }}>{v.count}</td>
+                  <td className="py-2 text-right font-bold" style={{ color: '#0f172a' }}>{aud(v.value)}</td>
                 </tr>
               ))}
             </tbody>
@@ -290,29 +297,29 @@ function ProcurementTab({ data }: { data: ReportsData['procurement'] }) {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Procurement Orders</h3>
+      <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+        <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Procurement Orders</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-100">
-                <th className="text-left py-1.5 font-semibold">Order #</th>
-                <th className="text-left py-1.5 font-semibold">Customer</th>
-                <th className="text-left py-1.5 font-semibold">PO #</th>
-                <th className="text-left py-1.5 font-semibold">Status</th>
-                <th className="text-right py-1.5 font-semibold">Amount</th>
-                <th className="text-right py-1.5 font-semibold">PO Age</th>
+              <tr className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Order #</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Customer</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>PO #</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Status</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Amount</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>PO Age</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {data.orders.map((o) => (
-                <tr key={o.id} className="hover:bg-slate-50">
-                  <td className="py-2 font-mono font-semibold text-indigo-700">{o.orderNumber}</td>
-                  <td className="py-2 text-slate-700">{o.customerName}</td>
-                  <td className="py-2 font-mono text-slate-600">{o.myobPoNumber || '—'}</td>
+                <tr key={o.id} className="border-b hover:bg-slate-50 transition-colors" style={{ borderColor: '#f1f5f9' }}>
+                  <td className="py-2 font-mono font-bold" style={{ color: '#1e3a8a' }}>{o.orderNumber}</td>
+                  <td className="py-2" style={{ color: '#0f172a' }}>{o.customerName}</td>
+                  <td className="py-2 font-mono" style={{ color: '#64748b' }}>{o.myobPoNumber || '—'}</td>
                   <td className="py-2"><StatusBadge status={o.status} /></td>
-                  <td className="py-2 text-right font-semibold">{aud(o.totalAmount)}</td>
-                  <td className={`py-2 text-right font-mono ${o.ageDays && o.ageDays > 14 ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
+                  <td className="py-2 text-right font-bold" style={{ color: '#0f172a' }}>{aud(o.totalAmount)}</td>
+                  <td className="py-2 text-right font-mono font-bold" style={{ color: o.ageDays && o.ageDays > 14 ? '#991b1b' : '#64748b' }}>
                     {o.ageDays !== null ? `${o.ageDays}d` : '—'}
                   </td>
                 </tr>
@@ -332,54 +339,55 @@ function MatchingTab({ data }: { data: ReportsData['matching'] }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPI label="Auto-Matched" value={data.matchedCount} sub={aud(data.matchedValue)} color="text-green-700" />
-        <KPI label="Exceptions" value={data.exceptionCount} sub={aud(data.exceptionValue)} color={data.exceptionCount > 0 ? 'text-red-600' : 'text-slate-900'} />
-        <KPI label="Match Rate" value={`${matchPct}%`} sub={`${total} total`} color={matchPct >= 90 ? 'text-green-700' : 'text-amber-600'} />
-        <KPI label="Held Value" value={aud(data.exceptionValue)} color={data.exceptionValue > 0 ? 'text-red-600' : 'text-slate-900'} />
+        <KPI label="Auto-Matched" value={data.matchedCount} sub={aud(data.matchedValue)} color="#166534" />
+        <KPI label="Exceptions" value={data.exceptionCount} sub={aud(data.exceptionValue)} color={data.exceptionCount > 0 ? '#991b1b' : '#0f172a'} />
+        <KPI label="Match Rate" value={`${matchPct}%`} sub={`${total} total`} color={matchPct >= 90 ? '#166534' : '#854d0e'} />
+        <KPI label="Held Value" value={aud(data.exceptionValue)} color={data.exceptionValue > 0 ? '#991b1b' : '#0f172a'} />
       </div>
 
       {/* Visual split */}
       {total > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Match Result Split</h3>
+        <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+          <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Match Result Split</h3>
           <div className="flex rounded-full overflow-hidden h-4">
             <div
-              className="bg-green-400 flex items-center justify-center text-[9px] text-white font-bold"
-              style={{ width: `${matchPct}%` }}
+              className="flex items-center justify-center text-[9px] text-white font-bold"
+              style={{ width: `${matchPct}%`, background: '#22c55e' }}
               title={`Matched: ${data.matchedCount}`}
             >
               {matchPct > 15 && `${matchPct}%`}
             </div>
             <div
-              className="bg-red-400 flex-1 flex items-center justify-center text-[9px] text-white font-bold"
+              className="flex-1 flex items-center justify-center text-[9px] text-white font-bold"
+              style={{ background: '#ef4444' }}
               title={`Exceptions: ${data.exceptionCount}`}
             >
               {100 - matchPct > 15 && `${100 - matchPct}%`}
             </div>
           </div>
-          <div className="flex gap-4 mt-2 text-xs text-slate-500">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-green-400 inline-block" /> Matched ({data.matchedCount})</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-red-400 inline-block" /> Exception ({data.exceptionCount})</span>
+          <div className="flex gap-4 mt-2 text-xs" style={{ color: '#64748b' }}>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded inline-block" style={{ background: '#22c55e' }} /> Matched ({data.matchedCount})</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded inline-block" style={{ background: '#ef4444' }} /> Exception ({data.exceptionCount})</span>
           </div>
         </div>
       )}
 
       {data.exceptions.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Active Exceptions</h3>
+        <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+          <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Active Exceptions</h3>
           <div className="space-y-2">
             {data.exceptions.map((e) => (
-              <div key={e.id} className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
-                <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <div key={e.id} className="flex items-start gap-3 p-3 rounded-lg border" style={{ background: '#fef2f2', borderColor: '#fecaca' }}>
+                <XCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#991b1b' }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-xs text-slate-800">{e.orderNumber}</span>
+                    <span className="font-bold text-xs" style={{ color: '#0f172a' }}>{e.orderNumber}</span>
                     <StatusBadge status={e.status} />
-                    <span className="text-xs text-slate-500">{aud(e.totalAmount)}</span>
+                    <span className="text-xs" style={{ color: '#64748b' }}>{aud(e.totalAmount)}</span>
                   </div>
-                  <div className="text-xs text-slate-600 mt-0.5">{e.customerName}</div>
+                  <div className="text-xs mt-0.5" style={{ color: '#64748b' }}>{e.customerName}</div>
                   {e.threeWayMatchNotes && (
-                    <div className="text-[10px] text-red-600 mt-1">{e.threeWayMatchNotes}</div>
+                    <div className="text-[10px] mt-1" style={{ color: '#991b1b' }}>{e.threeWayMatchNotes}</div>
                   )}
                 </div>
               </div>
@@ -389,9 +397,9 @@ function MatchingTab({ data }: { data: ReportsData['matching'] }) {
       )}
 
       {data.exceptions.length === 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
-          <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-2" />
-          <p className="text-sm font-semibold text-slate-700">No active match exceptions</p>
+        <div className="bg-white rounded-2xl border p-8 text-center" style={{ borderColor: '#e2e8f0' }}>
+          <CheckCircle2 className="w-10 h-10 mx-auto mb-2" style={{ color: '#166534' }} />
+          <p className="text-sm font-semibold" style={{ color: '#0f172a' }}>No active match exceptions</p>
         </div>
       )}
     </div>
@@ -403,66 +411,66 @@ function PayablesTab({ data }: { data: ReportsData['payables'] }) {
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <KPI label="Total Invoices" value={data.totalInvoiceCount} />
-        <KPI label="Approved / Owing" value={aud(data.totalOwed)} color={data.totalOwed > 0 ? 'text-amber-600' : 'text-slate-900'} />
+        <KPI label="Approved / Owing" value={aud(data.totalOwed)} color={data.totalOwed > 0 ? '#854d0e' : '#0f172a'} />
         <KPI label="Invoice Statuses" value={data.byStatus.length} sub="distinct statuses" />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Invoices by Status</h3>
+      <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+        <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Invoices by Status</h3>
         <div className="space-y-2">
           {data.byStatus.sort((a, b) => b.count - a.count).map((s) => (
             <div key={s.status} className="flex items-center gap-3">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 w-32 shrink-0">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold w-32 shrink-0" style={NEUTRAL}>
                 {s.status.replace(/_/g, ' ')}
               </span>
-              <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div className="flex-1 rounded-full h-2 overflow-hidden" style={{ background: '#f1f5f9' }}>
                 <div
-                  className="h-2 rounded-full bg-amber-400"
-                  style={{ width: `${data.totalInvoiceCount > 0 ? Math.max((s.count / data.totalInvoiceCount) * 100, 1) : 0}%` }}
+                  className="h-2 rounded-full"
+                  style={{ width: `${data.totalInvoiceCount > 0 ? Math.max((s.count / data.totalInvoiceCount) * 100, 1) : 0}%`, background: '#1e3a8a' }}
                 />
               </div>
-              <span className="text-xs font-mono text-slate-600 w-6 text-right">{s.count}</span>
-              <span className="text-xs text-slate-400 w-28 text-right">{aud(s.value)}</span>
+              <span className="text-xs font-mono w-6 text-right" style={{ color: '#64748b' }}>{s.count}</span>
+              <span className="text-xs w-28 text-right" style={{ color: '#94a3b8' }}>{aud(s.value)}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Supplier Invoices</h3>
+      <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+        <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Supplier Invoices</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-100">
-                <th className="text-left py-1.5 font-semibold">Invoice #</th>
-                <th className="text-left py-1.5 font-semibold">Vendor</th>
-                <th className="text-left py-1.5 font-semibold">PO #</th>
-                <th className="text-left py-1.5 font-semibold">Status</th>
-                <th className="text-right py-1.5 font-semibold">Amount</th>
-                <th className="text-right py-1.5 font-semibold">Due Date</th>
-                <th className="text-right py-1.5 font-semibold">Match</th>
+              <tr className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Invoice #</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Vendor</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>PO #</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Status</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Amount</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Due Date</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Match</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {data.invoices.map((i) => (
-                <tr key={i.id} className="hover:bg-slate-50">
-                  <td className="py-2 font-mono font-semibold text-slate-800">{i.vendorInvoiceNumber}</td>
-                  <td className="py-2 text-slate-700">{i.vendorName}</td>
-                  <td className="py-2 font-mono text-slate-500">{i.linkedPoNumber || '—'}</td>
+                <tr key={i.id} className="border-b hover:bg-slate-50 transition-colors" style={{ borderColor: '#f1f5f9' }}>
+                  <td className="py-2 font-mono font-bold" style={{ color: '#0f172a' }}>{i.vendorInvoiceNumber}</td>
+                  <td className="py-2" style={{ color: '#0f172a' }}>{i.vendorName}</td>
+                  <td className="py-2 font-mono" style={{ color: '#64748b' }}>{i.linkedPoNumber || '—'}</td>
                   <td className="py-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={NEUTRAL}>
                       {i.status.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td className="py-2 text-right font-semibold">{aud(i.invoiceAmount)}</td>
-                  <td className="py-2 text-right text-slate-500">{fmt(i.dueDate)}</td>
+                  <td className="py-2 text-right font-bold" style={{ color: '#0f172a' }}>{aud(i.invoiceAmount)}</td>
+                  <td className="py-2 text-right" style={{ color: '#64748b' }}>{fmt(i.dueDate)}</td>
                   <td className="py-2 text-right">
                     {i.threeWayMatchResult === 'MATCHED' ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto" />
+                      <CheckCircle2 className="w-3.5 h-3.5 ml-auto" style={{ color: '#166534' }} />
                     ) : i.threeWayMatchResult === 'EXCEPTION' ? (
-                      <XCircle className="w-3.5 h-3.5 text-red-500 ml-auto" />
+                      <XCircle className="w-3.5 h-3.5 ml-auto" style={{ color: '#991b1b' }} />
                     ) : (
-                      <Clock className="w-3.5 h-3.5 text-slate-300 ml-auto" />
+                      <Clock className="w-3.5 h-3.5 ml-auto" style={{ color: '#cbd5e1' }} />
                     )}
                   </td>
                 </tr>
@@ -482,27 +490,27 @@ function ExceptionsTab({ data }: { data: ReportsData['exceptions'] }) {
         <KPI
           label="Total Exceptions"
           value={data.total}
-          color={data.total > 0 ? 'text-red-600' : 'text-green-700'}
+          color={data.total > 0 ? '#991b1b' : '#166534'}
         />
-        <KPI label="Match Exceptions" value={data.matchExceptions.length} color={data.matchExceptions.length > 0 ? 'text-red-600' : 'text-slate-900'} />
-        <KPI label="Stuck at PAID" value={data.stuckAtPaid.length} color={data.stuckAtPaid.length > 0 ? 'text-amber-600' : 'text-slate-900'} />
+        <KPI label="Match Exceptions" value={data.matchExceptions.length} color={data.matchExceptions.length > 0 ? '#991b1b' : '#0f172a'} />
+        <KPI label="Stuck at PAID" value={data.stuckAtPaid.length} color={data.stuckAtPaid.length > 0 ? '#854d0e' : '#0f172a'} />
       </div>
 
       {/* Warranty status */}
       {data.warrantyByStatus.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Warranty Record Status</h3>
+        <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+          <h3 className="text-sm font-bold mb-3" style={{ color: '#0f172a' }}>Warranty Record Status</h3>
           <div className="flex flex-wrap gap-2">
             {data.warrantyByStatus.map((w) => {
-              const color =
-                w.status === 'ACTIVE' ? 'bg-green-100 text-green-700'
-                : w.status === 'PENDING_DATA' ? 'bg-slate-100 text-slate-600'
-                : w.status === 'EXPIRING_SOON' ? 'bg-orange-100 text-orange-700'
-                : w.status === 'EXPIRED' ? 'bg-red-100 text-red-700'
-                : w.status === 'FINAL_SIX_MONTHS' ? 'bg-amber-100 text-amber-700'
-                : 'bg-slate-100 text-slate-500';
+              const style =
+                w.status === 'ACTIVE' ? SUCCESS
+                : w.status === 'PENDING_DATA' ? NEUTRAL
+                : w.status === 'EXPIRING_SOON' ? WARNING
+                : w.status === 'EXPIRED' ? DANGER
+                : w.status === 'FINAL_SIX_MONTHS' ? WARNING
+                : NEUTRAL;
               return (
-                <span key={w.status} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${color}`}>
+                <span key={w.status} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={style}>
                   {w.status.replace(/_/g, ' ')} — {w.count}
                 </span>
               );
@@ -512,21 +520,21 @@ function ExceptionsTab({ data }: { data: ReportsData['exceptions'] }) {
       )}
 
       {data.matchExceptions.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <XCircle className="w-4 h-4 text-red-500" /> Three-Way Match Exceptions
+        <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+          <h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: '#0f172a' }}>
+            <XCircle className="w-4 h-4" style={{ color: '#991b1b' }} /> Three-Way Match Exceptions
           </h3>
           <div className="space-y-2">
             {data.matchExceptions.map((e) => (
-              <div key={e.id} className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
+              <div key={e.id} className="flex items-start gap-3 p-3 rounded-lg border" style={{ background: '#fef2f2', borderColor: '#fecaca' }}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-bold text-xs text-slate-800">{e.orderNumber}</span>
-                    <span className="text-xs font-semibold text-red-600">{aud(e.totalAmount)}</span>
+                    <span className="font-mono font-bold text-xs" style={{ color: '#0f172a' }}>{e.orderNumber}</span>
+                    <span className="text-xs font-semibold" style={{ color: '#991b1b' }}>{aud(e.totalAmount)}</span>
                   </div>
-                  <div className="text-xs text-slate-600">{e.customerName}</div>
+                  <div className="text-xs" style={{ color: '#64748b' }}>{e.customerName}</div>
                   {e.threeWayMatchNotes && (
-                    <div className="text-[10px] text-red-600 mt-1 truncate">{e.threeWayMatchNotes}</div>
+                    <div className="text-[10px] mt-1 truncate" style={{ color: '#991b1b' }}>{e.threeWayMatchNotes}</div>
                   )}
                 </div>
               </div>
@@ -536,26 +544,26 @@ function ExceptionsTab({ data }: { data: ReportsData['exceptions'] }) {
       )}
 
       {data.stuckAtPaid.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-500" /> Orders Stuck at PAID (&gt;24h)
+        <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+          <h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: '#0f172a' }}>
+            <Clock className="w-4 h-4" style={{ color: '#854d0e' }} /> Orders Stuck at PAID (&gt;24h)
           </h3>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-100">
-                <th className="text-left py-1.5 font-semibold">Order #</th>
-                <th className="text-left py-1.5 font-semibold">Customer</th>
-                <th className="text-right py-1.5 font-semibold">Amount</th>
-                <th className="text-right py-1.5 font-semibold">Age</th>
+              <tr className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Order #</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Customer</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Amount</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Age</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {data.stuckAtPaid.map((o) => (
-                <tr key={o.id} className="hover:bg-slate-50">
-                  <td className="py-2 font-mono font-semibold text-amber-700">{o.orderNumber}</td>
-                  <td className="py-2 text-slate-700">{o.customerName}</td>
-                  <td className="py-2 text-right font-semibold">{aud(o.totalAmount)}</td>
-                  <td className="py-2 text-right font-bold text-amber-600">{o.ageDays}d</td>
+                <tr key={o.id} className="border-b hover:bg-slate-50 transition-colors" style={{ borderColor: '#f1f5f9' }}>
+                  <td className="py-2 font-mono font-bold" style={{ color: '#854d0e' }}>{o.orderNumber}</td>
+                  <td className="py-2" style={{ color: '#0f172a' }}>{o.customerName}</td>
+                  <td className="py-2 text-right font-bold" style={{ color: '#0f172a' }}>{aud(o.totalAmount)}</td>
+                  <td className="py-2 text-right font-bold" style={{ color: '#854d0e' }}>{o.ageDays}d</td>
                 </tr>
               ))}
             </tbody>
@@ -564,26 +572,26 @@ function ExceptionsTab({ data }: { data: ReportsData['exceptions'] }) {
       )}
 
       {data.pendingWarranties.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-500" /> Warranties Missing Data
+        <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#e2e8f0' }}>
+          <h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: '#0f172a' }}>
+            <AlertTriangle className="w-4 h-4" style={{ color: '#854d0e' }} /> Warranties Missing Data
           </h3>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-100">
-                <th className="text-left py-1.5 font-semibold">Warranty #</th>
-                <th className="text-left py-1.5 font-semibold">Part</th>
-                <th className="text-left py-1.5 font-semibold">Customer</th>
-                <th className="text-right py-1.5 font-semibold">Created</th>
+              <tr className="border-b" style={{ borderColor: '#f1f5f9' }}>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Warranty #</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Part</th>
+                <th className="text-left py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Customer</th>
+                <th className="text-right py-1.5 font-bold uppercase tracking-wider text-[10px]" style={{ color: '#94a3b8' }}>Created</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {data.pendingWarranties.map((w) => (
-                <tr key={w.id} className="hover:bg-slate-50">
-                  <td className="py-2 font-mono font-semibold text-slate-800">{w.warrantyNumber}</td>
-                  <td className="py-2 text-slate-700">{w.partNumber}</td>
-                  <td className="py-2 text-slate-600">{w.customerName || '—'}</td>
-                  <td className="py-2 text-right text-slate-400">{fmt(w.createdAt)}</td>
+                <tr key={w.id} className="border-b hover:bg-slate-50 transition-colors" style={{ borderColor: '#f1f5f9' }}>
+                  <td className="py-2 font-mono font-bold" style={{ color: '#0f172a' }}>{w.warrantyNumber}</td>
+                  <td className="py-2" style={{ color: '#0f172a' }}>{w.partNumber}</td>
+                  <td className="py-2" style={{ color: '#64748b' }}>{w.customerName || '—'}</td>
+                  <td className="py-2 text-right" style={{ color: '#94a3b8' }}>{fmt(w.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -592,10 +600,10 @@ function ExceptionsTab({ data }: { data: ReportsData['exceptions'] }) {
       )}
 
       {data.total === 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
-          <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-slate-700">No active exceptions</p>
-          <p className="text-xs text-slate-400 mt-1">All orders are processing normally</p>
+        <div className="bg-white rounded-2xl border p-10 text-center" style={{ borderColor: '#e2e8f0' }}>
+          <CheckCircle2 className="w-12 h-12 mx-auto mb-3" style={{ color: '#166534' }} />
+          <p className="text-sm font-semibold" style={{ color: '#0f172a' }}>No active exceptions</p>
+          <p className="text-xs mt-1" style={{ color: '#94a3b8' }}>All orders are processing normally</p>
         </div>
       )}
     </div>
@@ -628,15 +636,19 @@ export default function ReportsPage() {
     <div className="space-y-6 max-w-7xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#0f172a' }}>Management Reports</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Package className="w-5 h-5" style={{ color: '#1e3a8a' }} />
+            <h1 className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>Management Reports</h1>
+          </div>
+          <p className="text-sm" style={{ color: '#64748b' }}>
             Live operational dashboards across the full supply chain pipeline
           </p>
         </div>
         <button
           onClick={loadData}
           disabled={loading}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-xl border hover:bg-slate-50 text-sm font-semibold transition-all disabled:opacity-50"
+          style={{ borderColor: '#e2e8f0', color: '#64748b' }}
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
@@ -644,7 +656,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto">
+      <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: '#f1f5f9' }}>
         {TABS.map(({ key, label, icon: Icon }) => {
           const isActive = activeTab === key;
           return (
@@ -652,12 +664,11 @@ export default function ReportsPage() {
               key={key}
               onClick={() => setActiveTab(key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
-                isActive
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'
+                isActive ? 'bg-white shadow-sm' : 'hover:bg-slate-200'
               }`}
+              style={{ color: isActive ? '#0f172a' : '#64748b' }}
             >
-              <Icon className="w-4 h-4 shrink-0" />
+              <Icon className="w-4 h-4 shrink-0" style={{ color: isActive ? '#1e3a8a' : '#94a3b8' }} />
               {label}
             </button>
           );
@@ -667,15 +678,15 @@ export default function ReportsPage() {
       {/* Content */}
       {loading && (
         <div className="flex items-center justify-center py-24">
-          <div className="flex items-center gap-3 text-slate-400">
-            <div className="w-5 h-5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+          <div className="flex items-center gap-3" style={{ color: '#94a3b8' }}>
+            <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#1e3a8a', borderTopColor: 'transparent' }} />
             <span className="text-sm">Loading report data…</span>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600">{error}</div>
+        <div className="rounded-2xl border p-4 text-sm" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>{error}</div>
       )}
 
       {!loading && data && (

@@ -110,7 +110,7 @@ export default function EmailsPage() {
                     key={email.id}
                     onClick={() => selectEmail(email.id)}
                     className={`w-full text-left px-4 py-3 border-b border-slate-100 transition hover:bg-slate-50 ${
-                      isSelected ? 'bg-indigo-50 border-l-2 border-l-indigo-600' : ''
+                      isSelected ? 'bg-[#eff6ff] border-l-2 border-l-[#1e3a8a]' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-0.5">
@@ -122,7 +122,7 @@ export default function EmailsPage() {
                     <p className="text-xs font-semibold text-slate-500 truncate">
                       {email.mode === 'received' ? 'From supplier' : `To: ${email.to}`}
                     </p>
-                    <p className={`text-sm font-semibold mt-0.5 truncate ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}>
+                    <p className={`text-sm font-semibold mt-0.5 truncate ${isSelected ? 'text-[#1e3a8a]' : 'text-slate-800'}`}>
                       {email.subject}
                     </p>
                   </button>

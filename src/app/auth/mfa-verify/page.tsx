@@ -12,6 +12,7 @@ export default function MFAVerifyPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [codeFocused, setCodeFocused] = useState(false);
 
   async function handleVerify(inputOtp: string) {
     setLoading(true);
@@ -60,7 +61,7 @@ export default function MFAVerifyPage() {
         alignItems: "center",
         justifyContent: "center",
         padding: "36px 20px",
-        background: "#f4f6f8",
+        background: "#f0f4ff",
         fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
@@ -122,8 +123,9 @@ export default function MFAVerifyPage() {
                 width: 64,
                 height: 64,
                 borderRadius: 20,
-                background: "#e0e7ff",
-                color: "#4338ca",
+                background: "#eff6ff",
+                color: "#1e3a8a",
+                border: "1px solid #bfdbfe",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -174,6 +176,8 @@ export default function MFAVerifyPage() {
                   placeholder="••••••"
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  onFocus={() => setCodeFocused(true)}
+                  onBlur={() => setCodeFocused(false)}
                   style={{
                     width: "100%",
                     padding: "14px",
@@ -183,7 +187,7 @@ export default function MFAVerifyPage() {
                     textAlign: "center",
                     color: "#0f172a",
                     borderRadius: 14,
-                    border: "2px solid #cbd5e1",
+                    border: codeFocused ? "2px solid #1e3a8a" : "2px solid #cbd5e1",
                     background: "#f8fafc",
                     outline: "none",
                   }}
@@ -199,7 +203,7 @@ export default function MFAVerifyPage() {
                   fontSize: 15,
                   fontWeight: 700,
                   color: "#ffffff",
-                  background: "#0f172a",
+                  background: "#1e3a8a",
                   borderRadius: 12,
                   border: "none",
                   cursor: loading ? "wait" : "pointer",
