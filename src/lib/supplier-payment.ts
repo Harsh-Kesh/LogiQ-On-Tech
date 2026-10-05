@@ -8,6 +8,7 @@ import { sendMonoovaOskoPayment } from './monoova';
 import { sendAirwallexPayment } from './airwallex';
 import { recordMyobSupplierPayment } from './myob';
 import { computeSupplierPoTotal } from './po-total';
+import { sendTransactionalEmail, renderEmailShell, emailInfoTable } from './email';
 
 export async function resolvePaymentDetails(storefrontOrderId: string) {
   const sfOrder = await prisma.storefrontOrder.findUniqueOrThrow({
@@ -51,7 +52,7 @@ export async function resolvePaymentDetails(storefrontOrderId: string) {
 }
 
 export async function payOrderSupplier(storefrontOrderId: string) {
-  const { sfOrder, vendor, bsb, accountNumber, accountName, amount, useAirwallex } = await resolvePaymentDetails(storefrontOrderId);
+  const { sfOrder, vendor, bsb, accountNumber, accountName, amount, provider, useAirwallex } = await resolvePaymentDetails(storefrontOrderId);
 
   if (sfOrder.status !== 'BILL_CREATED') {
     throw new Error(`Cannot pay supplier — order status is ${sfOrder.status} (expected BILL_CREATED)`);
@@ -88,15 +89,49 @@ export async function payOrderSupplier(storefrontOrderId: string) {
     }).catch((err) => console.warn('MYOB supplier payment record failed:', err.message));
   }
 
+  const paidAt = new Date();
   await prisma.storefrontOrder.update({
     where: { id: storefrontOrderId },
     data: {
       monoovaTxnId: payResult.transactionId,
       monoovaStatus: payResult.status,
-      supplierPaidAt: new Date(),
+      supplierPaidAt: paidAt,
       status: 'SUPPLIER_PAID',
     },
   });
+
+  // Remittance advice — suppliers reconcile their own books against this, so
+  // payment isn't done from their side until they actually hear it landed.
+  const supplierEmail = vendor?.apEmail || vendor?.poEmail;
+  if (supplierEmail) {
+    const suppInv = await prisma.supplierInvoice.findFirst({
+      where: { linkedPoNumber: sfOrder.myobPoNumber || sfOrder.orderNumber },
+      orderBy: { createdAt: 'desc' },
+    });
+    const html = renderEmailShell({
+      eyebrow: 'Remittance Advice',
+      heading: 'Payment Sent',
+      subheading: `Dear ${accountName}`,
+      tone: 'success',
+      bodyHtml: `
+        <p>We've paid the invoice below. This should appear in your account shortly.</p>
+        ${emailInfoTable([
+          { label: 'Amount', value: `AUD ${amount.toFixed(2)}`, accent: true },
+          { label: 'Paid On', value: paidAt.toLocaleDateString('en-AU') },
+          { label: 'PO Reference', value: sfOrder.myobPoNumber || sfOrder.orderNumber },
+          ...(suppInv ? [{ label: 'Your Invoice #', value: suppInv.vendorInvoiceNumber }] : []),
+          { label: 'Transaction Ref', value: payResult.transactionId },
+          { label: 'Paid Via', value: provider },
+        ])}
+        <p style="margin:0;font-size:13px;color:#64748b">Please reference the transaction ID above if you need to query this payment.</p>`,
+    });
+    await sendTransactionalEmail({
+      to: supplierEmail,
+      orderId: sfOrder.id,
+      subject: `Payment Sent — ${suppInv?.vendorInvoiceNumber || sfOrder.myobPoNumber || sfOrder.orderNumber}`,
+      html,
+    }).catch((err) => console.warn('Remittance advice email failed:', err.message));
+  }
 
   return { transactionId: payResult.transactionId };
 }
