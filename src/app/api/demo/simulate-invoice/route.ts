@@ -1,12 +1,12 @@
 // Demo-only endpoint: simulates a supplier emailing a PDF invoice.
-// Creates a SupplierInvoice record and triggers the 3-way match engine,
-// letting you demonstrate the full pipeline without real IMAP or a PDF.
+// Creates a SupplierInvoice record and advances the order to INVOICE_RECEIVED —
+// letting you demonstrate the pipeline without real IMAP or a PDF. Running the
+// 3-way match is a separate owner-triggered step (see /api/demo/run-match).
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { runThreeWayMatch } from '@/lib/three-way-match';
 import { computeSupplierPoTotal } from '@/lib/po-total';
 
 export async function POST(req: Request) {
@@ -129,15 +129,11 @@ export async function POST(req: Request) {
     },
   }).catch((err) => console.warn('[simulate-invoice] received email log failed:', err));
 
-  // Run 3-way match immediately
-  const matchResult = await runThreeWayMatch(storefrontOrderId, suppInvoice.id);
-
+  // Stops at INVOICE_RECEIVED — running the 3-way match is its own owner-triggered
+  // step (see /api/demo/run-match) so it shows up as its own visible pipeline stage.
   return NextResponse.json({
     success: true,
     invoiceId: suppInvoice.id,
     invoiceNumber: suppInvoice.vendorInvoiceNumber,
-    matched: matchResult.matched,
-    variance: matchResult.variance,
-    notes: matchResult.notes,
   });
 }

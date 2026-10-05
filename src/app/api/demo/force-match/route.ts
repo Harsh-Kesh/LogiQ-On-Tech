@@ -7,7 +7,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { runThreeWayMatch } from '@/lib/three-way-match';
+import { runThreeWayMatch, createSupplierBill } from '@/lib/three-way-match';
+import { payOrderSupplier } from '@/lib/supplier-payment';
 
 const ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
@@ -77,6 +78,20 @@ export async function POST(req: Request) {
   });
 
   const matchResult = await runThreeWayMatch(storefrontOrderId, suppInv.id);
+
+  // "Force Through" means skip every remaining step at once, so chain bill
+  // creation and payment right after a successful match — each is still its own
+  // visible status along the way, this just runs through all of them in one go
+  // instead of the owner clicking Create Bill then Pay Supplier separately.
+  if (matchResult.matched) {
+    try {
+      await createSupplierBill(storefrontOrderId, suppInv.id);
+      await payOrderSupplier(storefrontOrderId);
+    } catch (err: any) {
+      console.error('Force match: bill/payment step failed:', err.message);
+      // Match is still recorded — owner can finish the remaining steps manually
+    }
+  }
 
   const updatedOrder = await prisma.storefrontOrder.findUnique({ where: { id: storefrontOrderId } });
 

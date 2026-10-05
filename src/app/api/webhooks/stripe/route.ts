@@ -192,17 +192,10 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
           { label: 'Deliver To', value: deliveryAddress },
         ])}
         ${emailItemsTable(
-          resolvedLines.map((l) => ({ label: l.itemName, qty: l.qty, lineTotal: l.qty * l.unitPrice * 1.1 })),
+          resolvedLines.map((l) => ({ label: l.itemName, qty: l.qty, unitPrice: l.unitPrice * 1.1, lineTotal: l.qty * l.unitPrice * 1.1 })),
           'AUD',
           { totals: [{ label: 'Total Paid', value: `AUD ${totalAmount.toFixed(2)}`, strong: true }] }
         )}
-        <p style="margin:16px 0 8px;font-size:13px;color:#475569">What happens next:</p>
-        <ol style="font-size:13px;color:#475569;margin:0 0 20px;padding-left:20px">
-          <li>Order confirmed <em>(this email)</em></li>
-          <li>Dispatched by supplier — with tracking details</li>
-          <li>Out for delivery</li>
-          <li>Delivered — tax invoice emailed</li>
-        </ol>
         <p style="margin:0;font-size:13px;color:#64748b">Questions? Just reply to this email and reference your order number above.</p>`,
     });
 
@@ -313,9 +306,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
                 const supplierCode = supplierCodeBySku.get(l.sku);
                 return {
                   label: l.itemName,
-                  sublabel: supplierCode
-                    ? `Supplier code: ${supplierCode} · Our ref: ${l.sku}`
-                    : `Supplier code not configured · Our ref: ${l.sku}`,
+                  sublabel: supplierCode ? `Item code: ${supplierCode}` : 'Item code not configured',
                   qty: l.qty,
                   unitPrice: costOf(l.sku, l.unitPrice),
                   lineTotal: l.qty * costOf(l.sku, l.unitPrice),

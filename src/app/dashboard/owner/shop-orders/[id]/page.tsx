@@ -7,6 +7,7 @@ import {
   ArrowLeft, Package, User, MapPin, CreditCard, Truck,
   CheckCircle2, Clock, Send, Mail, ExternalLink, FileText,
   DollarSign, RotateCcw, ShieldAlert, AlertTriangle, Search,
+  Scale, Receipt,
 } from 'lucide-react';
 import PaySupplierModal from '@/components/orders/PaySupplierModal';
 import MarkFulfilledModal from '@/components/orders/MarkFulfilledModal';
@@ -67,7 +68,7 @@ const PIPELINE_STEP_LABELS = [
   { key: 'FULFILLED', label: 'Fulfilled', icon: CheckCircle2 },
 ];
 
-const PAY_ELIGIBLE = new Set(['MATCHED', 'BILL_CREATED']);
+const PAY_ELIGIBLE = new Set(['BILL_CREATED']);
 const FULFILL_ELIGIBLE = new Set(['SUPPLIER_PAID']);
 const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
@@ -82,6 +83,8 @@ export default function ShopOrderDetailPage() {
   const [showFulfillModal, setShowFulfillModal] = useState(false);
   const [retryingPoId, setRetryingPoId] = useState(false);
   const [forceMatchId, setForceMatchId] = useState(false);
+  const [runningMatchId, setRunningMatchId] = useState(false);
+  const [creatingBillId, setCreatingBillId] = useState(false);
 
   const load = () => {
     fetch(`/api/storefront/orders/${id}`)
@@ -124,7 +127,7 @@ export default function ShopOrderDetailPage() {
   };
 
   const handleSimulateInvoice = async () => {
-    if (!order || !confirm('Simulate a supplier invoice arriving for this order? This will trigger the 3-way match immediately.')) return;
+    if (!order || !confirm('Simulate a supplier invoice arriving for this order?')) return;
     setSimulatingId(true);
     const res = await fetch('/api/demo/simulate-invoice', {
       method: 'POST',
@@ -133,8 +136,36 @@ export default function ShopOrderDetailPage() {
     });
     setSimulatingId(false);
     const data = await res.json().catch(() => ({}));
-    if (res.ok) { alert(`Invoice simulated! ${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`); load(); }
+    if (res.ok) { alert(`Invoice ${data.invoiceNumber} received from the supplier.`); load(); }
     else alert(`Simulation failed: ${data.error || res.statusText}`);
+  };
+
+  const handleRunMatch = async () => {
+    if (!order) return;
+    setRunningMatchId(true);
+    const res = await fetch('/api/demo/run-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: order.id }),
+    });
+    setRunningMatchId(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { alert(`${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`); load(); }
+    else alert(`Match failed: ${data.error || res.statusText}`);
+  };
+
+  const handleCreateBill = async () => {
+    if (!order) return;
+    setCreatingBillId(true);
+    const res = await fetch('/api/demo/create-bill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: order.id }),
+    });
+    setCreatingBillId(false);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { alert(`Supplier bill ${data.billNumber} created.`); load(); }
+    else alert(`Bill creation failed: ${data.error || res.statusText}`);
   };
 
   if (loading) {
@@ -213,6 +244,12 @@ export default function ShopOrderDetailPage() {
         )}
         {order.status === 'PO_SENT' && (
           <ActionButton onClick={handleSimulateInvoice} loading={simulatingId} icon={FileText} color="#7c3aed" label="Simulate Invoice" loadingLabel="Simulating…" />
+        )}
+        {order.status === 'INVOICE_RECEIVED' && (
+          <ActionButton onClick={handleRunMatch} loading={runningMatchId} icon={Scale} color="#d97706" label="Run 3-Way Match" loadingLabel="Matching…" />
+        )}
+        {order.status === 'MATCHED' && (
+          <ActionButton onClick={handleCreateBill} loading={creatingBillId} icon={Receipt} color="#0f766e" label="Create Supplier Bill" loadingLabel="Creating…" />
         )}
         {canPay && (
           <ActionButton onClick={() => setShowPayModal(true)} loading={false} icon={DollarSign} color="#16a34a" label="Pay Supplier" loadingLabel="Processing…" />

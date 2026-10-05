@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   ShoppingBag, RefreshCw, Search, ArrowRight, AlertTriangle, DollarSign,
   FileText, Truck, Download, RotateCcw, Settings, Inbox,
-  ShieldAlert,
+  ShieldAlert, Scale, Receipt,
 } from 'lucide-react';
 import PaySupplierModal from '@/components/orders/PaySupplierModal';
 import MarkFulfilledModal from '@/components/orders/MarkFulfilledModal';
@@ -48,7 +48,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-500' },
 };
 
-const PAY_ELIGIBLE = new Set(['MATCHED', 'BILL_CREATED']);
+const PAY_ELIGIBLE = new Set(['BILL_CREATED']);
 const FULFILL_ELIGIBLE = new Set(['SUPPLIER_PAID']);
 const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
@@ -75,6 +75,8 @@ export default function ShopOrdersPage() {
   const [fulfillOrder, setFulfillOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
   const [forceMatchId, setForceMatchId] = useState<string | null>(null);
+  const [runningMatchId, setRunningMatchId] = useState<string | null>(null);
+  const [creatingBillId, setCreatingBillId] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
 
   const load = async () => {
@@ -121,7 +123,7 @@ export default function ShopOrdersPage() {
   };
 
   const handleSimulateInvoice = async (orderId: string) => {
-    if (!confirm('Simulate a supplier invoice arriving for this order? This will trigger the 3-way match immediately.')) return;
+    if (!confirm('Simulate a supplier invoice arriving for this order?')) return;
     setSimulatingId(orderId);
     const res = await fetch('/api/demo/simulate-invoice', {
       method: 'POST',
@@ -131,10 +133,44 @@ export default function ShopOrdersPage() {
     setSimulatingId(null);
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      alert(`Invoice simulated! ${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`);
+      alert(`Invoice ${data.invoiceNumber} received from the supplier.`);
       load();
     } else {
       alert(`Simulation failed: ${data.error || res.statusText}`);
+    }
+  };
+
+  const handleRunMatch = async (orderId: string) => {
+    setRunningMatchId(orderId);
+    const res = await fetch('/api/demo/run-match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: orderId }),
+    });
+    setRunningMatchId(null);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      alert(`${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`);
+      load();
+    } else {
+      alert(`Match failed: ${data.error || res.statusText}`);
+    }
+  };
+
+  const handleCreateBill = async (orderId: string) => {
+    setCreatingBillId(orderId);
+    const res = await fetch('/api/demo/create-bill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storefrontOrderId: orderId }),
+    });
+    setCreatingBillId(null);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      alert(`Supplier bill ${data.billNumber} created.`);
+      load();
+    } else {
+      alert(`Bill creation failed: ${data.error || res.statusText}`);
     }
   };
 
@@ -354,6 +390,26 @@ export default function ShopOrdersPage() {
                       >
                         <FileText className="w-3.5 h-3.5" />
                         {simulatingId === order.id ? 'Simulating…' : 'Simulate Invoice'}
+                      </button>
+                    )}
+                    {order.status === 'INVOICE_RECEIVED' && (
+                      <button
+                        onClick={() => handleRunMatch(order.id)}
+                        disabled={runningMatchId === order.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                      >
+                        <Scale className="w-3.5 h-3.5" />
+                        {runningMatchId === order.id ? 'Matching…' : 'Run 3-Way Match'}
+                      </button>
+                    )}
+                    {order.status === 'MATCHED' && (
+                      <button
+                        onClick={() => handleCreateBill(order.id)}
+                        disabled={creatingBillId === order.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold transition disabled:opacity-60"
+                      >
+                        <Receipt className="w-3.5 h-3.5" />
+                        {creatingBillId === order.id ? 'Creating…' : 'Create Supplier Bill'}
                       </button>
                     )}
                     {canPay && (

@@ -9,6 +9,9 @@ import { prisma } from '@/lib/prisma';
 // emailButton) and wrap the result in renderEmailShell().
 
 const BRAND_GRADIENT = 'linear-gradient(90deg, #4C3AE3 0%, #06B6D4 100%)';
+// Same env var the Stripe checkout success_url already relies on — Vercel sets
+// it to the real production domain, so this resolves correctly once deployed.
+const LOGO_URL = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/images/logo.png`;
 const INK = '#0f172a';
 const MUTED = '#64748b';
 const FAINT = '#94a3b8';
@@ -48,6 +51,14 @@ export function emailItemsTable(
   currency: string,
   opts?: { totals?: Array<{ label: string; value: string; strong?: boolean }> }
 ): string {
+  // Decide the column set ONCE for the whole table — never per row — so the
+  // header and every body row always have the same number of cells. Basing this
+  // on individual rows let a table with no unitPrice render one <td> short of
+  // its <th> count, which silently shifted the Total value under the Unit header.
+  const hasQty = rows.some((r) => r.qty !== undefined);
+  const hasUnitPrice = rows.some((r) => r.unitPrice !== undefined);
+  const totalsColspan = 1 + (hasQty ? 1 : 0) + (hasUnitPrice ? 1 : 0);
+
   const body = rows
     .map(
       (r) => `<tr>
@@ -55,8 +66,8 @@ export function emailItemsTable(
           <div style="font-weight:600;color:${INK}">${r.label}</div>
           ${r.sublabel ? `<div style="font-size:11.5px;color:${FAINT}">${r.sublabel}</div>` : ''}
         </td>
-        ${r.qty !== undefined ? `<td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:${MUTED}">${r.qty}</td>` : ''}
-        ${r.unitPrice !== undefined ? `<td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:${MUTED}">${currency} ${r.unitPrice.toFixed(2)}</td>` : ''}
+        ${hasQty ? `<td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:${MUTED}">${r.qty ?? ''}</td>` : ''}
+        ${hasUnitPrice ? `<td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:${MUTED}">${r.unitPrice !== undefined ? `${currency} ${r.unitPrice.toFixed(2)}` : ''}</td>` : ''}
         <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:${INK}">${currency} ${r.lineTotal.toFixed(2)}</td>
       </tr>`
     )
@@ -64,7 +75,7 @@ export function emailItemsTable(
   const totalsRows = (opts?.totals || [])
     .map(
       (t) => `<tr>
-        <td colspan="${3}" style="padding:6px 12px;text-align:right;font-size:13px;color:${t.strong ? INK : MUTED};font-weight:${t.strong ? 700 : 400}">${t.label}</td>
+        <td colspan="${totalsColspan}" style="padding:6px 12px;text-align:right;font-size:13px;color:${t.strong ? INK : MUTED};font-weight:${t.strong ? 700 : 400}">${t.label}</td>
         <td style="padding:6px 12px;text-align:right;font-size:13px;color:${t.strong ? INK : MUTED};font-weight:${t.strong ? 700 : 400}">${t.value}</td>
       </tr>`
     )
@@ -72,8 +83,8 @@ export function emailItemsTable(
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:16px 0;font-size:13.5px">
     <thead><tr>
       <th style="padding:0 12px 8px;text-align:left;font-size:11px;font-weight:700;color:${FAINT};text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid ${BORDER}">Item</th>
-      <th style="padding:0 12px 8px;text-align:center;font-size:11px;font-weight:700;color:${FAINT};text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid ${BORDER}">Qty</th>
-      <th style="padding:0 12px 8px;text-align:right;font-size:11px;font-weight:700;color:${FAINT};text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid ${BORDER}">Unit</th>
+      ${hasQty ? `<th style="padding:0 12px 8px;text-align:center;font-size:11px;font-weight:700;color:${FAINT};text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid ${BORDER}">Qty</th>` : ''}
+      ${hasUnitPrice ? `<th style="padding:0 12px 8px;text-align:right;font-size:11px;font-weight:700;color:${FAINT};text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid ${BORDER}">Unit</th>` : ''}
       <th style="padding:0 12px 8px;text-align:right;font-size:11px;font-weight:700;color:${FAINT};text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid ${BORDER}">Total</th>
     </tr></thead>
     <tbody>${body}</tbody>
@@ -112,8 +123,8 @@ export function renderEmailShell(opts: {
         <div style="height:4px;background:${BRAND_GRADIENT}"></div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 32px 4px">
           <tr>
-            <td style="font-size:17px;font-weight:800;color:${INK};letter-spacing:-0.02em">
-              Logi<span style="color:#4C3AE3">Q</span>-On <span style="font-weight:600;color:${MUTED}">Tech</span>
+            <td>
+              <img src="${LOGO_URL}" alt="LogiQ-On Tech" height="28" style="height:28px;width:auto;display:block" />
             </td>
             ${opts.eyebrow ? `<td style="text-align:right;font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${FAINT}">${opts.eyebrow}</td>` : ''}
           </tr>

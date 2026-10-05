@@ -132,7 +132,7 @@ export default function PaySupplierModal({ orderId, onClose, onPaid }: PaySuppli
 
               {!preview.canPay && (
                 <p className="text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: '#fef2f2', color: '#991b1b' }}>
-                  This order is at status {preview.status} — payment is only available once matched or billed.
+                  This order is at status {preview.status} — payment is only available once the supplier bill has been created.
                 </p>
               )}
 

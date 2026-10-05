@@ -123,6 +123,8 @@ export async function POST(req: Request) {
   const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail;
   if (supplierEmail) {
     const accountsEmail = process.env.IMAP_USER || 'accounts@logiqon.com';
+    const allMasters = await prisma.itemMaster.findMany({ where: { sku: { in: sfOrder.items.map((i) => i.itemCode) } } });
+    const supplierCodeBySku = new Map(allMasters.map((m) => [m.sku, m.supplierItemCode]));
     const html = renderEmailShell({
       eyebrow: 'Purchase Order',
       heading: `Purchase Order ${poNumber}`,
@@ -130,7 +132,16 @@ export async function POST(req: Request) {
       bodyHtml: `
         ${sfOrder.deliveryAddress ? emailInfoTable([{ label: 'Deliver To', value: sfOrder.deliveryAddress }]) : ''}
         ${emailItemsTable(
-          sfOrder.items.map((i) => ({ label: i.itemName, sublabel: `Our ref: ${i.itemCode}`, qty: i.quantity, unitPrice: Number(i.unitPrice), lineTotal: i.quantity * Number(i.unitPrice) })),
+          sfOrder.items.map((i) => {
+            const supplierCode = supplierCodeBySku.get(i.itemCode);
+            return {
+              label: i.itemName,
+              sublabel: supplierCode ? `Item code: ${supplierCode}` : 'Item code not configured',
+              qty: i.quantity,
+              unitPrice: Number(i.unitPrice),
+              lineTotal: i.quantity * Number(i.unitPrice),
+            };
+          }),
           'AUD'
         )}
         <p style="margin:0;font-size:13px;color:#64748b">Please send your invoice to <a href="mailto:${accountsEmail}" style="color:#4C3AE3">${accountsEmail}</a> quoting PO number <strong>${poNumber}</strong>.</p>`,

@@ -1,12 +1,13 @@
 // Phase 5 — Three-way match engine.
 // Compares: StorefrontOrder PO lines ↔ SupplierInvoice total (±2% tolerance).
-// On MATCHED: creates MYOB Bill + schedules Monoova bank transfer.
+// On MATCHED: stops there — owner reviews and triggers bill creation as its own
+// step (createSupplierBill, below), then payment as its own step (see
+// /api/payments/supplier) — each one a distinct, visible stage in Shop Orders
+// rather than one action silently racing through all three.
 // On MATCH_EXCEPTION: flags for admin review.
 
 import { prisma } from './prisma';
 import { createMyobBill } from './myob';
-import { sendMonoovaOskoPayment } from './monoova';
-import { sendAirwallexPayment } from './airwallex';
 import { createWarrantyRecords } from './warranty';
 import { computeSupplierPoTotal } from './po-total';
 
@@ -80,97 +81,9 @@ export async function runThreeWayMatch(
     await createWarrantyRecords(storefrontOrderId, supplierInvoiceId).catch((err) =>
       console.error('Warranty record creation failed:', err.message)
     );
-
-    // Create MYOB Bill + trigger payment — works in demo mode via stubs
-    try {
-      const firstItem = sfOrder.items[0];
-      const itemMaster = firstItem
-        ? await prisma.itemMaster.findFirst({
-            where: { sku: firstItem.itemCode },
-            include: { vendor: true },
-          })
-        : null;
-      const vendor = itemMaster?.vendor;
-
-      const allMasters = await prisma.itemMaster.findMany({ where: { sku: { in: sfOrder.items.map((i) => i.itemCode) } } });
-      const costBySku = new Map(allMasters.map((m) => [m.sku, Number(m.costPrice)]));
-
-      const billResult = await createMyobBill({
-        // Fall back to demo placeholders so the stub always succeeds
-        supplierContactId: vendor?.myobContactId || 'DEMO-MYOB-VENDOR',
-        purchaseOrderGuid: sfOrder.myobPoGuid || 'DEMO-MYOB-PO',
-        invoiceNumber: suppInv.vendorInvoiceNumber,
-        invoiceDate: suppInv.invoiceDate.toISOString().split('T')[0],
-        deliveryAddress: sfOrder.deliveryAddress,
-        lines: sfOrder.items.map((item) => ({
-          itemCode: item.itemCode,
-          description: item.itemName,
-          quantity: item.quantity,
-          unitPrice: costBySku.get(item.itemCode) ?? Number(item.unitPrice),
-          taxCode: 'GST',
-        })),
-        memo: `Supplier Bill for ${sfOrder.orderNumber}`,
-      });
-
-      await prisma.storefrontOrder.update({
-        where: { id: storefrontOrderId },
-        data: {
-          myobBillGuid: billResult.guid,
-          myobBillNumber: billResult.billNumber,
-          status: 'BILL_CREATED',
-        },
-      });
-
-      await prisma.supplierInvoice.update({
-        where: { id: supplierInvoiceId },
-        data: {
-          myobBillGuid: billResult.guid,
-          myobBillNumber: billResult.billNumber,
-        },
-      });
-
-      // Trigger payment — use demo placeholders if vendor bank details not yet configured
-      const bsb = vendor?.bankBsb || 'DEMO-BSB';
-      const acctNumber = vendor?.bankAccountNumber || 'DEMO-ACCT';
-      const acctName = vendor?.bankAccountName || vendor?.companyName || 'Demo Supplier';
-      const useAirwallex = !!process.env.AIRWALLEX_CLIENT_ID;
-      const payResult = useAirwallex
-        ? await sendAirwallexPayment({
-            toAccountBsb: bsb,
-            toAccountNumber: acctNumber,
-            toAccountName: acctName,
-            amount: invTotal,
-            currency: 'AUD',
-            reference: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
-            requestId: sfOrder.id,
-          })
-        : await sendMonoovaOskoPayment({
-            toAccountBsb: bsb,
-            toAccountNumber: acctNumber,
-            toAccountName: acctName,
-            amount: invTotal,
-            description: `Payment for PO ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
-            reference: sfOrder.myobPoNumber || sfOrder.orderNumber,
-          });
-
-      await prisma.storefrontOrder.update({
-        where: { id: storefrontOrderId },
-        data: {
-          monoovaTxnId: payResult.transactionId,
-          monoovaStatus: payResult.status,
-          supplierPaidAt: new Date(),
-          status: 'SUPPLIER_PAID',
-        },
-      });
-
-      await prisma.supplierInvoice.update({
-        where: { id: supplierInvoiceId },
-        data: { monoovaTxnId: payResult.transactionId },
-      });
-    } catch (err: any) {
-      console.error('Three-way match: MYOB Bill/Monoova payment failed:', err.message);
-      // Match + warranty still recorded — admin can trigger payment manually
-    }
+    // Stops here — MATCHED. Bill creation and payment are separate, owner-triggered
+    // steps (createSupplierBill, then /api/payments/supplier) so each shows up as
+    // its own stage in the Shop Orders pipeline instead of happening invisibly.
   } else {
     // Flag for admin review
     await prisma.storefrontOrder.update({
@@ -196,4 +109,70 @@ export async function runThreeWayMatch(
   }
 
   return { matched, variance, variancePct, notes };
+}
+
+export interface SupplierBillResult {
+  billNumber: string;
+}
+
+// Owner-triggered step after a MATCHED order: books the supplier's invoice as a
+// payable Bill in MYOB. Deliberately separate from both the match and the payment
+// (see /api/payments/supplier) so "Bill Created" is its own visible pipeline stage.
+export async function createSupplierBill(
+  storefrontOrderId: string,
+  supplierInvoiceId: string
+): Promise<SupplierBillResult> {
+  const [sfOrder, suppInv] = await Promise.all([
+    prisma.storefrontOrder.findUniqueOrThrow({
+      where: { id: storefrontOrderId },
+      include: { items: true },
+    }),
+    prisma.supplierInvoice.findUniqueOrThrow({ where: { id: supplierInvoiceId } }),
+  ]);
+
+  if (sfOrder.status !== 'MATCHED') {
+    throw new Error(`Order must be MATCHED to create a supplier bill (current: ${sfOrder.status})`);
+  }
+
+  const firstItem = sfOrder.items[0];
+  const itemMaster = firstItem
+    ? await prisma.itemMaster.findFirst({ where: { sku: firstItem.itemCode }, include: { vendor: true } })
+    : null;
+  const vendor = itemMaster?.vendor;
+
+  const allMasters = await prisma.itemMaster.findMany({ where: { sku: { in: sfOrder.items.map((i) => i.itemCode) } } });
+  const costBySku = new Map(allMasters.map((m) => [m.sku, Number(m.costPrice)]));
+
+  const billResult = await createMyobBill({
+    // Fall back to demo placeholders so the stub always succeeds
+    supplierContactId: vendor?.myobContactId || 'DEMO-MYOB-VENDOR',
+    purchaseOrderGuid: sfOrder.myobPoGuid || 'DEMO-MYOB-PO',
+    invoiceNumber: suppInv.vendorInvoiceNumber,
+    invoiceDate: suppInv.invoiceDate.toISOString().split('T')[0],
+    deliveryAddress: sfOrder.deliveryAddress,
+    lines: sfOrder.items.map((item) => ({
+      itemCode: item.itemCode,
+      description: item.itemName,
+      quantity: item.quantity,
+      unitPrice: costBySku.get(item.itemCode) ?? Number(item.unitPrice),
+      taxCode: 'GST',
+    })),
+    memo: `Supplier Bill for ${sfOrder.orderNumber}`,
+  });
+
+  await prisma.storefrontOrder.update({
+    where: { id: storefrontOrderId },
+    data: {
+      myobBillGuid: billResult.guid,
+      myobBillNumber: billResult.billNumber,
+      status: 'BILL_CREATED',
+    },
+  });
+
+  await prisma.supplierInvoice.update({
+    where: { id: supplierInvoiceId },
+    data: { myobBillGuid: billResult.guid, myobBillNumber: billResult.billNumber },
+  });
+
+  return { billNumber: billResult.billNumber };
 }
