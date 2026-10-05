@@ -21,5 +21,22 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   });
 
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json(order);
+
+  // The supplier invoice isn't a real FK off StorefrontOrder (it's matched by PO
+  // number, same as Traceability resolves it) — without this, the order detail
+  // page only ever showed a status badge once INVOICE_RECEIVED, never the actual
+  // invoice the supplier sent (amount, date, vendor).
+  const supplierInvoice = order.myobPoNumber
+    ? await prisma.supplierInvoice.findFirst({
+        where: {
+          OR: [
+            { linkedPoNumber: order.myobPoNumber },
+            { linkedPoNumber: { contains: order.myobPoNumber } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+    : null;
+
+  return NextResponse.json({ ...order, supplierInvoice });
 }

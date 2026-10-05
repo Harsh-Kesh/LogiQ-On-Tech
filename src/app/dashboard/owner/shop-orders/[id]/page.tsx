@@ -43,6 +43,10 @@ interface Order {
   myobBillNumber?: string;
   myobInvoiceNumber?: string;
   monoovaTxnId?: string;
+  monoovaStatus?: string | null;
+  supplierPaidAt?: string | null;
+  matchedAt?: string | null;
+  supplierInvoiceReceivedAt?: string | null;
   threeWayMatchResult?: string | null;
   threeWayMatchNotes?: string | null;
   sektorStatus?: string | null;
@@ -51,6 +55,16 @@ interface Order {
   // SO link
   salesOrder?: {
     salesOrderNumber: string;
+    status: string;
+  } | null;
+  // The actual invoice the supplier sent — resolved server-side by PO number,
+  // same as Traceability does, since this isn't a real FK off the order.
+  supplierInvoice?: {
+    vendorInvoiceNumber: string;
+    vendorName: string;
+    invoiceDate: string;
+    dueDate: string;
+    invoiceAmount: string | number;
     status: string;
   } | null;
   items: OrderItem[];
@@ -384,7 +398,7 @@ export default function ShopOrderDetailPage() {
       </div>
 
       {/* Supplier / SO / PO / fulfilment */}
-      {(order.salesOrder || order.myobPoNumber || order.poEmailSentTo || order.myobBillNumber || order.myobInvoiceNumber) && (
+      {(order.salesOrder || order.myobPoNumber || order.poEmailSentTo || order.myobBillNumber || order.myobInvoiceNumber || order.supplierInvoice || order.monoovaTxnId) && (
         <div className="bg-white rounded-2xl border p-5 space-y-3" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center gap-2 mb-1">
             <Truck className="w-4 h-4" style={{ color: '#4C3AE3' }} />
@@ -408,26 +422,8 @@ export default function ShopOrderDetailPage() {
                 } />
               );
             })()}
+            {/* Purchase Order — sent at PO_SENT */}
             {order.myobPoNumber && <Row label="Purchase Order #" value={order.myobPoNumber} mono />}
-            {order.threeWayMatchNotes && (
-              <Row label="3-Way Match" value={
-                <span className="text-[11px] leading-snug" style={{ color: order.threeWayMatchResult === 'EXCEPTION' ? '#dc2626' : '#166534' }}>
-                  {order.threeWayMatchNotes}
-                </span>
-              } />
-            )}
-            {order.myobBillNumber && (
-              <Row label="Supplier Bill #" value={
-                <span>
-                  <span className="font-mono">{order.myobBillNumber}</span>
-                  <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
-                    Our payable record — this is what we owe the supplier, created once their invoice is matched
-                  </span>
-                </span>
-              } />
-            )}
-            {order.myobInvoiceNumber && <Row label="Customer Invoice #" value={order.myobInvoiceNumber} mono />}
-            {order.monoovaTxnId && <Row label="Payment Reference" value={order.monoovaTxnId} mono />}
             {order.poEmailSentTo && (
               <Row label="PO Emailed to" value={
                 <span className="flex items-center gap-1">
@@ -437,6 +433,70 @@ export default function ShopOrderDetailPage() {
               } />
             )}
             {order.poEmailSentAt && <Row label="PO Sent at" value={fmtDate(order.poEmailSentAt)} />}
+
+            {/* The actual invoice the supplier sent — the real data behind "Invoice Received" */}
+            {order.supplierInvoice && (
+              <div className="pt-2 mt-2 border-t space-y-2" style={{ borderColor: '#f1f5f9' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Supplier Invoice</p>
+                <Row label="Invoice #" value={order.supplierInvoice.vendorInvoiceNumber} mono />
+                <Row label="From" value={order.supplierInvoice.vendorName} />
+                <Row label="Invoice Date" value={fmtDate(order.supplierInvoice.invoiceDate)} />
+                <Row label="Amount" value={`${order.currency} ${fmt(order.supplierInvoice.invoiceAmount)}`} />
+                <Row label="Status" value={
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{
+                    background: order.supplierInvoice.status === 'DISPUTED' ? '#fef2f2' : order.supplierInvoice.status === 'APPROVED' ? '#f0fdf4' : '#f8fafc',
+                    color: order.supplierInvoice.status === 'DISPUTED' ? '#991b1b' : order.supplierInvoice.status === 'APPROVED' ? '#166534' : '#475569',
+                  }}>
+                    {order.supplierInvoice.status}
+                  </span>
+                } />
+                {order.supplierInvoiceReceivedAt && <Row label="Received At" value={fmtDate(order.supplierInvoiceReceivedAt)} />}
+              </div>
+            )}
+
+            {/* The match comparison itself — the real data behind "3-Way Matched" */}
+            {order.threeWayMatchNotes && (
+              <div className="pt-2 mt-2 border-t space-y-2" style={{ borderColor: '#f1f5f9' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>3-Way Match</p>
+                <Row label="Result" value={
+                  <span className="text-[11px] leading-snug" style={{ color: order.threeWayMatchResult === 'EXCEPTION' ? '#dc2626' : '#166534' }}>
+                    {order.threeWayMatchNotes}
+                  </span>
+                } />
+                {order.matchedAt && <Row label="Matched At" value={fmtDate(order.matchedAt)} />}
+              </div>
+            )}
+
+            {/* Our payable record — the real data behind "Bill Created" */}
+            {order.myobBillNumber && (
+              <div className="pt-2 mt-2 border-t space-y-2" style={{ borderColor: '#f1f5f9' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Supplier Bill</p>
+                <Row label="Bill #" value={
+                  <span>
+                    <span className="font-mono">{order.myobBillNumber}</span>
+                    <span className="block text-[10px] font-normal mt-0.5" style={{ color: '#94a3b8' }}>
+                      Our payable record — this is what we owe the supplier, created once their invoice is matched
+                    </span>
+                  </span>
+                } />
+              </div>
+            )}
+
+            {/* The actual bank transfer — the real data behind "Supplier Paid" */}
+            {order.monoovaTxnId && (
+              <div className="pt-2 mt-2 border-t space-y-2" style={{ borderColor: '#f1f5f9' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Supplier Payment</p>
+                <Row label="Transaction Ref" value={order.monoovaTxnId} mono />
+                {order.monoovaStatus && <Row label="Status" value={order.monoovaStatus} />}
+                {order.supplierPaidAt && <Row label="Paid At" value={fmtDate(order.supplierPaidAt)} />}
+              </div>
+            )}
+
+            {order.myobInvoiceNumber && (
+              <div className="pt-2 mt-2 border-t" style={{ borderColor: '#f1f5f9' }}>
+                <Row label="Customer Tax Invoice #" value={order.myobInvoiceNumber} mono />
+              </div>
+            )}
           </div>
           <div className="pt-3 border-t" style={{ borderColor: '#f1f5f9' }}>
             <Link
