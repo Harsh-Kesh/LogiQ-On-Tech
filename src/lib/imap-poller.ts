@@ -1,19 +1,45 @@
-// Phase 4 — IMAP inbox poller for incoming supplier invoices.
-// Called by /api/cron/poll-invoices (Vercel cron every 5 min).
-// Reads UNSEEN emails, extracts PDF attachments, parses them for invoice data,
-// creates SupplierInvoice records, and triggers 3-way match.
+// Phase 4 — supplier invoice inbox reader.
+// Called by /api/cron/poll-invoices.
+// Reads the accounts mailbox through Microsoft Graph when MS_* is configured
+// (MS_INVOICE_MAILBOX), otherwise falls back to IMAP (IMAP_* env vars).
+// For each email from a known supplier, extracts PDF attachments, parses them,
+// creates SupplierInvoice records, and triggers the 3-way match.
 
 import Imap from 'imap';
-import { simpleParser, ParsedMail, Attachment } from 'mailparser';
+import { simpleParser, Attachment } from 'mailparser';
 import { prisma } from './prisma';
 import { parseInvoicePdf } from './invoice-parser';
 import { runThreeWayMatch } from './three-way-match';
+import { graph, graphConfigured, invoiceMailbox, mailboxPath } from './msgraph';
+import { extractPoNumber, isAllowedSender } from './mail-helpers';
 
 export interface PollResult {
+  source: 'graph' | 'imap' | 'none';
   checked: number;
   invoicesCreated: number;
+  skippedUnknownSender: number;
   errors: string[];
 }
+
+interface InboundMail {
+  graphId?: string;
+  categories?: string[];
+  subject: string;
+  text: string;
+  fromAddress: string;
+  fromText: string;
+  pdfs: { filename: string; content: Buffer }[];
+}
+
+// Outlook categories the reader puts on emails in the accounts mailbox, visible to staff in Outlook.
+const PROCESSED_CATEGORY = 'LogiQ: invoice processed';
+const FAILED_CATEGORY = 'LogiQ: invoice failed';
+
+function isPdf(contentType: string | undefined, filename: string | undefined): boolean {
+  return contentType === 'application/pdf' || Boolean(filename?.toLowerCase().endsWith('.pdf'));
+}
+
+// ── IMAP (fallback) ──────────────────────────────────────────────────────────
 
 function imapConfig() {
   return {
@@ -26,10 +52,10 @@ function imapConfig() {
   };
 }
 
-function fetchUnseenEmails(): Promise<ParsedMail[]> {
+function fetchUnseenImapEmails(): Promise<InboundMail[]> {
   return new Promise((resolve, reject) => {
     const imap = new Imap(imapConfig());
-    const emails: ParsedMail[] = [];
+    const emails: InboundMail[] = [];
 
     imap.once('ready', () => {
       imap.openBox('INBOX', false, (err) => {
@@ -48,7 +74,15 @@ function fetchUnseenEmails(): Promise<ParsedMail[]> {
               stream.once('end', async () => {
                 try {
                   const parsed = await simpleParser(Buffer.concat(chunks));
-                  emails.push(parsed);
+                  emails.push({
+                    subject: parsed.subject || '',
+                    text: parsed.text || '',
+                    fromAddress: parsed.from?.value?.[0]?.address || '',
+                    fromText: parsed.from?.text || '',
+                    pdfs: (parsed.attachments || [])
+                      .filter((a: Attachment) => isPdf(a.contentType, a.filename))
+                      .map((a: Attachment) => ({ filename: a.filename || 'invoice.pdf', content: a.content as Buffer })),
+                  });
                 } catch {}
               });
             });
@@ -66,113 +100,164 @@ function fetchUnseenEmails(): Promise<ParsedMail[]> {
   });
 }
 
-function extractPoNumber(mail: ParsedMail): string | null {
-  const text = [mail.subject || '', mail.text || ''].join(' ');
-  const match = text.match(/PO[-\s]?(\d{4}[-\s]\d{5}|\d{5,})/i);
-  return match ? match[0].replace(/\s/g, '-').toUpperCase() : null;
+// ── Microsoft Graph ──────────────────────────────────────────────────────────
+
+async function fetchGraphInvoiceEmails(mailbox: string): Promise<InboundMail[]> {
+  const since = new Date(Date.now() - 30 * 86400_000).toISOString();
+  const filter = encodeURIComponent(`receivedDateTime ge ${since} and hasAttachments eq true`);
+  const list = await graph<{ value: any[] }>(
+    'GET',
+    `${mailboxPath(mailbox)}/mailFolders/inbox/messages?$filter=${filter}&$orderby=receivedDateTime desc&$top=50&$select=id,subject,from,body,categories`,
+    undefined,
+    { Prefer: 'outlook.body-content-type="text"' }
+  );
+
+  return list.value
+    .filter((m) => !(m.categories || []).some((c: string) => c === PROCESSED_CATEGORY || c === FAILED_CATEGORY))
+    .map((m) => ({
+      graphId: m.id,
+      categories: m.categories || [],
+      subject: m.subject || '',
+      text: m.body?.content || '',
+      fromAddress: m.from?.emailAddress?.address || '',
+      fromText: m.from?.emailAddress?.name || m.from?.emailAddress?.address || '',
+      pdfs: [], // downloaded only for allowed senders, see loadGraphPdfs
+    }));
+}
+
+async function loadGraphPdfs(mailbox: string, mail: InboundMail): Promise<void> {
+  const res = await graph<{ value: any[] }>('GET', `${mailboxPath(mailbox)}/messages/${mail.graphId}/attachments`);
+  mail.pdfs = res.value
+    .filter((a) => a['@odata.type'] === '#microsoft.graph.fileAttachment' && isPdf(a.contentType, a.name))
+    .map((a) => ({ filename: a.name, content: Buffer.from(a.contentBytes, 'base64') }));
+}
+
+async function tagGraphEmail(mailbox: string, mail: InboundMail, category: string): Promise<void> {
+  await graph('PATCH', `${mailboxPath(mailbox)}/messages/${mail.graphId}`, {
+    categories: [...(mail.categories || []), category],
+  });
+}
+
+// ── Shared ───────────────────────────────────────────────────────────────────
+
+/** Known supplier addresses: vendor AP/PO emails, item supplier emails, plus INVOICE_ALLOWED_SENDERS. */
+async function supplierAllowList(): Promise<string[]> {
+  const [vendors, items] = await Promise.all([
+    prisma.vendor.findMany({ select: { apEmail: true, poEmail: true } }),
+    prisma.itemMaster.findMany({ where: { supplierEmail: { not: null } }, select: { supplierEmail: true }, distinct: ['supplierEmail'] }),
+  ]);
+  const fromEnv = (process.env.INVOICE_ALLOWED_SENDERS || '').split(',');
+  return [
+    ...vendors.flatMap((v) => [v.apEmail, v.poEmail]),
+    ...items.map((i) => i.supplierEmail),
+    ...fromEnv,
+  ].filter((e): e is string => Boolean(e && e.trim()));
+}
+
+async function processInvoiceMail(mail: InboundMail, result: PollResult): Promise<void> {
+  for (const pdf of mail.pdfs) {
+    let parsed;
+    try {
+      parsed = await parseInvoicePdf(pdf.content);
+    } catch (parseErr: any) {
+      throw new Error(`PDF parse error for ${pdf.filename}: ${parseErr.message}`);
+    }
+
+    // Try to match to an open StorefrontOrder via PO number in email or PDF
+    const poRef = extractPoNumber(`${mail.subject} ${mail.text}`) || parsed.poNumber;
+    let storefrontOrder = null;
+    if (poRef) {
+      storefrontOrder = await prisma.storefrontOrder.findFirst({
+        where: {
+          OR: [
+            { myobPoNumber: { contains: poRef.replace(/PO[-\s]?/i, '').trim() } },
+            { myobPoNumber: poRef },
+          ],
+          status: 'PO_SENT',
+        },
+      });
+    }
+
+    const suppInvoice = await prisma.supplierInvoice.create({
+      data: {
+        vendorInvoiceNumber: parsed.invoiceNumber || `EMAIL-${Date.now()}`,
+        invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : new Date(),
+        dueDate: parsed.dueDate ? new Date(parsed.dueDate) : new Date(Date.now() + 30 * 86400_000),
+        vendorName: parsed.supplierName || mail.fromText || 'Unknown Supplier',
+        linkedPoNumber: poRef || parsed.poNumber || 'UNKNOWN',
+        currency: 'AUD',
+        invoiceAmount: parsed.totalAmount ?? 0,
+        status: 'SUBMITTED',
+      },
+    });
+
+    if (storefrontOrder) {
+      await prisma.storefrontOrder.update({
+        where: { id: storefrontOrder.id },
+        data: { status: 'INVOICE_RECEIVED', supplierInvoiceReceivedAt: new Date() },
+      });
+
+      await runThreeWayMatch(storefrontOrder.id, suppInvoice.id).catch((err) =>
+        result.errors.push(`3-way match failed for ${storefrontOrder!.id}: ${err.message}`)
+      );
+
+      // Write serial/batch numbers to warranty records created by the match, in document order
+      if ((parsed.serialNumbers && parsed.serialNumbers.length > 0) || (parsed.batchNumbers && parsed.batchNumbers.length > 0)) {
+        const warranties = await prisma.warrantyRecord.findMany({
+          where: { supplierInvoiceId: suppInvoice.id },
+          orderBy: { createdAt: 'asc' },
+        });
+        for (let i = 0; i < warranties.length; i++) {
+          const sn = parsed.serialNumbers?.[i];
+          const bn = parsed.batchNumbers?.[i];
+          const data: Record<string, string> = {};
+          if (sn && !warranties[i].serialNumber) data.serialNumber = sn;
+          if (bn && !warranties[i].batchNumber) data.batchNumber = bn;
+          if (Object.keys(data).length > 0) {
+            await prisma.warrantyRecord.update({ where: { id: warranties[i].id }, data });
+          }
+        }
+      }
+    }
+
+    result.invoicesCreated++;
+  }
 }
 
 export async function pollSupplierInvoices(): Promise<PollResult> {
-  const result: PollResult = { checked: 0, invoicesCreated: 0, errors: [] };
+  const result: PollResult = { source: 'none', checked: 0, invoicesCreated: 0, skippedUnknownSender: 0, errors: [] };
+  const useGraph = graphConfigured() && Boolean(invoiceMailbox());
 
-  if (!process.env.IMAP_USER || !process.env.IMAP_PASS) {
-    result.errors.push('IMAP credentials not configured — skipping poll.');
+  if (!useGraph && (!process.env.IMAP_USER || !process.env.IMAP_PASS)) {
+    result.errors.push('No invoice mailbox configured (set MS_* for Microsoft 365, or IMAP_*) — skipping poll.');
     return result;
   }
+  result.source = useGraph ? 'graph' : 'imap';
 
-  let emails: ParsedMail[];
+  let emails: InboundMail[];
   try {
-    emails = await fetchUnseenEmails();
+    emails = useGraph ? await fetchGraphInvoiceEmails(invoiceMailbox()) : await fetchUnseenImapEmails();
   } catch (err: any) {
-    result.errors.push(`IMAP connection failed: ${err.message}`);
+    result.errors.push(`Mailbox connection failed: ${err.message}`);
     return result;
   }
-
   result.checked = emails.length;
 
+  const allowList = await supplierAllowList();
+
   for (const mail of emails) {
+    // Unknown senders are left untouched (no tag) so staff can deal with them in Outlook.
+    if (!isAllowedSender(mail.fromAddress, allowList)) {
+      result.skippedUnknownSender++;
+      continue;
+    }
     try {
-      // Find PDF attachments
-      const pdfs = (mail.attachments || []).filter(
-        (a: Attachment) => a.contentType === 'application/pdf' || a.filename?.endsWith('.pdf')
-      );
-
-      for (const pdf of pdfs) {
-        let parsed;
-        try {
-          parsed = await parseInvoicePdf(pdf.content as Buffer);
-        } catch (parseErr: any) {
-          result.errors.push(`PDF parse error for ${pdf.filename}: ${parseErr.message}`);
-          continue;
-        }
-
-        // Try to match to an open StorefrontOrder via PO number in email or PDF
-        const poRef = extractPoNumber(mail) || parsed.poNumber;
-        let storefrontOrder = null;
-        if (poRef) {
-          storefrontOrder = await prisma.storefrontOrder.findFirst({
-            where: {
-              OR: [
-                { myobPoNumber: { contains: poRef.replace(/PO[-\s]?/i, '').trim() } },
-                { myobPoNumber: poRef },
-              ],
-              status: 'PO_SENT',
-            },
-          });
-        }
-
-        // Create SupplierInvoice record
-        const suppInvoice = await prisma.supplierInvoice.create({
-          data: {
-            vendorInvoiceNumber: parsed.invoiceNumber || `EMAIL-${Date.now()}`,
-            invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : new Date(),
-            dueDate: parsed.dueDate ? new Date(parsed.dueDate) : new Date(Date.now() + 30 * 86400_000),
-            vendorName: parsed.supplierName || (mail.from?.text || 'Unknown Supplier'),
-            linkedPoNumber: poRef || parsed.poNumber || 'UNKNOWN',
-            currency: 'AUD',
-            invoiceAmount: parsed.totalAmount ?? 0,
-            status: 'SUBMITTED',
-          },
-        });
-
-        // Link and advance StorefrontOrder status
-        if (storefrontOrder) {
-          await prisma.storefrontOrder.update({
-            where: { id: storefrontOrder.id },
-            data: {
-              status: 'INVOICE_RECEIVED',
-              supplierInvoiceReceivedAt: new Date(),
-            },
-          });
-
-          // Trigger 3-way match immediately
-          await runThreeWayMatch(storefrontOrder.id, suppInvoice.id).catch((err) =>
-            result.errors.push(`3-way match failed for ${storefrontOrder!.id}: ${err.message}`)
-          );
-
-          // Write serial/batch numbers to warranty records created by the match, in document order
-          if ((parsed.serialNumbers && parsed.serialNumbers.length > 0) || (parsed.batchNumbers && parsed.batchNumbers.length > 0)) {
-            const warranties = await prisma.warrantyRecord.findMany({
-              where: { supplierInvoiceId: suppInvoice.id },
-              orderBy: { createdAt: 'asc' },
-            });
-            for (let i = 0; i < warranties.length; i++) {
-              const sn = parsed.serialNumbers?.[i];
-              const bn = parsed.batchNumbers?.[i];
-              const data: Record<string, string> = {};
-              if (sn && !warranties[i].serialNumber) data.serialNumber = sn;
-              if (bn && !warranties[i].batchNumber) data.batchNumber = bn;
-              if (Object.keys(data).length > 0) {
-                await prisma.warrantyRecord.update({ where: { id: warranties[i].id }, data });
-              }
-            }
-          }
-        }
-
-        result.invoicesCreated++;
-      }
+      if (useGraph) await loadGraphPdfs(invoiceMailbox(), mail);
+      await processInvoiceMail(mail, result);
+      if (useGraph) await tagGraphEmail(invoiceMailbox(), mail, PROCESSED_CATEGORY);
     } catch (err: any) {
       result.errors.push(`Failed processing email "${mail.subject}": ${err.message}`);
+      if (useGraph) await tagGraphEmail(invoiceMailbox(), mail, FAILED_CATEGORY).catch(() => {});
     }
   }
 

@@ -10,7 +10,7 @@ import Brand from '@/components/Brand';
 import HelpdeskLauncher from '@/components/HelpdeskLauncher';
 import {
   Shield, FileText, LogOut, Lock, Package, Truck, ShoppingCart,
-  Menu, X, Search, ShieldCheck, Inbox, BarChart2, LayoutDashboard,
+  Menu, X, Search, ShieldCheck, Inbox, BarChart2, LayoutDashboard, MessageSquare,
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -72,6 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: 'Operations',
       links: [
         { name: 'Shop Orders', href: '/dashboard/owner/shop-orders', roleRequired: OWNER_ONLY, icon: ShoppingCart },
+        { name: 'Customer Inquiries', href: '/dashboard/owner/inquiries', roleRequired: OWNER_ONLY, icon: MessageSquare },
       ],
     },
     {

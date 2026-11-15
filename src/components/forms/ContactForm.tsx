@@ -1,13 +1,21 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { submitWebsiteForm } from "@/lib/website-form";
 
 export default function ContactForm() {
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
+    setSending(true);
+    setError(null);
+    const err = await submitWebsiteForm("contact", e.currentTarget);
+    setSending(false);
+    if (err) setError(err);
+    else setSubmitted(true);
   }
 
   if (submitted) {
@@ -32,7 +40,8 @@ export default function ContactForm() {
   return (
     <div className="form-card">
       <h3 style={{ fontSize: 20, marginBottom: 24 }}>Send us a message</h3>
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={handleSubmit}>
+        <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: "-10000px" }} />
         <div className="field-row">
           <div className="field">
             <label htmlFor="c-name">Full name <span className="req">*</span></label>
@@ -67,7 +76,10 @@ export default function ContactForm() {
           <label htmlFor="c-message">Message <span className="req">*</span></label>
           <textarea id="c-message" name="message" placeholder="Tell us a bit about your operation…" required />
         </div>
-        <button type="submit" className="btn btn-primary btn-block btn-lg">Send Message</button>
+        {error && <p role="alert" style={{ color: "#b91c1c", fontSize: 14, marginBottom: 12 }}>{error}</p>}
+        <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={sending}>
+          {sending ? "Sending…" : "Send Message"}
+        </button>
       </form>
     </div>
   );

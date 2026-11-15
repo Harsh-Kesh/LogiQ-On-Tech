@@ -294,7 +294,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
       if (!supplierEmail) {
         console.warn(`[stripe-webhook] No supplier email for PO ${poNumber} (order ${orderNumber}). Set vendor.poEmail or itemMaster.supplierEmail to enable PO emails.`);
       } else {
-        const accountsEmail = process.env.IMAP_USER || 'accounts@logiqon.com';
+        const accountsEmail = process.env.MS_INVOICE_MAILBOX || process.env.IMAP_USER || 'accounts@logiqon.com';
         const poHtml = renderEmailShell({
           eyebrow: 'Purchase Order',
           heading: `Purchase Order ${poNumber}`,

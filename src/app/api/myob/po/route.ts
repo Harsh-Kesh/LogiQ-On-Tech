@@ -122,7 +122,7 @@ export async function POST(req: Request) {
   // Email PO to supplier
   const supplierEmail = vendor?.poEmail || itemMaster?.supplierEmail;
   if (supplierEmail) {
-    const accountsEmail = process.env.IMAP_USER || 'accounts@logiqon.com';
+    const accountsEmail = process.env.MS_INVOICE_MAILBOX || process.env.IMAP_USER || 'accounts@logiqon.com';
     const allMasters = await prisma.itemMaster.findMany({ where: { sku: { in: sfOrder.items.map((i) => i.itemCode) } } });
     const supplierCodeBySku = new Map(allMasters.map((m) => [m.sku, m.supplierItemCode]));
     const html = renderEmailShell({

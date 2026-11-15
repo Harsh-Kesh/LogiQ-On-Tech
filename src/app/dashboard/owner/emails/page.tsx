@@ -11,7 +11,7 @@ interface EmailSummary {
   cc?: string;
   subject: string;
   sentAt: string;
-  mode: 'smtp' | 'simulated' | 'received';
+  mode: 'graph' | 'smtp' | 'simulated' | 'received' | 'failed';
   orderId?: string;
 }
 
@@ -20,15 +20,27 @@ interface EmailDetail extends EmailSummary {
 }
 
 const MODE_BADGE = {
+  graph: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   smtp: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   simulated: 'bg-amber-100 text-amber-700 border-amber-200',
   received: 'bg-blue-100 text-blue-700 border-blue-200',
+  failed: 'bg-red-100 text-red-700 border-red-200',
 };
 
 const MODE_LABEL = {
+  graph: 'SENT',
   smtp: 'SENT',
   simulated: 'DEMO',
   received: 'RECEIVED',
+  failed: 'FAILED',
+};
+
+const MODE_DETAIL = {
+  graph: 'SENT via Microsoft 365',
+  smtp: 'SENT via SMTP',
+  simulated: 'DEMO (simulated)',
+  received: 'RECEIVED (simulated)',
+  failed: 'FAILED — not delivered',
 };
 
 export default function EmailsPage() {
@@ -157,7 +169,7 @@ export default function EmailsPage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${MODE_BADGE[detail.mode]}`}>
-                      {detail.mode === 'smtp' ? 'SENT via SMTP' : detail.mode === 'received' ? 'RECEIVED (simulated)' : 'DEMO (simulated)'}
+                      {MODE_DETAIL[detail.mode]}
                     </span>
                     {detail.orderId && (
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
@@ -182,8 +194,9 @@ export default function EmailsPage() {
       </div>
 
       <p className="mt-3 text-xs text-slate-400 text-center">
-        Emails marked <strong>DEMO</strong> were captured while SMTP is not configured — the customer did not receive them.
-        Emails marked <strong>SENT</strong> went through your real mail server.
+        Emails marked <strong>DEMO</strong> were captured while no mail service is configured — the customer did not receive them.
+        Emails marked <strong>SENT</strong> went through Microsoft 365 or your mail server.
+        Emails marked <strong>FAILED</strong> could not be sent — check the Microsoft 365 connection.
         Emails marked <strong>RECEIVED</strong> are simulated incoming mail (e.g. a supplier invoice) — in production these arrive via the real IMAP inbox instead.
       </p>
     </div>

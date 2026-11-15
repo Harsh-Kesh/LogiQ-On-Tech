@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { prisma } from '@/lib/prisma';
+import { graph, graphConfigured, mailboxPath, senderMailbox, toRecipients } from '@/lib/msgraph';
 
 // ── Shared email design system ────────────────────────────────────────────────
 // One visual language for every outbound email — the same brand gradient, card
@@ -150,9 +151,41 @@ export interface EmailOptions {
   html: string;
   text?: string;
   orderId?: string;  // optional StorefrontOrder.id for linking
+  replyTo?: string;  // where replies go (e.g. the customer who filled a website form)
 }
 
-export async function sendTransactionalEmail(options: EmailOptions): Promise<{ success: boolean; messageId?: string; mode: 'smtp' | 'simulated' }> {
+export type EmailMode = 'graph' | 'smtp' | 'simulated' | 'failed';
+
+function logEmail(options: EmailOptions, mode: EmailMode) {
+  prisma.emailLog.create({
+    data: { to: options.to, cc: options.cc, subject: options.subject, html: options.html, mode, orderId: options.orderId },
+  }).catch(() => {});
+}
+
+// Order of preference: Microsoft 365 (Graph) -> SMTP -> simulated log (dev/demo).
+export async function sendTransactionalEmail(options: EmailOptions): Promise<{ success: boolean; messageId?: string; mode: EmailMode }> {
+  let graphFailed = false;
+  if (graphConfigured() && senderMailbox()) {
+    try {
+      await graph('POST', `${mailboxPath(senderMailbox())}/sendMail`, {
+        message: {
+          subject: options.subject,
+          body: { contentType: 'HTML', content: options.html },
+          toRecipients: toRecipients(options.to),
+          ccRecipients: toRecipients(options.cc),
+          replyTo: toRecipients(options.replyTo),
+        },
+        // Automated mail stays out of Sent Items so it doesn't eat the 50 GB shared-mailbox quota.
+        saveToSentItems: false,
+      });
+      logEmail(options, 'graph');
+      return { success: true, mode: 'graph' };
+    } catch (error: any) {
+      graphFailed = true;
+      console.error(`Microsoft 365 send to ${options.to} failed:`, error.message);
+    }
+  }
+
   const host = process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST;
   const port = parseInt(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || '587', 10);
   const user = process.env.SMTP_USER || process.env.EMAIL_SERVER_USER;
@@ -175,16 +208,22 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<{ s
         subject: options.subject,
         html: options.html,
         text: options.text || options.subject,
+        replyTo: options.replyTo || undefined,
       });
 
       console.log(`✉️ Real Email Dispatched via SMTP to ${options.to}. MessageId: ${info.messageId}`);
-      prisma.emailLog.create({
-        data: { to: options.to, cc: options.cc, subject: options.subject, html: options.html, mode: 'smtp', orderId: options.orderId },
-      }).catch(() => {});
+      logEmail(options, 'smtp');
       return { success: true, messageId: info.messageId, mode: 'smtp' };
     } catch (error: any) {
       console.warn(`⚠️ SMTP dispatch error to ${options.to}, falling back to simulated log:`, error.message);
     }
+  }
+
+  // A real mailbox is configured but the send failed: record it as failed rather
+  // than pretending it went out as a demo email.
+  if (graphFailed) {
+    logEmail(options, 'failed');
+    return { success: false, mode: 'failed' };
   }
 
   // Simulated Fallback Logger (Recorded in System Logs & Audit Stream)
@@ -196,9 +235,7 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<{ s
   console.log(`Subject: ${options.subject}`);
   console.log(`=================================================================`);
 
-  prisma.emailLog.create({
-    data: { to: options.to, cc: options.cc, subject: options.subject, html: options.html, mode: 'simulated', orderId: options.orderId },
-  }).catch(() => {});
+  logEmail(options, 'simulated');
 
   return { success: true, messageId: `sim_${Date.now()}`, mode: 'simulated' };
 }

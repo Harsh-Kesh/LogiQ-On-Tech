@@ -93,7 +93,9 @@ NextAuth v4 JWT + TOTP MFA · Stripe · MYOB AccountRight API · Monoova NPP · 
 
 ---
 
-### 🔲 Phase 3 — MYOB Integration
+### ⏸ Phase 3 — MYOB Integration (live API) — DEFERRED
+
+> Deferred. For now MYOB gets its data through the monthly file export in **Next Steps** below. The live API integration stays possible later and needs a MYOB plan with API access plus a MYOB developer key. Until then `src/lib/myob.ts` runs in demo mode (no `MYOB_CLIENT_ID`).
 
 **Trigger:** After StorefrontOrder status reaches `SO_CREATED` (set by Stripe webhook)
 
@@ -274,6 +276,64 @@ NextAuth v4 JWT + TOTP MFA · Stripe · MYOB AccountRight API · Monoova NPP · 
 
 ---
 
+## Next Steps
+
+### ✅ Microsoft 365 email (built, waiting on the client's tenant setup)
+
+Built so the app works as soon as the env vars from the client meeting are added (`.env.example` → `MS_*`). Until then everything falls back to the old behaviour (SMTP / IMAP / simulated).
+
+| Piece | Files | What it does |
+|---|---|---|
+| Graph client | `src/lib/msgraph.ts` | App-only token (client credentials), `graph()` helper |
+| Sending | `src/lib/email.ts` | All outbound email from `MS_SENDER_MAILBOX` via `sendMail`, not saved to Sent Items. Failures logged as `failed` (Email Inbox shows FAILED) instead of pretending to be a demo send |
+| Invoice reader | `src/lib/imap-poller.ts`, `/api/cron/poll-invoices` | Reads `MS_INVOICE_MAILBOX` inbox (last 30 days, with attachments), only from known supplier senders, parses PDFs, tags each email in Outlook `LogiQ: invoice processed` / `LogiQ: invoice failed`. Unknown senders are left untouched |
+| Customer Inquiries | `src/lib/inquiries.ts`, `/api/inquiries`, `/dashboard/owner/inquiries` | Lists `MS_SENDER_MAILBOX` conversations live from Graph (no DB copy), shows the thread as plain text, replies in the same thread (goes to Reply-To when set), Mark handled = Outlook category `LogiQ: handled`, links to the order when an `SO-YYYY-NNNNN` number appears |
+| Website forms | `/api/contact`, `src/lib/website-form.ts`, Contact / hero / Request Demo / Request Quote forms | Previously sent nothing. Now email the orders mailbox with Reply-To = customer, so they land in Customer Inquiries. Honeypot field against bots |
+
+**Client meeting (Microsoft 365 admin) — required for this to work:**
+- [ ] Shared mailboxes `orders@` and `accounts@` created; staff given access
+- [ ] Entra app registration: Tenant ID, Client ID, client secret (note expiry). NO Mail permissions granted in Entra
+- [ ] Exchange RBAC for Applications: `Application Mail.Send` + `Application Mail.ReadWrite` scoped to `orders@`; `Application Mail.ReadWrite` scoped to `accounts@`
+- [ ] Verify with `Test-ServicePrincipalAuthorization`, then set `MS_*` env vars on the host and redeploy
+
+**After go-live check:** place a test order (confirmation arrives from orders@), email a test PDF invoice from a vendor address to accounts@ and run `/api/cron/poll-invoices`, send a website contact form and reply to it from Customer Inquiries.
+
+**Known limits:** invoice cron is still daily (`vercel.json`, Hobby-plan limit) — move to every 15 min on Vercel Pro. No retry on Graph throttling (429). Contact endpoint has no rate limit (honeypot only).
+
+### 🔲 Invoice reading with Claude
+
+Replace the regex parser in `src/lib/invoice-parser.ts` with the Claude API (PDF in, structured JSON out, incl. serial/batch numbers), validated against the PO (line totals = invoice total, PO number matches an open order). Needs `ANTHROPIC_API_KEY` and 10–20 real supplier invoice samples to test with.
+
+### 🔲 Export for MYOB (monthly file pack)
+
+**Goal:** instead of integrating MYOB, the owner downloads a pack of import files each month (or on demand) and imports them into the client's MYOB company file with MYOB's Import/Export Assistant.
+
+**What MYOB supports (checked against MYOB's own help pages):**
+- Import of tab-delimited or comma-separated `.txt` files: Cards, Items, Sales (Service / Item / Professional / Miscellaneous), Purchases, Receive Payments, Pay Bills, Receive Money, Spend Money.
+- Pay Bills and Receive Payments are import-only (cannot be exported from MYOB to copy from).
+- Sales layouts have an `Invoice #` field (8 alphanumeric characters).
+- Cards, accounts and GST codes must already exist in the company file. An unknown GST code on a payment imports the amount GST-exclusive.
+- MYOB recommends building the file from an export of the client's own file. Excel files must be saved as text/CSV, not `.xlsx`.
+- No scheduled or automatic file import was found, so a person runs the import. A fully automatic transfer would need the API (deferred above).
+
+**Needed from the client before building:**
+- [ ] Which MYOB product: AccountRight, or the browser-only MYOB Business. One community report (unconfirmed, page returned 403) says MYOB Business has no invoice import. If it is MYOB Business this approach may not work.
+- [ ] A sample export from their company file (Sales, Purchases, Receive Payments, Pay Bills, Cards) to copy the exact columns from.
+- [ ] Account numbers: income, Stripe clearing, bank, cost of sales/purchases. GST codes in use. Item or Service layout, and item numbers if Item layout.
+
+**Build:**
+- Page `/dashboard/owner/myob-export` (PLATFORM_OWNER only): date range, preview counts, download.
+- Generate files in import order: (1) new customer and supplier cards, (2) sales invoices for delivered storefront orders, (3) Receive Payments for Stripe payments, (4) supplier purchases (bills), (5) Pay Bills for orders marked paid.
+- Flag every exported record (batch id and timestamp on the order and its documents) so nothing exports twice. Keep batches re-downloadable.
+- Column layouts come from the client's sample export, not hard-coded guesses.
+- Stripe fees and payouts are not part of the import. The client reconciles them against the bank.
+
+**Not in this step:** continuing the client's MYOB invoice numbering (e.g. from 1050) in the app. The app keeps its own numbering for now.
+
+**Done when:** the client imports one month's pack into a copy of their company file with a clean import log.
+
+---
+
 ## Outstanding Items (non-phase)
 
 - [ ] Run `prisma/seed-storefront.ts` against Neon production DB
@@ -311,5 +371,5 @@ NextAuth v4 JWT + TOTP MFA · Stripe · MYOB AccountRight API · Monoova NPP · 
 ## Current Status
 
 **Last completed:** Phase 2 (Stripe Checkout) — committed and deployed to production  
-**Next up:** Phase 3 — MYOB Integration  
-**Blocking Phase 3:** Need MYOB developer sandbox credentials (Client ID + Client Secret + Company File ID)
+**Next up:** Export for MYOB (see Next Steps). Live MYOB API (Phase 3) is deferred.  
+**Blocking the export:** client must confirm their MYOB product and send a sample export from their company file.

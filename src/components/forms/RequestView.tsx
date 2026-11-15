@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SegmentedToggle from "@/components/SegmentedToggle";
+import { submitWebsiteForm } from "@/lib/website-form";
 
 type RequestType = "demo" | "quote";
 
@@ -20,6 +21,8 @@ export default function RequestView() {
   const searchParams = useSearchParams();
   const [type, setType] = useState<RequestType>(searchParams.get("type") === "quote" ? "quote" : "demo");
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const isQuote = type === "quote";
 
   function handleChange(value: string) {
@@ -29,9 +32,14 @@ export default function RequestView() {
     router.replace(next === "quote" ? "/request?type=quote" : "/request", { scroll: false });
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
+    setSending(true);
+    setError(null);
+    const err = await submitWebsiteForm(type, e.currentTarget);
+    setSending(false);
+    if (err) setError(err);
+    else setSubmitted(true);
   }
 
   return (
@@ -64,25 +72,26 @@ export default function RequestView() {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} noValidate style={{ marginTop: 24 }}>
+          <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
+            <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: "-10000px" }} />
             <div className="field-row">
               <div className="field">
                 <label htmlFor="r-name">Full name <span className="req">*</span></label>
-                <input type="text" id="r-name" placeholder="Jordan Smith" required />
+                <input type="text" id="r-name" name="name" placeholder="Jordan Smith" required />
               </div>
               <div className="field">
                 <label htmlFor="r-company">Company <span className="req">*</span></label>
-                <input type="text" id="r-company" placeholder="Your business name" required />
+                <input type="text" id="r-company" name="company" placeholder="Your business name" required />
               </div>
             </div>
             <div className="field-row">
               <div className="field">
                 <label htmlFor="r-email">Work email <span className="req">*</span></label>
-                <input type="email" id="r-email" placeholder="you@company.com.au" required />
+                <input type="email" id="r-email" name="email" placeholder="you@company.com.au" required />
               </div>
               <div className="field">
                 <label htmlFor="r-phone">Phone</label>
-                <input type="tel" id="r-phone" placeholder="04xx xxx xxx" />
+                <input type="tel" id="r-phone" name="phone" placeholder="04xx xxx xxx" />
               </div>
             </div>
 
@@ -90,7 +99,7 @@ export default function RequestView() {
               <>
                 <div className="field">
                   <label htmlFor="r-category">Product / solution category</label>
-                  <select id="r-category" defaultValue="Mobile Computers">
+                  <select id="r-category" name="category" defaultValue="Mobile Computers">
                     <option>Mobile Computers</option>
                     <option>Barcode Scanners</option>
                     <option>Label Printing</option>
@@ -103,11 +112,11 @@ export default function RequestView() {
                 <div className="field-row">
                   <div className="field">
                     <label htmlFor="r-qty">Approximate quantity</label>
-                    <input type="text" id="r-qty" placeholder="e.g. 25 handhelds" />
+                    <input type="text" id="r-qty" name="quantity" placeholder="e.g. 25 handhelds" />
                   </div>
                   <div className="field">
                     <label htmlFor="r-timeline">Timeline</label>
-                    <select id="r-timeline" defaultValue="Within 1 month">
+                    <select id="r-timeline" name="timeline" defaultValue="Within 1 month">
                       <option>Within 1 month</option>
                       <option>1–3 months</option>
                       <option>3–6 months</option>
@@ -117,14 +126,14 @@ export default function RequestView() {
                 </div>
                 <div className="field">
                   <label htmlFor="r-message">Anything else we should know?</label>
-                  <textarea id="r-message" placeholder="Site locations, current systems, compliance requirements…" />
+                  <textarea id="r-message" name="message" placeholder="Site locations, current systems, compliance requirements…" />
                 </div>
               </>
             ) : (
               <>
                 <div className="field">
                   <label htmlFor="r-industry">Industry</label>
-                  <select id="r-industry" defaultValue="Warehousing & 3PL">
+                  <select id="r-industry" name="industry" defaultValue="Warehousing & 3PL">
                     <option>Warehousing &amp; 3PL</option>
                     <option>Retail</option>
                     <option>Manufacturing</option>
@@ -139,20 +148,21 @@ export default function RequestView() {
                   <div className="checkbox-grid">
                     {INTERESTS.map((label) => (
                       <label key={label} className="checkbox-inline">
-                        <input type="checkbox" style={{ width: "auto" }} /> {label}
+                        <input type="checkbox" name="interests" value={label} style={{ width: "auto" }} /> {label}
                       </label>
                     ))}
                   </div>
                 </div>
                 <div className="field">
                   <label htmlFor="r-message">What would you like the demo to cover?</label>
-                  <textarea id="r-message" placeholder="e.g. RFID stocktake accuracy for a 3-store retail chain" />
+                  <textarea id="r-message" name="message" placeholder="e.g. RFID stocktake accuracy for a 3-store retail chain" />
                 </div>
               </>
             )}
 
-            <button type="submit" className="btn btn-primary btn-block btn-lg">
-              {isQuote ? "Request a Quote" : "Request a Demo"}
+            {error && <p role="alert" style={{ color: "#b91c1c", fontSize: 14, marginBottom: 12 }}>{error}</p>}
+            <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={sending}>
+              {sending ? "Sending…" : isQuote ? "Request a Quote" : "Request a Demo"}
             </button>
           </form>
         )}

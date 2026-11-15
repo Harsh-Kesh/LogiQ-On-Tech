@@ -1,13 +1,21 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { submitWebsiteForm } from "@/lib/website-form";
 
 export default function ContactEmailForm() {
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
+    setSending(true);
+    setError(null);
+    const err = await submitWebsiteForm("callback", e.currentTarget);
+    setSending(false);
+    if (err) setError(err);
+    else setSubmitted(true);
   }
 
   if (submitted) {
@@ -19,10 +27,12 @@ export default function ContactEmailForm() {
   }
 
   return (
+    <>
     <form
       onSubmit={handleSubmit}
       className="gsap-animate flex flex-col sm:flex-row items-center gap-3 mt-4 w-full max-w-md mx-auto"
     >
+      <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[10000px]" />
       <label htmlFor="hero-email" className="sr-only">
         Email address
       </label>
@@ -36,10 +46,13 @@ export default function ContactEmailForm() {
       />
       <button
         type="submit"
-        className="w-full sm:w-auto px-7 py-3.5 bg-slate-950 hover:bg-slate-800 text-white font-bold text-base rounded-xl shadow-md transition-all duration-300 hover:scale-105 whitespace-nowrap"
+        disabled={sending}
+        className="w-full sm:w-auto px-7 py-3.5 bg-slate-950 hover:bg-slate-800 text-white font-bold text-base rounded-xl shadow-md transition-all duration-300 hover:scale-105 whitespace-nowrap disabled:opacity-60"
       >
-        Send
+        {sending ? "Sending…" : "Send"}
       </button>
     </form>
+    {error && <p role="alert" className="mt-2 text-sm font-semibold text-red-700 text-center">{error}</p>}
+    </>
   );
 }
