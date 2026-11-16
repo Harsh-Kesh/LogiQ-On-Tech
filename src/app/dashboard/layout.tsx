@@ -114,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     .filter((group) => group.links.length > 0);
 
   const sidebarContent = (
-    <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-6">
+    <nav className="sidebar-scroll flex-1 overflow-y-auto px-3 py-6 space-y-6">
       {navGroups.map((group) => (
         <div key={group.label || 'primary'}>
           {group.label && (
