@@ -132,6 +132,7 @@ const ORDER_STATUS_STYLE: Record<string, { background: string; color: string; bo
   MATCH_EXCEPTION: DANGER,
   BILL_CREATED: INFO,
   SUPPLIER_PAID: SUCCESS,
+  DISPATCHED: INFO,
   FULFILLED: SUCCESS,
   CANCELLED: NEUTRAL,
 };

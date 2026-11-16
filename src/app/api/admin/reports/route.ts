@@ -97,7 +97,7 @@ export async function GET(req: Request) {
 
   // ── Procurement metrics ───────────────────────────────────────────────────
   const procOrders = allOrders.filter((o) =>
-    ['PO_SENT', 'INVOICE_RECEIVED', 'MATCH_PENDING', 'MATCHED', 'MATCH_EXCEPTION', 'BILL_CREATED', 'SUPPLIER_PAID', 'FULFILLED'].includes(o.status)
+    ['PO_SENT', 'INVOICE_RECEIVED', 'MATCH_PENDING', 'MATCHED', 'MATCH_EXCEPTION', 'BILL_CREATED', 'SUPPLIER_PAID', 'DISPATCHED', 'FULFILLED'].includes(o.status)
   );
   const openPOs = allOrders.filter((o) => o.status === 'PO_SENT');
   const openPOValue = openPOs.reduce((s, o) => s + Number(o.totalAmount), 0);
@@ -123,7 +123,7 @@ export async function GET(req: Request) {
 
   // ── Three-Way Match metrics ───────────────────────────────────────────────
   const matchedOrders = allOrders.filter((o) =>
-    ['MATCHED', 'BILL_CREATED', 'SUPPLIER_PAID', 'FULFILLED'].includes(o.status) &&
+    ['MATCHED', 'BILL_CREATED', 'SUPPLIER_PAID', 'DISPATCHED', 'FULFILLED'].includes(o.status) &&
     o.threeWayMatchResult === 'MATCHED'
   );
   const exceptionOrders = allOrders.filter((o) =>

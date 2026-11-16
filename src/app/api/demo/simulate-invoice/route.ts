@@ -53,6 +53,7 @@ export async function POST(req: Request) {
   const invoiceNumber = `DEMO-INV-${Date.now()}`;
   const invoiceDate = new Date();
   const trackingNumber = `DEMO${Date.now().toString().slice(-9)}`;
+  const estimatedDelivery = new Date(Date.now() + 3 * 86_400_000);
 
   // Create a simulated supplier invoice that exactly matches the PO total
   const suppInvoice = await prisma.supplierInvoice.create({
@@ -76,6 +77,7 @@ export async function POST(req: Request) {
       supplierInvoiceReceivedAt: new Date(),
       sektorTrackingNumber: trackingNumber,
       trackingCarrier: 'auspost',
+      estimatedDeliveryAt: estimatedDelivery,
     },
   });
 
@@ -127,7 +129,7 @@ export async function POST(req: Request) {
             <p style="text-align:right;margin:0 0 4px;font-size:13px;color:#64748b">Subtotal: AUD ${po.subtotal.toFixed(2)}</p>
             <p style="text-align:right;margin:0 0 4px;font-size:13px;color:#64748b">GST: AUD ${po.taxTotal.toFixed(2)}</p>
             <p style="text-align:right;margin:0;font-size:16px;font-weight:700">Total Due: AUD ${po.total.toFixed(2)}</p>
-            <p style="margin-top:20px;font-size:13px">Shipped via Australia Post — tracking <strong>${trackingNumber}</strong></p>
+            <p style="margin-top:20px;font-size:13px">Shipped via Australia Post — tracking <strong>${trackingNumber}</strong>, estimated delivery ${estimatedDelivery.toLocaleDateString('en-AU')}</p>
             <p style="margin-top:8px;font-size:12px;color:#94a3b8">Payment terms: 30 days from invoice date.</p>
           </div>
         </div>`,

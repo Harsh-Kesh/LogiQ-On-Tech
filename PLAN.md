@@ -305,7 +305,9 @@ Built so the app works as soon as the env vars from the client meeting are added
 
 The supplier only invoices once goods have shipped, so **invoice received = order dispatched**. Supplier payment is no longer an app step (it happens outside the app).
 
-New order flow: `PAID → SO → PO_SENT → INVOICE_RECEIVED → MATCHED → BILL_CREATED → FULFILLED ("Dispatched")`
+New order flow: `PAID → SO → PO_SENT → INVOICE_RECEIVED → MATCHED → BILL_CREATED → DISPATCHED → FULFILLED ("Delivered")`
+
+**Delivery tracking (mechanism built, couriers to be added):** estimated delivery date comes from the invoice when printed (Claude reads it), otherwise from the courier. `src/lib/tracking.ts` has one slot per courier (`CARRIER_TRACKERS`, empty until the client confirms which couriers their suppliers use and we get API access); the daily cron `/api/cron/track-shipments` asks each DISPATCHED order's courier for status → `applyTrackingUpdate` stores the ETA (emails the customer once if the invoice had none) and on "delivered" calls `markDelivered` (FULFILLED, warranty starts at delivery, delivery confirmation email). Until a courier is added, the owner uses **Mark Delivered** on the order. Schema: enum value `DISPATCHED`, columns `dispatchedAt`, `estimatedDeliveryAt`.
 
 | Piece | Where |
 |---|---|

@@ -9,7 +9,7 @@ import {
   FileText, Truck, Download, RotateCcw, Settings, Inbox,
   ShieldAlert, Scale, Receipt,
 } from 'lucide-react';
-import DispatchModal from '@/components/orders/DispatchModal';
+import DispatchModal, { DeliveredModal } from '@/components/orders/DispatchModal';
 
 interface Order {
   id: string;
@@ -43,7 +43,8 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   BILL_CREATED: { label: 'Bill Created', color: 'bg-teal-100 text-teal-700' },
   PAYMENT_SCHEDULED: { label: 'Payment Scheduled', color: 'bg-cyan-100 text-cyan-700' },
   SUPPLIER_PAID: { label: 'Supplier Paid', color: 'bg-green-100 text-green-800' },
-  FULFILLED: { label: 'Dispatched', color: 'bg-emerald-100 text-emerald-700' },
+  DISPATCHED: { label: 'Dispatched', color: 'bg-teal-100 text-teal-700' },
+  FULFILLED: { label: 'Delivered', color: 'bg-emerald-100 text-emerald-700' },
   CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-500' },
 };
 
@@ -51,7 +52,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 const DISPATCH_ELIGIBLE = new Set(['BILL_CREATED', 'SUPPLIER_PAID']);
 const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
-const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'FULFILLED'];
+const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'DISPATCHED', 'FULFILLED'];
 const PIPELINE_STEP_LABELS = [
   { key: 'PAID', label: 'Paid' },
   { key: 'SO_CREATED', label: 'SO' },
@@ -59,7 +60,8 @@ const PIPELINE_STEP_LABELS = [
   { key: 'INVOICE_RECEIVED', label: 'Invoice' },
   { key: 'MATCHED', label: 'Matched' },
   { key: 'BILL_CREATED', label: 'Bill' },
-  { key: 'FULFILLED', label: 'Dispatched' },
+  { key: 'DISPATCHED', label: 'Dispatched' },
+  { key: 'FULFILLED', label: 'Delivered' },
 ];
 
 export default function ShopOrdersPage() {
@@ -70,6 +72,7 @@ export default function ShopOrdersPage() {
 
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
   const [dispatchOrder, setDispatchOrder] = useState<{ id: string; orderNumber: string } | null>(null);
+  const [deliveredOrder, setDeliveredOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
   const [forceMatchId, setForceMatchId] = useState<string | null>(null);
   const [runningMatchId, setRunningMatchId] = useState<string | null>(null);
@@ -423,6 +426,15 @@ export default function ShopOrdersPage() {
                         Send Tracking
                       </button>
                     )}
+                    {order.status === 'DISPATCHED' && (
+                      <button
+                        onClick={() => setDeliveredOrder({ id: order.id, orderNumber: order.orderNumber })}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        Mark Delivered
+                      </button>
+                    )}
                     <Link
                       href={`/dashboard/owner/shop-orders/${order.id}`}
                       className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-[#4C3AE3] hover:bg-[#EEF0FE] transition"
@@ -487,6 +499,15 @@ export default function ShopOrdersPage() {
           orderNumber={dispatchOrder.orderNumber}
           onClose={() => setDispatchOrder(null)}
           onDispatched={() => { setDispatchOrder(null); load(); }}
+        />
+      )}
+
+      {deliveredOrder && (
+        <DeliveredModal
+          orderId={deliveredOrder.id}
+          orderNumber={deliveredOrder.orderNumber}
+          onClose={() => setDeliveredOrder(null)}
+          onDelivered={() => { setDeliveredOrder(null); load(); }}
         />
       )}
     </div>

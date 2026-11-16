@@ -142,6 +142,7 @@ const STATUS_ORDER: Record<string, BadgeStyle> = {
   BILL_CREATED:      { bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4' },
   PAYMENT_SCHEDULED: { bg: '#ecfeff', color: '#0e7490', border: '#a5f3fc' },
   SUPPLIER_PAID:     { bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+  DISPATCHED:        { bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4' },
   FULFILLED:         { bg: '#ecfdf5', color: '#15803d', border: '#86efac' },
   CANCELLED:         { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
 };

@@ -25,6 +25,7 @@ export interface ParsedInvoice {
   batchNumbers?: string[];   // one per line item, in order of appearance
   trackingNumber?: string;   // courier consignment / tracking number (Claude only)
   carrier?: string;          // courier name as printed, e.g. "Australia Post" (Claude only)
+  estimatedDeliveryDate?: string; // YYYY-MM-DD if the invoice states one (Claude only)
   parsedBy: 'claude' | 'regex';
 }
 
@@ -50,6 +51,7 @@ const ClaudeInvoice = z.object({
   totalAmount: z.number().nullable().describe('Total payable inc GST'),
   trackingNumber: z.string().nullable().describe('Courier consignment / tracking / connote number for the shipment'),
   carrier: z.string().nullable().describe('Courier company name exactly as printed, e.g. Australia Post, StarTrack, TNT'),
+  estimatedDeliveryDate: z.string().nullable().describe('YYYY-MM-DD. Estimated / expected delivery or ETA date if the invoice states one'),
   lines: z.array(z.object({
     itemCode: z.string().nullable().describe('SKU / part number / item code'),
     description: z.string(),
@@ -66,6 +68,7 @@ Extract the fields in the schema. Rules:
 - Copy invoice numbers, PO numbers, item codes, serial numbers and tracking numbers exactly as printed (no added spaces, no guessed characters).
 - poNumber is OUR purchase order number quoted on the invoice (often labelled "Your Ref", "Customer PO" or "PO"), not the supplier's own order number.
 - trackingNumber is the courier consignment / connote / tracking number for this shipment. Use null if the invoice does not show one — never invent it.
+- estimatedDeliveryDate only if the invoice explicitly states an estimated/expected delivery or ETA date; otherwise null.
 - Amounts are plain numbers (no currency symbols). Dates as YYYY-MM-DD; Australian invoices write dates day-first.
 - Use null for anything not on the invoice.`;
 
@@ -103,6 +106,7 @@ async function parseWithClaude(buffer: Buffer): Promise<ParsedInvoice> {
     totalAmount: opt(inv.totalAmount),
     trackingNumber: opt(inv.trackingNumber),
     carrier: opt(inv.carrier),
+    estimatedDeliveryDate: opt(inv.estimatedDeliveryDate),
     lines: inv.lines.map((l) => ({
       itemCode: opt(l.itemCode),
       description: l.description,

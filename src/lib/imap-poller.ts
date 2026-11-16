@@ -155,6 +155,12 @@ async function supplierAllowList(): Promise<string[]> {
   ].filter((e): e is string => Boolean(e && e.trim()));
 }
 
+/** "YYYY-MM-DD" → Date, or undefined if missing/invalid. */
+function isoDate(s?: string): Date | undefined {
+  const d = s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00`) : undefined;
+  return d && !isNaN(d.getTime()) ? d : undefined;
+}
+
 async function processInvoiceMail(mail: InboundMail, result: PollResult): Promise<void> {
   const readouts: string[] = [];
   let linkedOrderId: string | undefined;
@@ -203,6 +209,7 @@ async function processInvoiceMail(mail: InboundMail, result: PollResult): Promis
           status: 'INVOICE_RECEIVED',
           supplierInvoiceReceivedAt: new Date(),
           ...(parsed.trackingNumber ? { sektorTrackingNumber: parsed.trackingNumber, trackingCarrier: normalizeCarrier(parsed.carrier) } : {}),
+          ...(isoDate(parsed.estimatedDeliveryDate) ? { estimatedDeliveryAt: isoDate(parsed.estimatedDeliveryDate) } : {}),
         },
       });
 

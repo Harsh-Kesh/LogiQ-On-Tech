@@ -1315,7 +1315,8 @@ enum StorefrontOrderStatus {
   BILL_CREATED
   PAYMENT_SCHEDULED
   SUPPLIER_PAID
-  FULFILLED
+  DISPATCHED   // tracking emailed to the customer, in transit
+  FULFILLED    // delivered to the customer
   CANCELLED
 }
 
@@ -1364,7 +1365,9 @@ model StorefrontOrder {
   sektorStatusUpdatedAt DateTime?
   sektorTrackingNumber  String?   // courier tracking number (from the supplier invoice or entered by the owner)
   trackingCarrier       String?   // carrier key from src/lib/carriers.ts (e.g. "auspost"), or free text if unknown
-  fulfilledAt           DateTime? // dispatch date — tracking email sent, warranty clock starts
+  estimatedDeliveryAt   DateTime? // from the supplier invoice, or later from the courier
+  dispatchedAt          DateTime? // tracking email sent (status DISPATCHED)
+  fulfilledAt           DateTime? // delivered to the customer (status FULFILLED) — warranty clock starts
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 

@@ -15,6 +15,63 @@ function todayIso() {
   return new Date().toISOString().split('T')[0];
 }
 
+// For a DISPATCHED order whose courier isn't tracked automatically: the owner confirms delivery.
+export function DeliveredModal({ orderId, orderNumber, onClose, onDelivered }: {
+  orderId: string; orderNumber: string; onClose: () => void; onDelivered: () => void;
+}) {
+  const [deliveredDate, setDeliveredDate] = useState(todayIso());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const confirm = async () => {
+    setBusy(true);
+    setError('');
+    const res = await fetch(`/api/storefront/orders/${orderId}/delivered`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deliveredDate }),
+    }).catch(() => null);
+    const data = await res?.json().catch(() => ({}));
+    setBusy(false);
+    if (res?.ok) onDelivered();
+    else setError(data?.error || 'Could not mark delivered.');
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.6)' }} onClick={busy ? undefined : onClose}>
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-5 flex items-center gap-2.5" style={{ background: '#059669' }}>
+          <CheckCircle2 className="w-5 h-5 text-white" />
+          <div>
+            <p className="text-sm font-bold text-white">Mark as Delivered</p>
+            <p className="text-[11px] text-emerald-100">{orderNumber}</p>
+          </div>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>
+            Use this when the courier isn&apos;t tracked automatically. The order becomes Fulfilled, the warranty
+            starts from this date and the customer gets a delivery confirmation.
+          </p>
+          <div>
+            <label htmlFor="dl-date" className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: '#374151' }}>Delivery Date</label>
+            <input id="dl-date" type="date" value={deliveredDate} max={todayIso()} onChange={(e) => setDeliveredDate(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none" style={{ borderColor: '#e2e8f0', color: '#0f172a' }} />
+          </div>
+          {error && <p className="text-sm font-semibold text-rose-600">{error}</p>}
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} disabled={busy} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+              Cancel
+            </button>
+            <button type="button" onClick={confirm} disabled={busy} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60" style={{ background: '#059669' }}>
+              {busy ? 'Saving…' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // For a BILL_CREATED order whose supplier invoice had no readable tracking number:
 // the owner enters it, the customer gets the tracking email, the order is dispatched.
 export default function DispatchModal({ orderId, orderNumber, onClose, onDispatched }: DispatchModalProps) {
@@ -134,7 +191,7 @@ export default function DispatchModal({ orderId, orderNumber, onClose, onDispatc
                 <div>
                   <p className="text-base font-extrabold" style={{ color: '#0f172a' }}>Order Dispatched</p>
                   <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>
-                    {result?.emailSent === false ? 'Saved, but the email failed — check the Emails page.' : 'Customer emailed their tracking and tax invoice.'}
+                    {result?.emailSent === false ? 'Saved, but the email failed — check Orders Mailbox → Sent.' : 'Customer emailed their tracking and tax invoice.'}
                     {!result?.trackingUrl && ' No tracking link for this carrier — the email shows the number only.'}
                   </p>
                 </div>

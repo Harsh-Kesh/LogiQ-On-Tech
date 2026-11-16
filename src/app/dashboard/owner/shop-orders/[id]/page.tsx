@@ -9,7 +9,7 @@ import {
   RotateCcw, ShieldAlert, AlertTriangle, Search,
   Scale, Receipt,
 } from 'lucide-react';
-import DispatchModal from '@/components/orders/DispatchModal';
+import DispatchModal, { DeliveredModal } from '@/components/orders/DispatchModal';
 import { carrierLabel, trackingUrl } from '@/lib/carriers';
 
 interface OrderItem {
@@ -44,6 +44,8 @@ interface Order {
   myobInvoiceNumber?: string;
   sektorTrackingNumber?: string | null;
   trackingCarrier?: string | null;
+  dispatchedAt?: string | null;
+  estimatedDeliveryAt?: string | null;
   fulfilledAt?: string | null;
   matchedAt?: string | null;
   supplierInvoiceReceivedAt?: string | null;
@@ -70,7 +72,7 @@ interface Order {
   items: OrderItem[];
 }
 
-const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'FULFILLED'];
+const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'DISPATCHED', 'FULFILLED'];
 const PIPELINE_STEP_LABELS = [
   { key: 'PAID', label: 'Payment Received', icon: CreditCard },
   { key: 'SO_CREATED', label: 'Sales Order Created', icon: Package },
@@ -78,7 +80,8 @@ const PIPELINE_STEP_LABELS = [
   { key: 'INVOICE_RECEIVED', label: 'Supplier Invoice Received', icon: FileText },
   { key: 'MATCHED', label: '3-Way Matched', icon: CheckCircle2 },
   { key: 'BILL_CREATED', label: 'Bill Created', icon: FileText },
-  { key: 'FULFILLED', label: 'Dispatched', icon: Truck },
+  { key: 'DISPATCHED', label: 'Dispatched', icon: Truck },
+  { key: 'FULFILLED', label: 'Delivered', icon: CheckCircle2 },
 ];
 
 // SUPPLIER_PAID only exists on orders from before the supplier-payment step was removed.
@@ -93,6 +96,7 @@ export default function ShopOrderDetailPage() {
 
   const [simulatingId, setSimulatingId] = useState(false);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [showDeliveredModal, setShowDeliveredModal] = useState(false);
   const [retryingPoId, setRetryingPoId] = useState(false);
   const [forceMatchId, setForceMatchId] = useState(false);
   const [runningMatchId, setRunningMatchId] = useState(false);
@@ -283,6 +287,9 @@ export default function ShopOrderDetailPage() {
             loadingLabel="Sending…"
           />
         )}
+        {order.status === 'DISPATCHED' && (
+          <ActionButton onClick={() => setShowDeliveredModal(true)} loading={false} icon={CheckCircle2} color="#059669" label="Mark Delivered" loadingLabel="Saving…" />
+        )}
       </div>
 
       {/* Stage timeline */}
@@ -321,9 +328,14 @@ export default function ShopOrderDetailPage() {
           })}
         </div>
 
+        {order.status === 'DISPATCHED' && (
+          <div className="mt-4 pt-4 border-t flex items-center gap-1.5 text-xs font-semibold" style={{ borderColor: '#f1f5f9', color: '#0f766e' }}>
+            <Truck className="w-3.5 h-3.5" /> Dispatched — tracking emailed to the customer, awaiting delivery
+          </div>
+        )}
         {order.status === 'FULFILLED' && (
           <div className="mt-4 pt-4 border-t flex items-center gap-1.5 text-xs font-semibold" style={{ borderColor: '#f1f5f9', color: '#059669' }}>
-            <CheckCircle2 className="w-3.5 h-3.5" /> Dispatched — tracking emailed to the customer
+            <CheckCircle2 className="w-3.5 h-3.5" /> Delivered — order fulfilled
           </div>
         )}
       </div>
@@ -497,7 +509,9 @@ export default function ShopOrderDetailPage() {
                     ? <a href={trackUrl} target="_blank" rel="noopener noreferrer" className="font-mono hover:underline" style={{ color: '#4C3AE3' }}>{order.sektorTrackingNumber}</a>
                     : <span className="font-mono">{order.sektorTrackingNumber}</span>
                 } />
-                {order.status === 'FULFILLED' && order.fulfilledAt && <Row label="Dispatched" value={fmtDate(order.fulfilledAt)} />}
+                {order.dispatchedAt && <Row label="Dispatched" value={fmtDate(order.dispatchedAt)} />}
+                {order.estimatedDeliveryAt && order.status !== 'FULFILLED' && <Row label="Est. delivery" value={new Date(order.estimatedDeliveryAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })} />}
+                {order.status === 'FULFILLED' && order.fulfilledAt && <Row label="Delivered" value={fmtDate(order.fulfilledAt)} />}
               </div>
             )}
 
@@ -525,6 +539,15 @@ export default function ShopOrderDetailPage() {
           orderNumber={order.orderNumber}
           onClose={() => setShowDispatchModal(false)}
           onDispatched={() => { setShowDispatchModal(false); load(); }}
+        />
+      )}
+
+      {showDeliveredModal && (
+        <DeliveredModal
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          onClose={() => setShowDeliveredModal(false)}
+          onDelivered={() => { setShowDeliveredModal(false); load(); }}
         />
       )}
     </div>
@@ -563,7 +586,8 @@ function StatusBadge({ status }: { status: string }) {
     BILL_CREATED:     { label: 'Bill Created',      bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4' },
     PAYMENT_SCHEDULED:{ label: 'Payment Scheduled', bg: '#ecfeff', color: '#0e7490', border: '#a5f3fc' },
     SUPPLIER_PAID:    { label: 'Supplier Paid',     bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
-    FULFILLED:        { label: 'Dispatched',        bg: '#ecfdf5', color: '#15803d', border: '#86efac' },
+    DISPATCHED:       { label: 'Dispatched',        bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4' },
+    FULFILLED:        { label: 'Delivered',         bg: '#ecfdf5', color: '#15803d', border: '#86efac' },
     CANCELLED:        { label: 'Cancelled',         bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
   };
   const s = map[status] ?? map.PENDING_PAYMENT;

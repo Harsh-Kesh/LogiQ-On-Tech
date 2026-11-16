@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/warranty-check",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/track-shipments",
+      "schedule": "0 4 * * *"
     }
   ]
 }
