@@ -12,7 +12,7 @@ import { parseInvoicePdf } from './invoice-parser';
 import { advanceAfterInvoice } from './dispatch';
 import { assignSerials, normalizeCarrier } from './carriers';
 import { graph, graphConfigured, invoiceMailbox, mailboxPath } from './msgraph';
-import { extractPoNumber, isAllowedSender } from './mail-helpers';
+import { escapeHtml, extractPoNumber, isAllowedSender } from './mail-helpers';
 
 export interface PollResult {
   source: 'graph' | 'imap' | 'none';
@@ -156,6 +156,9 @@ async function supplierAllowList(): Promise<string[]> {
 }
 
 async function processInvoiceMail(mail: InboundMail, result: PollResult): Promise<void> {
+  const readouts: string[] = [];
+  let linkedOrderId: string | undefined;
+
   for (const pdf of mail.pdfs) {
     let parsed;
     try {
@@ -228,10 +231,32 @@ async function processInvoiceMail(mail: InboundMail, result: PollResult): Promis
           await prisma.warrantyRecord.update({ where: { id: warranties[i].id }, data });
         }
       }
+      linkedOrderId = storefrontOrder.id;
     }
 
+    readouts.push(`<li><strong>${escapeHtml(pdf.filename)}</strong> (read by ${parsed.parsedBy}): invoice ${escapeHtml(suppInvoice.vendorInvoiceNumber)},
+      PO ${escapeHtml(poRef || '—')}, total ${parsed.totalAmount != null ? `AUD ${parsed.totalAmount.toFixed(2)}` : '—'},
+      tracking ${escapeHtml(parsed.trackingNumber ? `${parsed.trackingNumber} (${parsed.carrier || 'carrier not shown'})` : '—')}
+      — ${storefrontOrder ? `linked to order ${escapeHtml(storefrontOrder.orderNumber)}` : '<span style="color:#b91c1c">not linked to an open order</span>'}</li>`);
     result.invoicesCreated++;
   }
+
+  // Record the received email so it shows in the dashboard Inbox (Supplier invoices tab).
+  await prisma.emailLog.create({
+    data: {
+      to: mail.fromAddress,
+      subject: mail.subject || '(no subject)',
+      mode: 'received',
+      orderId: linkedOrderId,
+      html: `<div style="font-family:sans-serif;font-size:14px;color:#0f172a;padding:16px">
+        <p style="margin:0 0 8px"><strong>From:</strong> ${escapeHtml(mail.fromText || mail.fromAddress)}</p>
+        <p style="margin:0 0 4px"><strong>What the app read:</strong></p>
+        <ul style="margin:0 0 12px;padding-left:20px">${readouts.join('')}</ul>
+        <hr style="border:none;border-top:1px solid #e2e8f0"/>
+        <div style="white-space:pre-wrap">${escapeHtml(mail.text || '')}</div>
+      </div>`,
+    },
+  }).catch((err) => result.errors.push(`Inbox log failed for "${mail.subject}": ${err.message}`));
 }
 
 export async function pollSupplierInvoices(): Promise<PollResult> {

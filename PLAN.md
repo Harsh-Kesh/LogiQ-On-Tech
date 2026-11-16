@@ -285,10 +285,11 @@ Built so the app works as soon as the env vars from the client meeting are added
 | Piece | Files | What it does |
 |---|---|---|
 | Graph client | `src/lib/msgraph.ts` | App-only token (client credentials), `graph()` helper |
-| Sending | `src/lib/email.ts` | All outbound email from `MS_SENDER_MAILBOX` via `sendMail`, not saved to Sent Items. Failures logged as `failed` (Email Inbox shows FAILED) instead of pretending to be a demo send |
+| Sending | `src/lib/email.ts` | All outbound email from `MS_SENDER_MAILBOX` via `sendMail`, not saved to Sent Items. Failures logged as `failed` (Sent Emails shows FAILED) instead of pretending to be a demo send |
 | Invoice reader | `src/lib/imap-poller.ts`, `/api/cron/poll-invoices` | Reads `MS_INVOICE_MAILBOX` inbox (last 30 days, with attachments), only from known supplier senders, parses PDFs, tags each email in Outlook `LogiQ: invoice processed` / `LogiQ: invoice failed`. Unknown senders are left untouched |
-| Customer Inquiries | `src/lib/inquiries.ts`, `/api/inquiries`, `/dashboard/owner/inquiries` | Lists `MS_SENDER_MAILBOX` conversations live from Graph (no DB copy), shows the thread as plain text, replies in the same thread (goes to Reply-To when set), Mark handled = Outlook category `LogiQ: handled`, links to the order when an `SO-YYYY-NNNNN` number appears |
-| Website forms | `/api/contact`, `src/lib/website-form.ts`, Contact / hero / Request Demo / Request Quote forms | Previously sent nothing. Now email the orders mailbox with Reply-To = customer, so they land in Customer Inquiries. Honeypot field against bots |
+| Inbox (Email → Inbox; "Customers" tab) | `src/lib/inquiries.ts`, `/api/inquiries`, `/dashboard/owner/inquiries` | Lists `MS_SENDER_MAILBOX` conversations live from Graph (no DB copy), shows the thread as plain text, replies in the same thread (goes to Reply-To when set), Mark handled = Outlook category `LogiQ: handled`, links to the order when an `SO-YYYY-NNNNN` number appears |
+| Website forms | `/api/contact`, `src/lib/website-form.ts`, Contact / hero / Request Demo / Request Quote forms | Previously sent nothing. Now email the orders mailbox with Reply-To = customer, so they land in the Inbox. Honeypot field against bots |
+| Email split | `/dashboard/owner/inquiries` (Inbox), `/dashboard/owner/emails` (Sent Emails), `/api/admin/emails?direction=sent\|received` | Sidebar "Email" group. **Inbox** = everything received: Customers tab (orders@ enquiries + replies to our automatic emails, answered in-app) and Supplier invoices tab (each invoice email the poller read, with what was extracted and the linked order). **Sent Emails** = automatic outgoing emails only |
 
 **Client meeting (Microsoft 365 admin) — required for this to work:**
 - [ ] Shared mailboxes `orders@` and `accounts@` created; staff given access
@@ -296,7 +297,7 @@ Built so the app works as soon as the env vars from the client meeting are added
 - [ ] Exchange RBAC for Applications: `Application Mail.Send` + `Application Mail.ReadWrite` scoped to `orders@`; `Application Mail.ReadWrite` scoped to `accounts@`
 - [ ] Verify with `Test-ServicePrincipalAuthorization`, then set `MS_*` env vars on the host and redeploy
 
-**After go-live check:** place a test order (confirmation arrives from orders@), email a test PDF invoice from a vendor address to accounts@ and run `/api/cron/poll-invoices`, send a website contact form and reply to it from Customer Inquiries.
+**After go-live check:** place a test order (confirmation arrives from orders@), email a test PDF invoice from a vendor address to accounts@ and run `/api/cron/poll-invoices`, send a website contact form and reply to it from the Inbox.
 
 **Known limits:** invoice cron is still daily (`vercel.json`, Hobby-plan limit) — move to every 15 min on Vercel Pro. No retry on Graph throttling (429). Contact endpoint has no rate limit (honeypot only).
 

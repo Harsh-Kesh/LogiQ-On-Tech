@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Mail, Inbox, ExternalLink } from 'lucide-react';
+import { RefreshCw, Mail, Send } from 'lucide-react';
 
 interface EmailSummary {
   id: string;
@@ -52,7 +52,7 @@ export default function EmailsPage() {
 
   const fetchEmails = useCallback(async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/emails');
+    const res = await fetch('/api/admin/emails?direction=sent');
     if (res.ok) setEmails(await res.json());
     setLoading(false);
   }, []);
@@ -85,11 +85,12 @@ export default function EmailsPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
-            <Inbox className="w-6 h-6" style={{ color: '#4C3AE3' }} />
-            Email Inbox
+            <Send className="w-6 h-6" style={{ color: '#4C3AE3' }} />
+            Sent Emails
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Every transactional email the platform sends — preview them exactly as customers receive them
+            Every automatic email the platform sends (order confirmations, POs, tracking, alerts) — preview them exactly as received.
+            Received emails and customer replies are in the Inbox.
           </p>
         </div>
         <button
@@ -197,7 +198,6 @@ export default function EmailsPage() {
         Emails marked <strong>DEMO</strong> were captured while no mail service is configured — the customer did not receive them.
         Emails marked <strong>SENT</strong> went through Microsoft 365 or your mail server.
         Emails marked <strong>FAILED</strong> could not be sent — check the Microsoft 365 connection.
-        Emails marked <strong>RECEIVED</strong> are simulated incoming mail (e.g. a supplier invoice) — in production these arrive via the real IMAP inbox instead.
       </p>
     </div>
   );

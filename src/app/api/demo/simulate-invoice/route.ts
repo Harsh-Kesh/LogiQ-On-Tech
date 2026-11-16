@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     },
   });
 
-  // Log a simulated INCOMING email so the invoice is visible in the Email Inbox
+  // Log a simulated INCOMING email so the invoice is visible in Inbox → Supplier invoices
   // alongside everything we send — mode: 'received' marks the direction.
   const invoiceLineRows = sfOrder.items
     .map((item) => {
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
 
   await prisma.emailLog.create({
     data: {
-      to: 'accounts@logiqon.tech',
+      to: vendor?.apEmail || vendor?.poEmail || vendorName, // received mail: sender shown as "From"
       subject: `Invoice ${invoiceNumber} from ${vendorName} — ${sfOrder.myobPoNumber || sfOrder.orderNumber}`,
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a">

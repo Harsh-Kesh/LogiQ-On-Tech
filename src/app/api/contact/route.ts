@@ -1,6 +1,6 @@
 // Public website forms (Contact, quick contact, Request Demo, Request Quote).
 // Each submission is emailed to the orders mailbox with Reply-To set to the
-// customer, so it shows in Customer Inquiries and a reply goes straight to them.
+// customer, so it shows in the dashboard Inbox and a reply goes straight to them.
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
