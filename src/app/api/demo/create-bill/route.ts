@@ -1,12 +1,13 @@
 // Demo-only endpoint: books the matched supplier invoice as a payable Bill —
-// its own owner-triggered step so "Bill Created" is a visible pipeline stage,
-// distinct from both the match and the payment that follows it.
+// its own owner-triggered step so "Bill Created" is a visible pipeline stage.
+// If the invoice carried a tracking number, the order is dispatched right after.
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createSupplierBill } from '@/lib/three-way-match';
+import { dispatchIfTracked } from '@/lib/dispatch';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -37,7 +38,9 @@ export async function POST(req: Request) {
 
   try {
     const result = await createSupplierBill(storefrontOrderId, suppInvoice.id);
-    return NextResponse.json({ success: true, billNumber: result.billNumber });
+    // Tracking already known from the invoice → email the customer straight away.
+    const dispatched = await dispatchIfTracked(storefrontOrderId);
+    return NextResponse.json({ success: true, billNumber: result.billNumber, dispatched });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Bill creation failed' }, { status: 422 });
   }

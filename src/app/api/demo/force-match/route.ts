@@ -1,4 +1,4 @@
-// Demo-only: force an order through the bill/payment/warranty pipeline.
+// Demo-only: force an order through the match/bill/dispatch/warranty pipeline.
 // Handles orders stuck at MATCH_EXCEPTION, MATCHED, or INVOICE_RECEIVED.
 // Creates a matching supplier invoice if one doesn't exist, then re-runs
 // the three-way match which will pass (amounts always match in force mode).
@@ -7,8 +7,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { runThreeWayMatch, createSupplierBill } from '@/lib/three-way-match';
-import { payOrderSupplier } from '@/lib/supplier-payment';
+import { advanceAfterInvoice } from '@/lib/dispatch';
 
 const ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
@@ -77,21 +76,9 @@ export async function POST(req: Request) {
     },
   });
 
-  const matchResult = await runThreeWayMatch(storefrontOrderId, suppInv.id);
-
-  // "Force Through" means skip every remaining step at once, so chain bill
-  // creation and payment right after a successful match — each is still its own
-  // visible status along the way, this just runs through all of them in one go
-  // instead of the owner clicking Create Bill then Pay Supplier separately.
-  if (matchResult.matched) {
-    try {
-      await createSupplierBill(storefrontOrderId, suppInv.id);
-      await payOrderSupplier(storefrontOrderId);
-    } catch (err: any) {
-      console.error('Force match: bill/payment step failed:', err.message);
-      // Match is still recorded — owner can finish the remaining steps manually
-    }
-  }
+  // "Force Through" runs every remaining step at once: match → bill → dispatch
+  // (dispatch only if a tracking number is already on the order).
+  const matchResult = await advanceAfterInvoice(storefrontOrderId, suppInv.id);
 
   const updatedOrder = await prisma.storefrontOrder.findUnique({ where: { id: storefrontOrderId } });
 

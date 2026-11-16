@@ -3,13 +3,14 @@
 // Reads the accounts mailbox through Microsoft Graph when MS_* is configured
 // (MS_INVOICE_MAILBOX), otherwise falls back to IMAP (IMAP_* env vars).
 // For each email from a known supplier, extracts PDF attachments, parses them,
-// creates SupplierInvoice records, and triggers the 3-way match.
+// creates SupplierInvoice records, then match → bill → tracking email (src/lib/dispatch.ts).
 
 import Imap from 'imap';
 import { simpleParser, Attachment } from 'mailparser';
 import { prisma } from './prisma';
 import { parseInvoicePdf } from './invoice-parser';
-import { runThreeWayMatch } from './three-way-match';
+import { advanceAfterInvoice } from './dispatch';
+import { assignSerials, normalizeCarrier } from './carriers';
 import { graph, graphConfigured, invoiceMailbox, mailboxPath } from './msgraph';
 import { extractPoNumber, isAllowedSender } from './mail-helpers';
 
@@ -192,30 +193,39 @@ async function processInvoiceMail(mail: InboundMail, result: PollResult): Promis
     });
 
     if (storefrontOrder) {
+      // Supplier invoices once goods ship, so the invoice's tracking number is the dispatch tracking.
       await prisma.storefrontOrder.update({
         where: { id: storefrontOrder.id },
-        data: { status: 'INVOICE_RECEIVED', supplierInvoiceReceivedAt: new Date() },
+        data: {
+          status: 'INVOICE_RECEIVED',
+          supplierInvoiceReceivedAt: new Date(),
+          ...(parsed.trackingNumber ? { sektorTrackingNumber: parsed.trackingNumber, trackingCarrier: normalizeCarrier(parsed.carrier) } : {}),
+        },
       });
 
-      await runThreeWayMatch(storefrontOrder.id, suppInvoice.id).catch((err) =>
-        result.errors.push(`3-way match failed for ${storefrontOrder!.id}: ${err.message}`)
+      // Match → bill → tracking email (stops early on a match exception or missing tracking).
+      await advanceAfterInvoice(storefrontOrder.id, suppInvoice.id).catch((err) =>
+        result.errors.push(`Match/bill/dispatch failed for ${storefrontOrder!.id}: ${err.message}`)
       );
 
-      // Write serial/batch numbers to warranty records created by the match, in document order
-      if ((parsed.serialNumbers && parsed.serialNumbers.length > 0) || (parsed.batchNumbers && parsed.batchNumbers.length > 0)) {
-        const warranties = await prisma.warrantyRecord.findMany({
-          where: { supplierInvoiceId: suppInvoice.id },
-          orderBy: { createdAt: 'asc' },
-        });
-        for (let i = 0; i < warranties.length; i++) {
-          const sn = parsed.serialNumbers?.[i];
-          const bn = parsed.batchNumbers?.[i];
-          const data: Record<string, string> = {};
-          if (sn && !warranties[i].serialNumber) data.serialNumber = sn;
-          if (bn && !warranties[i].batchNumber) data.batchNumber = bn;
-          if (Object.keys(data).length > 0) {
-            await prisma.warrantyRecord.update({ where: { id: warranties[i].id }, data });
-          }
+      // Serial/batch numbers onto the warranty records the match created (one per order line).
+      const warranties = await prisma.warrantyRecord.findMany({
+        where: { supplierInvoiceId: suppInvoice.id },
+        orderBy: { createdAt: 'asc' },
+      });
+      // Claude gives serials per line (matched by item code); the regex fallback only a flat list.
+      const serialLines = parsed.lines?.some((l) => l.serialNumbers?.length)
+        ? parsed.lines
+        : (parsed.serialNumbers ?? []).map((s) => ({ serialNumbers: [s] }));
+      const serials = new Map(assignSerials(warranties, serialLines).map((p) => [p.id, p.serialNumber]));
+      for (let i = 0; i < warranties.length; i++) {
+        const sn = serials.get(warranties[i].id);
+        const bn = parsed.batchNumbers?.[i];
+        const data: Record<string, string> = {};
+        if (sn && !warranties[i].serialNumber) data.serialNumber = sn;
+        if (bn && !warranties[i].batchNumber) data.batchNumber = bn;
+        if (Object.keys(data).length > 0) {
+          await prisma.warrantyRecord.update({ where: { id: warranties[i].id }, data });
         }
       }
     }

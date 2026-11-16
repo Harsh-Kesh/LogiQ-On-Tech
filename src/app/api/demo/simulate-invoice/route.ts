@@ -1,18 +1,16 @@
 // Demo-only endpoint: simulates a supplier emailing a PDF invoice.
-// Creates a SupplierInvoice record, then auto-advances through everything that's
-// pure computation — the 3-way match, then booking the supplier bill — because
-// none of that needs a human decision. It stops at BILL_CREATED: the owner still
-// has to explicitly confirm and send the actual payment (Pay Supplier), since
-// that's the one step that moves real money and should never fire on its own.
-// If the match lands on MATCH_EXCEPTION, or bill creation fails, it stops there
-// instead — /api/demo/run-match and /api/demo/create-bill cover manual retry.
+// Creates a SupplierInvoice record (with a demo Australia Post tracking number, as a
+// real supplier invoice carries once goods ship), then runs the same automatic chain
+// as a real emailed invoice: 3-way match → supplier bill → tracking email to the
+// customer (FULFILLED). If the match lands on MATCH_EXCEPTION, or bill creation fails,
+// it stops there instead — /api/demo/run-match and /api/demo/create-bill cover manual retry.
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { computeSupplierPoTotal } from '@/lib/po-total';
-import { runThreeWayMatch, createSupplierBill } from '@/lib/three-way-match';
+import { advanceAfterInvoice } from '@/lib/dispatch';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -54,6 +52,7 @@ export async function POST(req: Request) {
 
   const invoiceNumber = `DEMO-INV-${Date.now()}`;
   const invoiceDate = new Date();
+  const trackingNumber = `DEMO${Date.now().toString().slice(-9)}`;
 
   // Create a simulated supplier invoice that exactly matches the PO total
   const suppInvoice = await prisma.supplierInvoice.create({
@@ -75,6 +74,8 @@ export async function POST(req: Request) {
     data: {
       status: 'INVOICE_RECEIVED',
       supplierInvoiceReceivedAt: new Date(),
+      sektorTrackingNumber: trackingNumber,
+      trackingCarrier: 'auspost',
     },
   });
 
@@ -126,7 +127,8 @@ export async function POST(req: Request) {
             <p style="text-align:right;margin:0 0 4px;font-size:13px;color:#64748b">Subtotal: AUD ${po.subtotal.toFixed(2)}</p>
             <p style="text-align:right;margin:0 0 4px;font-size:13px;color:#64748b">GST: AUD ${po.taxTotal.toFixed(2)}</p>
             <p style="text-align:right;margin:0;font-size:16px;font-weight:700">Total Due: AUD ${po.total.toFixed(2)}</p>
-            <p style="margin-top:20px;font-size:12px;color:#94a3b8">Payment terms: 30 days from invoice date.</p>
+            <p style="margin-top:20px;font-size:13px">Shipped via Australia Post — tracking <strong>${trackingNumber}</strong></p>
+            <p style="margin-top:8px;font-size:12px;color:#94a3b8">Payment terms: 30 days from invoice date.</p>
           </div>
         </div>`,
       mode: 'received',
@@ -134,27 +136,14 @@ export async function POST(req: Request) {
     },
   }).catch((err) => console.warn('[simulate-invoice] received email log failed:', err));
 
-  // Auto-advance: match, then bill — both pure computation, no human judgment
-  // needed. Payment stays manual (see /api/payments/supplier).
-  const matchResult = await runThreeWayMatch(storefrontOrderId, suppInvoice.id);
-
-  let billNumber: string | null = null;
-  if (matchResult.matched) {
-    try {
-      const billResult = await createSupplierBill(storefrontOrderId, suppInvoice.id);
-      billNumber = billResult.billNumber;
-    } catch (err: any) {
-      console.error('[simulate-invoice] Auto bill creation failed:', err.message);
-      // Match is still recorded — owner can create the bill manually from here
-    }
-  }
+  // Same automatic chain as a real emailed invoice: match → bill → tracking email.
+  const result = await advanceAfterInvoice(storefrontOrderId, suppInvoice.id);
 
   return NextResponse.json({
     success: true,
     invoiceId: suppInvoice.id,
     invoiceNumber: suppInvoice.vendorInvoiceNumber,
-    matched: matchResult.matched,
-    notes: matchResult.notes,
-    billNumber,
+    trackingNumber,
+    ...result,
   });
 }

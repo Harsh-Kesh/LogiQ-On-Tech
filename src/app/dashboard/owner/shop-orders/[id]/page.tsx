@@ -6,11 +6,11 @@ import { useParams } from 'next/navigation';
 import {
   ArrowLeft, Package, User, MapPin, CreditCard, Truck,
   CheckCircle2, Clock, Send, Mail, ExternalLink, FileText,
-  DollarSign, RotateCcw, ShieldAlert, AlertTriangle, Search,
+  RotateCcw, ShieldAlert, AlertTriangle, Search,
   Scale, Receipt,
 } from 'lucide-react';
-import PaySupplierModal from '@/components/orders/PaySupplierModal';
-import MarkFulfilledModal from '@/components/orders/MarkFulfilledModal';
+import DispatchModal from '@/components/orders/DispatchModal';
+import { carrierLabel, trackingUrl } from '@/lib/carriers';
 
 interface OrderItem {
   id: string;
@@ -42,9 +42,9 @@ interface Order {
   myobPoNumber?: string;
   myobBillNumber?: string;
   myobInvoiceNumber?: string;
-  monoovaTxnId?: string;
-  monoovaStatus?: string | null;
-  supplierPaidAt?: string | null;
+  sektorTrackingNumber?: string | null;
+  trackingCarrier?: string | null;
+  fulfilledAt?: string | null;
   matchedAt?: string | null;
   supplierInvoiceReceivedAt?: string | null;
   threeWayMatchResult?: string | null;
@@ -70,7 +70,7 @@ interface Order {
   items: OrderItem[];
 }
 
-const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'SUPPLIER_PAID', 'FULFILLED'];
+const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'FULFILLED'];
 const PIPELINE_STEP_LABELS = [
   { key: 'PAID', label: 'Payment Received', icon: CreditCard },
   { key: 'SO_CREATED', label: 'Sales Order Created', icon: Package },
@@ -78,12 +78,11 @@ const PIPELINE_STEP_LABELS = [
   { key: 'INVOICE_RECEIVED', label: 'Supplier Invoice Received', icon: FileText },
   { key: 'MATCHED', label: '3-Way Matched', icon: CheckCircle2 },
   { key: 'BILL_CREATED', label: 'Bill Created', icon: FileText },
-  { key: 'SUPPLIER_PAID', label: 'Supplier Paid', icon: DollarSign },
-  { key: 'FULFILLED', label: 'Fulfilled', icon: CheckCircle2 },
+  { key: 'FULFILLED', label: 'Dispatched', icon: Truck },
 ];
 
-const PAY_ELIGIBLE = new Set(['BILL_CREATED']);
-const FULFILL_ELIGIBLE = new Set(['SUPPLIER_PAID']);
+// SUPPLIER_PAID only exists on orders from before the supplier-payment step was removed.
+const DISPATCH_ELIGIBLE = new Set(['BILL_CREATED', 'SUPPLIER_PAID']);
 const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
 export default function ShopOrderDetailPage() {
@@ -92,9 +91,8 @@ export default function ShopOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [showPayModal, setShowPayModal] = useState(false);
   const [simulatingId, setSimulatingId] = useState(false);
-  const [showFulfillModal, setShowFulfillModal] = useState(false);
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [retryingPoId, setRetryingPoId] = useState(false);
   const [forceMatchId, setForceMatchId] = useState(false);
   const [runningMatchId, setRunningMatchId] = useState(false);
@@ -126,7 +124,7 @@ export default function ShopOrderDetailPage() {
 
   const handleForceMatch = async () => {
     if (!order) return;
-    const label = order.status === 'MATCH_EXCEPTION' ? 'override the exception and force-match' : 'force the order through bill/payment';
+    const label = order.status === 'MATCH_EXCEPTION' ? 'override the exception and force-match' : 'force the order through bill and dispatch';
     if (!confirm(`This will ${label} for this order. Continue?`)) return;
     setForceMatchId(true);
     const res = await fetch('/api/demo/force-match', {
@@ -154,7 +152,8 @@ export default function ShopOrderDetailPage() {
       let msg = `Invoice ${data.invoiceNumber} received from the supplier.`;
       if (data.matched !== undefined) {
         msg += `\n${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`;
-        if (data.billNumber) msg += `\nSupplier bill ${data.billNumber} created — ready to pay.`;
+        if (data.billNumber) msg += `\nSupplier bill ${data.billNumber} created.`;
+        if (data.dispatched) msg += `\nTracking ${data.trackingNumber} emailed to the customer — order dispatched.`;
       }
       alert(msg);
       load();
@@ -185,7 +184,10 @@ export default function ShopOrderDetailPage() {
     });
     setCreatingBillId(false);
     const data = await res.json().catch(() => ({}));
-    if (res.ok) { alert(`Supplier bill ${data.billNumber} created.`); load(); }
+    if (res.ok) {
+      alert(`Supplier bill ${data.billNumber} created.\n${data.dispatched ? 'Tracking emailed to the customer — order dispatched.' : 'No tracking number yet — use Send Tracking.'}`);
+      load();
+    }
     else alert(`Bill creation failed: ${data.error || res.statusText}`);
   };
 
@@ -208,9 +210,9 @@ export default function ShopOrderDetailPage() {
 
   const fmt = (v: string | number) => Number(v).toFixed(2);
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-  const currentStepIdx = PIPELINE_STEPS.indexOf(order.status);
-  const canPay = PAY_ELIGIBLE.has(order.status);
-  const canFulfill = FULFILL_ELIGIBLE.has(order.status);
+  const currentStepIdx = PIPELINE_STEPS.indexOf(order.status === 'SUPPLIER_PAID' ? 'BILL_CREATED' : order.status);
+  const canDispatch = DISPATCH_ELIGIBLE.has(order.status);
+  const trackUrl = order.sektorTrackingNumber ? trackingUrl(order.trackingCarrier, order.sektorTrackingNumber) : null;
   const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
 
   return (
@@ -271,17 +273,14 @@ export default function ShopOrderDetailPage() {
         {order.status === 'MATCHED' && (
           <ActionButton onClick={handleCreateBill} loading={creatingBillId} icon={Receipt} color="#0f766e" label="Create Supplier Bill" loadingLabel="Creating…" />
         )}
-        {canPay && (
-          <ActionButton onClick={() => setShowPayModal(true)} loading={false} icon={DollarSign} color="#16a34a" label="Pay Supplier" loadingLabel="Processing…" />
-        )}
-        {canFulfill && (
+        {canDispatch && (
           <ActionButton
-            onClick={() => setShowFulfillModal(true)}
+            onClick={() => setShowDispatchModal(true)}
             loading={false}
             icon={Truck}
             color="#059669"
-            label="Mark as Fulfilled"
-            loadingLabel="Marking…"
+            label="Send Tracking"
+            loadingLabel="Sending…"
           />
         )}
       </div>
@@ -324,7 +323,7 @@ export default function ShopOrderDetailPage() {
 
         {order.status === 'FULFILLED' && (
           <div className="mt-4 pt-4 border-t flex items-center gap-1.5 text-xs font-semibold" style={{ borderColor: '#f1f5f9', color: '#059669' }}>
-            <CheckCircle2 className="w-3.5 h-3.5" /> Delivered — marked fulfilled by owner
+            <CheckCircle2 className="w-3.5 h-3.5" /> Dispatched — tracking emailed to the customer
           </div>
         )}
       </div>
@@ -404,7 +403,7 @@ export default function ShopOrderDetailPage() {
       </div>
 
       {/* Supplier / SO / PO / fulfilment */}
-      {(order.salesOrder || order.myobPoNumber || order.poEmailSentTo || order.myobBillNumber || order.myobInvoiceNumber || order.supplierInvoice || order.monoovaTxnId) && (
+      {(order.salesOrder || order.myobPoNumber || order.poEmailSentTo || order.myobBillNumber || order.myobInvoiceNumber || order.supplierInvoice || order.sektorTrackingNumber) && (
         <div className="bg-white rounded-2xl border p-5 space-y-3" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-center gap-2 mb-1">
             <Truck className="w-4 h-4" style={{ color: '#4C3AE3' }} />
@@ -488,13 +487,17 @@ export default function ShopOrderDetailPage() {
               </div>
             )}
 
-            {/* The actual bank transfer — the real data behind "Supplier Paid" */}
-            {order.monoovaTxnId && (
+            {/* Courier tracking from the supplier invoice (or entered by the owner) */}
+            {order.sektorTrackingNumber && (
               <div className="pt-2 mt-2 border-t space-y-2" style={{ borderColor: '#f1f5f9' }}>
-                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Supplier Payment</p>
-                <Row label="Transaction Ref" value={order.monoovaTxnId} mono />
-                {order.monoovaStatus && <Row label="Status" value={order.monoovaStatus} />}
-                {order.supplierPaidAt && <Row label="Paid At" value={fmtDate(order.supplierPaidAt)} />}
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>Shipment</p>
+                <Row label="Carrier" value={carrierLabel(order.trackingCarrier)} />
+                <Row label="Tracking #" value={
+                  trackUrl
+                    ? <a href={trackUrl} target="_blank" rel="noopener noreferrer" className="font-mono hover:underline" style={{ color: '#4C3AE3' }}>{order.sektorTrackingNumber}</a>
+                    : <span className="font-mono">{order.sektorTrackingNumber}</span>
+                } />
+                {order.status === 'FULFILLED' && order.fulfilledAt && <Row label="Dispatched" value={fmtDate(order.fulfilledAt)} />}
               </div>
             )}
 
@@ -516,20 +519,12 @@ export default function ShopOrderDetailPage() {
         </div>
       )}
 
-      {showPayModal && (
-        <PaySupplierModal
-          orderId={order.id}
-          onClose={() => setShowPayModal(false)}
-          onPaid={() => { setShowPayModal(false); load(); }}
-        />
-      )}
-
-      {showFulfillModal && (
-        <MarkFulfilledModal
+      {showDispatchModal && (
+        <DispatchModal
           orderId={order.id}
           orderNumber={order.orderNumber}
-          onClose={() => setShowFulfillModal(false)}
-          onFulfilled={() => { setShowFulfillModal(false); load(); }}
+          onClose={() => setShowDispatchModal(false)}
+          onDispatched={() => { setShowDispatchModal(false); load(); }}
         />
       )}
     </div>
@@ -568,7 +563,7 @@ function StatusBadge({ status }: { status: string }) {
     BILL_CREATED:     { label: 'Bill Created',      bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4' },
     PAYMENT_SCHEDULED:{ label: 'Payment Scheduled', bg: '#ecfeff', color: '#0e7490', border: '#a5f3fc' },
     SUPPLIER_PAID:    { label: 'Supplier Paid',     bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
-    FULFILLED:        { label: 'Fulfilled',         bg: '#ecfdf5', color: '#15803d', border: '#86efac' },
+    FULFILLED:        { label: 'Dispatched',        bg: '#ecfdf5', color: '#15803d', border: '#86efac' },
     CANCELLED:        { label: 'Cancelled',         bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
   };
   const s = map[status] ?? map.PENDING_PAYMENT;

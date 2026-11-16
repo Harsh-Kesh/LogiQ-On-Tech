@@ -1,6 +1,11 @@
 // Phase 4 — PDF invoice parser.
-// Extracts structured invoice data from supplier PDF invoices using regex patterns.
-// Handles common Australian invoice formats.
+// With ANTHROPIC_API_KEY set, Claude reads the PDF (layout-independent, also finds
+// the courier tracking number and per-line serial numbers). Without it, falls back
+// to the original regex patterns for common Australian invoice formats.
+
+import Anthropic from '@anthropic-ai/sdk';
+import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
+import * as z from 'zod/v4';
 
 // pdf-parse ships CJS only; require() avoids the default-export TS error.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -18,13 +23,102 @@ export interface ParsedInvoice {
   lines?: ParsedInvoiceLine[];
   serialNumbers?: string[];  // one per line item, in order of appearance
   batchNumbers?: string[];   // one per line item, in order of appearance
+  trackingNumber?: string;   // courier consignment / tracking number (Claude only)
+  carrier?: string;          // courier name as printed, e.g. "Australia Post" (Claude only)
+  parsedBy: 'claude' | 'regex';
 }
 
 export interface ParsedInvoiceLine {
+  itemCode?: string;
   description: string;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  serialNumbers?: string[];
+}
+
+export const INVOICE_MODEL = 'claude-opus-5-5';
+
+const ClaudeInvoice = z.object({
+  invoiceNumber: z.string().nullable(),
+  invoiceDate: z.string().nullable().describe('YYYY-MM-DD'),
+  dueDate: z.string().nullable().describe('YYYY-MM-DD'),
+  supplierName: z.string().nullable(),
+  poNumber: z.string().nullable().describe('Our purchase order reference, e.g. PO-2026-00012'),
+  subtotal: z.number().nullable().describe('Ex GST'),
+  taxAmount: z.number().nullable().describe('GST'),
+  totalAmount: z.number().nullable().describe('Total payable inc GST'),
+  trackingNumber: z.string().nullable().describe('Courier consignment / tracking / connote number for the shipment'),
+  carrier: z.string().nullable().describe('Courier company name exactly as printed, e.g. Australia Post, StarTrack, TNT'),
+  lines: z.array(z.object({
+    itemCode: z.string().nullable().describe('SKU / part number / item code'),
+    description: z.string(),
+    quantity: z.number(),
+    unitPrice: z.number().describe('Ex GST'),
+    lineTotal: z.number(),
+    serialNumbers: z.array(z.string()).describe('Every serial number listed for this line, empty if none'),
+    batchNumbers: z.array(z.string()).describe('Batch / lot numbers for this line, empty if none'),
+  })),
+});
+
+const INSTRUCTIONS = `This PDF is a supplier tax invoice sent to LogiQ-On Technology (an Australian reseller).
+Extract the fields in the schema. Rules:
+- Copy invoice numbers, PO numbers, item codes, serial numbers and tracking numbers exactly as printed (no added spaces, no guessed characters).
+- poNumber is OUR purchase order number quoted on the invoice (often labelled "Your Ref", "Customer PO" or "PO"), not the supplier's own order number.
+- trackingNumber is the courier consignment / connote / tracking number for this shipment. Use null if the invoice does not show one — never invent it.
+- Amounts are plain numbers (no currency symbols). Dates as YYYY-MM-DD; Australian invoices write dates day-first.
+- Use null for anything not on the invoice.`;
+
+async function parseWithClaude(buffer: Buffer): Promise<ParsedInvoice> {
+  const client = new Anthropic();
+  const response = await client.beta.messages.parse({
+    model: INVOICE_MODEL,
+    max_tokens: 16000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default', // re-run on a fallback model if a safety classifier declines
+    output_config: { effort: 'medium', format: betaZodOutputFormat(ClaudeInvoice) },
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buffer.toString('base64') } },
+        { type: 'text', text: INSTRUCTIONS },
+      ],
+    }],
+  });
+
+  if (response.stop_reason === 'refusal') throw new Error('Claude declined to read this invoice');
+  if (response.stop_reason === 'max_tokens') throw new Error('Claude ran out of output tokens reading this invoice');
+  const inv = response.parsed_output;
+  if (!inv) throw new Error('Claude returned no structured invoice data');
+
+  const opt = <T>(v: T | null) => (v === null ? undefined : v);
+  return {
+    invoiceNumber: opt(inv.invoiceNumber),
+    invoiceDate: opt(inv.invoiceDate),
+    dueDate: opt(inv.dueDate),
+    supplierName: opt(inv.supplierName),
+    poNumber: opt(inv.poNumber),
+    subtotal: opt(inv.subtotal),
+    taxAmount: opt(inv.taxAmount),
+    totalAmount: opt(inv.totalAmount),
+    trackingNumber: opt(inv.trackingNumber),
+    carrier: opt(inv.carrier),
+    lines: inv.lines.map((l) => ({
+      itemCode: opt(l.itemCode),
+      description: l.description,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      lineTotal: l.lineTotal,
+      serialNumbers: l.serialNumbers,
+    })),
+    serialNumbers: inv.lines.flatMap((l) => l.serialNumbers),
+    batchNumbers: inv.lines.flatMap((l) => l.batchNumbers),
+    parsedBy: 'claude',
+  };
+}
+
+export async function parseInvoicePdf(buffer: Buffer): Promise<ParsedInvoice> {
+  return process.env.ANTHROPIC_API_KEY ? parseWithClaude(buffer) : parseInvoicePdfRegex(buffer);
 }
 
 function parseAuDate(raw: string): string | undefined {
@@ -50,7 +144,7 @@ function extractAmount(text: string, label: string): number | undefined {
   return m ? parseFloat(m[1].replace(/,/g, '')) : undefined;
 }
 
-export async function parseInvoicePdf(buffer: Buffer): Promise<ParsedInvoice> {
+async function parseInvoicePdfRegex(buffer: Buffer): Promise<ParsedInvoice> {
   const data = await pdfParse(buffer);
   const text = data.text;
 
@@ -109,5 +203,5 @@ export async function parseInvoicePdf(buffer: Buffer): Promise<ParsedInvoice> {
     if (!batchNumbers.includes(bn)) batchNumbers.push(bn);
   }
 
-  return { invoiceNumber, invoiceDate, dueDate, supplierName, poNumber, subtotal, taxAmount, totalAmount, lines, serialNumbers, batchNumbers };
+  return { invoiceNumber, invoiceDate, dueDate, supplierName, poNumber, subtotal, taxAmount, totalAmount, lines, serialNumbers, batchNumbers, parsedBy: 'regex' };
 }

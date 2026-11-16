@@ -300,9 +300,25 @@ Built so the app works as soon as the env vars from the client meeting are added
 
 **Known limits:** invoice cron is still daily (`vercel.json`, Hobby-plan limit) — move to every 15 min on Vercel Pro. No retry on Graph throttling (429). Contact endpoint has no rate limit (honeypot only).
 
-### 🔲 Invoice reading with Claude
+### ✅ Invoice reading with Claude + dispatch tracking (built, needs ANTHROPIC_API_KEY and real invoices to test)
 
-Replace the regex parser in `src/lib/invoice-parser.ts` with the Claude API (PDF in, structured JSON out, incl. serial/batch numbers), validated against the PO (line totals = invoice total, PO number matches an open order). Needs `ANTHROPIC_API_KEY` and 10–20 real supplier invoice samples to test with.
+The supplier only invoices once goods have shipped, so **invoice received = order dispatched**. Supplier payment is no longer an app step (it happens outside the app).
+
+New order flow: `PAID → SO → PO_SENT → INVOICE_RECEIVED → MATCHED → BILL_CREATED → FULFILLED ("Dispatched")`
+
+| Piece | Where |
+|---|---|
+| Claude reads the invoice PDF (`claude-opus-5-5`, structured output): invoice #, PO, dates, totals, lines with item code + serial numbers, **courier tracking number + carrier**. Regex parser stays as fallback when no key is set (it cannot find tracking). | `src/lib/invoice-parser.ts` |
+| Automatic chain after an invoice is linked: match → bill → tracking email | `advanceAfterInvoice` in `src/lib/dispatch.ts` |
+| Tracking email: carrier + tracking number linked to the carrier's tracking page, plus the tax invoice; starts the warranty clock; marks FULFILLED | `dispatchOrder` in `src/lib/dispatch.ts` |
+| Carrier → tracking link table (AusPost, StarTrack, TNT, CouriersPlease, Aramex, DHL). Unknown carrier → number shown without link | `src/lib/carriers.ts` |
+| Serial numbers onto warranty records, matched by item code | `assignSerials` in `src/lib/carriers.ts`, used by `src/lib/imap-poller.ts` |
+| "Send Tracking" button (BILL_CREATED orders whose invoice had no readable tracking) | `src/components/orders/DispatchModal.tsx`, `POST /api/storefront/orders/[id]/dispatch` |
+| Removed: Pay Supplier button/modal, `/api/payments/supplier`, `src/lib/supplier-payment.ts`, demo simulate-delivery / simulate-sektor-status | — |
+
+**Schema:** new nullable column `storefront_orders."trackingCarrier"`. Tracking number reuses `sektorTrackingNumber`; dispatch date reuses `fulfilledAt`.
+
+**To finish:** confirm which 2–3 carriers the suppliers use (and click-test each tracking link), then run 10–20 real supplier invoices through it and check tracking/serials were read correctly. Legacy `SUPPLIER_PAID` orders can still be dispatched with Send Tracking.
 
 ### 🔲 Export for MYOB (monthly file pack)
 
@@ -371,5 +387,5 @@ Replace the regex parser in `src/lib/invoice-parser.ts` with the Claude API (PDF
 ## Current Status
 
 **Last completed:** Phase 2 (Stripe Checkout) — committed and deployed to production  
-**Next up:** Export for MYOB (see Next Steps). Live MYOB API (Phase 3) is deferred.  
+**Next up:** test invoice reading + dispatch tracking with real supplier invoices, then Export for MYOB (see Next Steps). Live MYOB API (Phase 3) is deferred.  
 **Blocking the export:** client must confirm their MYOB product and send a sample export from their company file.

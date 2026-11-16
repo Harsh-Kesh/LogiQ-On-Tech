@@ -1,9 +1,8 @@
 // Phase 5 — Three-way match engine.
 // Compares: StorefrontOrder PO lines ↔ SupplierInvoice total (±2% tolerance).
-// On MATCHED: stops there — owner reviews and triggers bill creation as its own
-// step (createSupplierBill, below), then payment as its own step (see
-// /api/payments/supplier) — each one a distinct, visible stage in Shop Orders
-// rather than one action silently racing through all three.
+// On MATCHED: stops there. Bill creation (createSupplierBill, below) and dispatch
+// are separate steps, chained automatically by advanceAfterInvoice in ./dispatch.ts
+// and also available as owner actions. Supplier payment happens outside the app.
 // On MATCH_EXCEPTION: flags for admin review.
 
 import { prisma } from './prisma';
@@ -81,9 +80,8 @@ export async function runThreeWayMatch(
     await createWarrantyRecords(storefrontOrderId, supplierInvoiceId).catch((err) =>
       console.error('Warranty record creation failed:', err.message)
     );
-    // Stops here — MATCHED. Bill creation and payment are separate, owner-triggered
-    // steps (createSupplierBill, then /api/payments/supplier) so each shows up as
-    // its own stage in the Shop Orders pipeline instead of happening invisibly.
+    // Stops here — MATCHED. Bill and dispatch are separate steps (see ./dispatch.ts)
+    // so each shows up as its own stage in the Shop Orders pipeline.
   } else {
     // Flag for admin review
     await prisma.storefrontOrder.update({
@@ -115,9 +113,9 @@ export interface SupplierBillResult {
   billNumber: string;
 }
 
-// Owner-triggered step after a MATCHED order: books the supplier's invoice as a
-// payable Bill in MYOB. Deliberately separate from both the match and the payment
-// (see /api/payments/supplier) so "Bill Created" is its own visible pipeline stage.
+// Step after a MATCHED order: books the supplier's invoice as a payable Bill in MYOB
+// (stub while MYOB is deferred). Separate from the match so "Bill Created" is its
+// own visible pipeline stage.
 export async function createSupplierBill(
   storefrontOrderId: string,
   supplierInvoiceId: string

@@ -1362,8 +1362,9 @@ model StorefrontOrder {
   // Sektor delivery status updates
   sektorStatus          String?   // e.g. PROCESSING, SHIPPED, OUT_FOR_DELIVERY, DELIVERED
   sektorStatusUpdatedAt DateTime?
-  sektorTrackingNumber  String?
-  fulfilledAt           DateTime?
+  sektorTrackingNumber  String?   // courier tracking number (from the supplier invoice or entered by the owner)
+  trackingCarrier       String?   // carrier key from src/lib/carriers.ts (e.g. "auspost"), or free text if unknown
+  fulfilledAt           DateTime? // dispatch date — tracking email sent, warranty clock starts
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 

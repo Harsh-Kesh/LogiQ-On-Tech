@@ -5,12 +5,11 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  ShoppingBag, RefreshCw, Search, ArrowRight, AlertTriangle, DollarSign,
+  ShoppingBag, RefreshCw, Search, ArrowRight, AlertTriangle,
   FileText, Truck, Download, RotateCcw, Settings, Inbox,
   ShieldAlert, Scale, Receipt,
 } from 'lucide-react';
-import PaySupplierModal from '@/components/orders/PaySupplierModal';
-import MarkFulfilledModal from '@/components/orders/MarkFulfilledModal';
+import DispatchModal from '@/components/orders/DispatchModal';
 
 interface Order {
   id: string;
@@ -26,7 +25,7 @@ interface Order {
   myobPoNumber: string | null;
   myobBillNumber: string | null;
   myobInvoiceNumber: string | null;
-  monoovaTxnId: string | null;
+  sektorTrackingNumber: string | null;
   threeWayMatchResult: string | null;
   sektorStatus: string | null;
   salesOrder?: { salesOrderNumber: string; status: string } | null;
@@ -44,15 +43,15 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   BILL_CREATED: { label: 'Bill Created', color: 'bg-teal-100 text-teal-700' },
   PAYMENT_SCHEDULED: { label: 'Payment Scheduled', color: 'bg-cyan-100 text-cyan-700' },
   SUPPLIER_PAID: { label: 'Supplier Paid', color: 'bg-green-100 text-green-800' },
-  FULFILLED: { label: 'Fulfilled', color: 'bg-emerald-100 text-emerald-700' },
+  FULFILLED: { label: 'Dispatched', color: 'bg-emerald-100 text-emerald-700' },
   CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-500' },
 };
 
-const PAY_ELIGIBLE = new Set(['BILL_CREATED']);
-const FULFILL_ELIGIBLE = new Set(['SUPPLIER_PAID']);
+// SUPPLIER_PAID only exists on orders from before the supplier-payment step was removed.
+const DISPATCH_ELIGIBLE = new Set(['BILL_CREATED', 'SUPPLIER_PAID']);
 const FORCE_MATCH_ELIGIBLE = new Set(['MATCH_EXCEPTION', 'MATCHED', 'INVOICE_RECEIVED', 'BILL_CREATED']);
 
-const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'SUPPLIER_PAID', 'FULFILLED'];
+const PIPELINE_STEPS = ['PAID', 'SO_CREATED', 'PO_SENT', 'INVOICE_RECEIVED', 'MATCHED', 'BILL_CREATED', 'FULFILLED'];
 const PIPELINE_STEP_LABELS = [
   { key: 'PAID', label: 'Paid' },
   { key: 'SO_CREATED', label: 'SO' },
@@ -60,8 +59,7 @@ const PIPELINE_STEP_LABELS = [
   { key: 'INVOICE_RECEIVED', label: 'Invoice' },
   { key: 'MATCHED', label: 'Matched' },
   { key: 'BILL_CREATED', label: 'Bill' },
-  { key: 'SUPPLIER_PAID', label: 'Paid Out' },
-  { key: 'FULFILLED', label: 'Done' },
+  { key: 'FULFILLED', label: 'Dispatched' },
 ];
 
 export default function ShopOrdersPage() {
@@ -70,9 +68,8 @@ export default function ShopOrdersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
-  const [payOrderId, setPayOrderId] = useState<string | null>(null);
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
-  const [fulfillOrder, setFulfillOrder] = useState<{ id: string; orderNumber: string } | null>(null);
+  const [dispatchOrder, setDispatchOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [retryingPoId, setRetryingPoId] = useState<string | null>(null);
   const [forceMatchId, setForceMatchId] = useState<string | null>(null);
   const [runningMatchId, setRunningMatchId] = useState<string | null>(null);
@@ -104,7 +101,7 @@ export default function ShopOrdersPage() {
   };
 
   const handleForceMatch = async (orderId: string, status: string) => {
-    const label = status === 'MATCH_EXCEPTION' ? 'override the exception and force-match' : 'force the order through bill/payment';
+    const label = status === 'MATCH_EXCEPTION' ? 'override the exception and force-match' : 'force the order through bill and dispatch';
     if (!confirm(`This will ${label} for this order. Continue?`)) return;
     setForceMatchId(orderId);
     const res = await fetch('/api/demo/force-match', {
@@ -136,7 +133,8 @@ export default function ShopOrdersPage() {
       let msg = `Invoice ${data.invoiceNumber} received from the supplier.`;
       if (data.matched !== undefined) {
         msg += `\n${data.matched ? '✓ 3-way match PASSED' : '⚠ Match exception — check variance'}\n${data.notes}`;
-        if (data.billNumber) msg += `\nSupplier bill ${data.billNumber} created — ready to pay.`;
+        if (data.billNumber) msg += `\nSupplier bill ${data.billNumber} created.`;
+        if (data.dispatched) msg += `\nTracking ${data.trackingNumber} emailed to the customer — order dispatched.`;
       }
       alert(msg);
       load();
@@ -198,12 +196,12 @@ export default function ShopOrdersPage() {
   };
 
   const handleExportCsv = () => {
-    const headers = ['Order #', 'Customer', 'Email', 'Total', 'Status', 'SO #', 'PO #', 'Bill #', 'Txn ID', 'Created'];
+    const headers = ['Order #', 'Customer', 'Email', 'Total', 'Status', 'SO #', 'PO #', 'Bill #', 'Tracking #', 'Created'];
     const rows = filtered.map((o) => [
       o.orderNumber, o.customerName, o.customerEmail,
       `${o.currency} ${Number(o.totalAmount).toFixed(2)}`,
       o.status, o.myobSoNumber || o.salesOrder?.salesOrderNumber || '', o.myobPoNumber || '', o.myobBillNumber || '',
-      o.monoovaTxnId || '', new Date(o.createdAt).toLocaleDateString('en-AU'),
+      o.sektorTrackingNumber || '', new Date(o.createdAt).toLocaleDateString('en-AU'),
     ]);
     const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -322,8 +320,7 @@ export default function ShopOrdersPage() {
         <div className="space-y-3">
           {filtered.map((order) => {
             const badge = STATUS_LABELS[order.status] || { label: order.status, color: 'bg-slate-100 text-slate-600' };
-            const canPay = PAY_ELIGIBLE.has(order.status);
-            const canFulfill = FULFILL_ELIGIBLE.has(order.status);
+            const canDispatch = DISPATCH_ELIGIBLE.has(order.status);
             const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
             // Only a legacy (pre-unification) order has an SO number that differs from
             // its order number — new orders share one number, so nothing extra to show.
@@ -380,7 +377,7 @@ export default function ShopOrdersPage() {
                       <button
                         onClick={() => handleForceMatch(order.id, order.status)}
                         disabled={forceMatchId === order.id}
-                        title={order.status === 'MATCH_EXCEPTION' ? 'Override the match exception and force through' : 'Force bill creation, payment, and warranty records'}
+                        title={order.status === 'MATCH_EXCEPTION' ? 'Override the match exception and force through' : 'Force bill creation, dispatch and warranty records'}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition disabled:opacity-60"
                       >
                         <ShieldAlert className="w-3.5 h-3.5" />
@@ -417,22 +414,13 @@ export default function ShopOrdersPage() {
                         {creatingBillId === order.id ? 'Creating…' : 'Create Supplier Bill'}
                       </button>
                     )}
-                    {canPay && (
+                    {canDispatch && (
                       <button
-                        onClick={() => setPayOrderId(order.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition"
-                      >
-                        <DollarSign className="w-3.5 h-3.5" />
-                        Pay Supplier
-                      </button>
-                    )}
-                    {canFulfill && (
-                      <button
-                        onClick={() => setFulfillOrder({ id: order.id, orderNumber: order.orderNumber })}
+                        onClick={() => setDispatchOrder({ id: order.id, orderNumber: order.orderNumber })}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition"
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        Mark as Fulfilled
+                        Send Tracking
                       </button>
                     )}
                     <Link
@@ -447,7 +435,7 @@ export default function ShopOrdersPage() {
                 {/* Pipeline progress trail */}
                 <div className="mt-3 flex items-center gap-1 overflow-x-auto pb-1 text-[10px] font-semibold text-slate-400">
                   {PIPELINE_STEP_LABELS.map((step, i, arr) => {
-                    const orderIdx = PIPELINE_STEPS.indexOf(order.status);
+                    const orderIdx = PIPELINE_STEPS.indexOf(order.status === 'SUPPLIER_PAID' ? 'BILL_CREATED' : order.status);
                     const stepIdx = PIPELINE_STEPS.indexOf(step.key);
                     const done = stepIdx <= orderIdx;
                     const current = stepIdx === orderIdx;
@@ -478,7 +466,7 @@ export default function ShopOrdersPage() {
                   {order.myobPoNumber && <span>PO: <strong className="text-slate-700">{order.myobPoNumber}</strong></span>}
                   {order.myobBillNumber && <span>Bill: <strong className="text-slate-700">{order.myobBillNumber}</strong></span>}
                   {order.myobInvoiceNumber && <span>Inv: <strong className="text-emerald-700">{order.myobInvoiceNumber}</strong></span>}
-                  {order.monoovaTxnId && <span>Payment Ref: <strong className="text-slate-700">{order.monoovaTxnId}</strong></span>}
+                  {order.sektorTrackingNumber && <span>Tracking: <strong className="text-slate-700">{order.sektorTrackingNumber}</strong></span>}
                   <span className="ml-auto">{fmtDate(order.createdAt)}</span>
                 </div>
               </div>
@@ -493,20 +481,12 @@ export default function ShopOrdersPage() {
         </p>
       )}
 
-      {payOrderId && (
-        <PaySupplierModal
-          orderId={payOrderId}
-          onClose={() => setPayOrderId(null)}
-          onPaid={() => { setPayOrderId(null); load(); }}
-        />
-      )}
-
-      {fulfillOrder && (
-        <MarkFulfilledModal
-          orderId={fulfillOrder.id}
-          orderNumber={fulfillOrder.orderNumber}
-          onClose={() => setFulfillOrder(null)}
-          onFulfilled={() => { setFulfillOrder(null); load(); }}
+      {dispatchOrder && (
+        <DispatchModal
+          orderId={dispatchOrder.id}
+          orderNumber={dispatchOrder.orderNumber}
+          onClose={() => setDispatchOrder(null)}
+          onDispatched={() => { setDispatchOrder(null); load(); }}
         />
       )}
     </div>
