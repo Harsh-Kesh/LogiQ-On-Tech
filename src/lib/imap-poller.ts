@@ -241,7 +241,7 @@ async function processInvoiceMail(mail: InboundMail, result: PollResult): Promis
     result.invoicesCreated++;
   }
 
-  // Record the received email so it shows in the dashboard Inbox (Supplier invoices tab).
+  // Record the received email so it shows on the dashboard Accounts Mailbox page.
   await prisma.emailLog.create({
     data: {
       to: mail.fromAddress,

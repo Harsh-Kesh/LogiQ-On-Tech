@@ -1,9 +1,9 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
+// Automatic emails the platform sent from the orders mailbox (Orders Mailbox → Sent tab).
 
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Mail, Send } from 'lucide-react';
+import { RefreshCw, Mail } from 'lucide-react';
 
 interface EmailSummary {
   id: string;
@@ -43,7 +43,7 @@ const MODE_DETAIL = {
   failed: 'FAILED — not delivered',
 };
 
-export default function EmailsPage() {
+export default function SentEmails() {
   const [emails, setEmails] = useState<EmailSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -80,19 +80,11 @@ export default function EmailsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
-            <Send className="w-6 h-6" style={{ color: '#4C3AE3' }} />
-            Sent Emails
-          </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Every automatic email the platform sends (order confirmations, POs, tracking, alerts) — preview them exactly as received.
-            Received emails and customer replies are in the Inbox.
-          </p>
-        </div>
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm text-slate-500">
+          Automatic emails sent from this mailbox (order confirmations, POs, tracking, alerts) — shown exactly as received.
+        </p>
         <button
           onClick={fetchEmails}
           disabled={loading}

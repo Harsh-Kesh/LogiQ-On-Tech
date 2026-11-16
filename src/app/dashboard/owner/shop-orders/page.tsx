@@ -242,7 +242,7 @@ export default function ShopOrdersPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Link
-            href="/dashboard/owner/emails"
+            href="/dashboard/owner/orders-mailbox?tab=sent"
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold transition"
           >
             <Inbox className="w-3.5 h-3.5" />

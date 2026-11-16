@@ -3,8 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET ?direction=sent      -> emails the platform sent (Sent Emails page)
-// GET ?direction=received  -> supplier invoice emails received (Inbox → Supplier invoices)
+// GET ?direction=sent      -> emails the platform sent (Orders Mailbox → Sent tab)
+// GET ?direction=received  -> supplier invoice emails received (Accounts Mailbox page)
 // no direction             -> everything (Traceability etc.)
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);

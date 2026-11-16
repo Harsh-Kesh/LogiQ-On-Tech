@@ -4,7 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, MessageSquare, Send, CheckCircle2, RotateCcw, ExternalLink, PlugZap, Inbox, FileText, Mail } from 'lucide-react';
+import { RefreshCw, MessageSquare, Send, CheckCircle2, RotateCcw, ExternalLink, PlugZap, Inbox } from 'lucide-react';
+import SentEmails from '@/components/email/SentEmails';
 
 interface Inquiry {
   id: string;
@@ -28,7 +29,7 @@ interface Thread {
 }
 
 type Filter = 'open' | 'handled' | 'all';
-type Tab = 'customers' | 'suppliers';
+type Tab = 'inbox' | 'sent';
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -39,11 +40,15 @@ function formatTime(iso: string) {
   return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
 }
 
-// Inbox: everything RECEIVED. Customers = orders@ mailbox (new enquiries + replies to our
-// automatic emails, answered from here). Supplier invoices = invoice emails the poller read.
-// Outgoing automatic emails live on the separate Sent Emails page (/dashboard/owner/emails).
-export default function InboxPage() {
-  const [tab, setTab] = useState<Tab>('customers');
+// Orders mailbox (MS_SENDER_MAILBOX, e.g. orders@): sends every automatic email and receives
+// customer enquiries + replies to those emails. Inbox tab = conversations (answered from here),
+// Sent tab = the automatic emails. Supplier invoices go to the separate Accounts Mailbox page.
+export default function OrdersMailboxPage() {
+  const [tab, setTab] = useState<Tab>('inbox');
+  // Links like "View sent emails" open ?tab=sent.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('tab') === 'sent') setTab('sent');
+  }, []);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,13 +134,13 @@ export default function InboxPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: '#0f172a' }}>
             <Inbox className="w-6 h-6" style={{ color: '#4C3AE3' }} />
-            Inbox
+            Orders Mailbox
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Emails received — customer enquiries and replies (answer them here, sent from the orders mailbox in the same thread), and supplier invoices.
+            The mailbox the platform sends from. Customer enquiries and replies arrive here — answer them in the same email thread.
           </p>
         </div>
-        {tab === 'customers' && !notConfigured && (
+        {tab === 'inbox' && !notConfigured && (
           <button
             onClick={load}
             disabled={loading}
@@ -149,8 +154,8 @@ export default function InboxPage() {
 
       <div className="flex gap-1 mb-3">
         {([
-          { key: 'customers', label: `Customers${openCount > 0 ? ` (${openCount} open)` : ''}`, icon: MessageSquare },
-          { key: 'suppliers', label: 'Supplier invoices', icon: FileText },
+          { key: 'inbox', label: `Inbox${openCount > 0 ? ` (${openCount} open)` : ''}`, icon: MessageSquare },
+          { key: 'sent', label: 'Sent (automatic)', icon: Send },
         ] as const).map((t) => (
           <button
             key={t.key}
@@ -164,10 +169,10 @@ export default function InboxPage() {
         ))}
       </div>
 
-      {error && tab === 'customers' && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>}
+      {error && tab === 'inbox' && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>}
 
-      {tab === 'suppliers' ? (
-        <SupplierInvoices />
+      {tab === 'sent' ? (
+        <SentEmails />
       ) : notConfigured ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <PlugZap className="w-12 h-12 mx-auto text-slate-300 mb-3" />
@@ -303,91 +308,6 @@ export default function InboxPage() {
         </div>
       </div>
       )}
-    </div>
-  );
-}
-
-interface ReceivedEmail { id: string; to: string; subject: string; sentAt: string; orderId?: string | null }
-
-// Supplier invoice emails the invoice poller read (EmailLog mode 'received'; `to` holds the sender).
-function SupplierInvoices() {
-  const [emails, setEmails] = useState<ReceivedEmail[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<ReceivedEmail | null>(null);
-  const [html, setHtml] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch('/api/admin/emails?direction=received')
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setEmails)
-      .finally(() => setLoading(false));
-  }, []);
-
-  const open = async (e: ReceivedEmail) => {
-    setSelected(e);
-    setHtml(null);
-    const res = await fetch(`/api/admin/emails/${e.id}`);
-    if (res.ok) setHtml((await res.json()).html);
-  };
-
-  return (
-    <div className="flex rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white" style={{ height: 'calc(100vh - 260px)', minHeight: '460px' }}>
-      <div className="w-80 shrink-0 border-r border-slate-200 overflow-y-auto">
-        {loading ? (
-          <div className="flex items-center justify-center h-32 text-slate-400 text-sm">Loading…</div>
-        ) : emails.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-center px-6">
-            <Mail className="w-10 h-10 text-slate-300 mb-3" />
-            <p className="text-sm font-semibold text-slate-500">No supplier invoices received yet</p>
-          </div>
-        ) : (
-          emails.map((e) => (
-            <button
-              key={e.id}
-              onClick={() => open(e)}
-              className={`w-full text-left px-4 py-3 border-b border-slate-100 transition hover:bg-slate-50 ${
-                selected?.id === e.id ? 'bg-[#EEF0FE] border-l-2 border-l-[#4C3AE3]' : ''
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-xs font-semibold text-slate-500 truncate">{e.to}</span>
-                <span className="text-[11px] text-slate-400 shrink-0">{formatTime(e.sentAt)}</span>
-              </div>
-              <p className="text-sm font-semibold text-slate-800 truncate mt-0.5">{e.subject}</p>
-            </button>
-          ))
-        )}
-      </div>
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {!selected ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-8">
-            <FileText className="w-14 h-14 text-slate-200 mb-4" />
-            <p className="text-base font-semibold text-slate-400">Select an invoice email</p>
-          </div>
-        ) : (
-          <>
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 shrink-0">
-              <h2 className="font-bold text-slate-900 truncate">{selected.subject}</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                From {selected.to} · {new Date(selected.sentAt).toLocaleString('en-AU')}
-                {selected.orderId && (
-                  <>
-                    {' · '}
-                    <Link href={`/dashboard/owner/shop-orders/${selected.orderId}`} className="inline-flex items-center gap-1 font-semibold text-[#4C3AE3] hover:underline">
-                      View order <ExternalLink className="w-3 h-3" />
-                    </Link>
-                  </>
-                )}
-              </p>
-            </div>
-            {html === null ? (
-              <div className="flex items-center justify-center h-full text-slate-400 text-sm">Loading…</div>
-            ) : (
-              <iframe srcDoc={html} sandbox="" className="flex-1 w-full border-0 bg-white" title={selected.subject} />
-            )}
-          </>
-        )}
-      </div>
     </div>
   );
 }

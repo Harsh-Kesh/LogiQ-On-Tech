@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     },
   });
 
-  // Log a simulated INCOMING email so the invoice is visible in Inbox → Supplier invoices
+  // Log a simulated INCOMING email so the invoice is visible on the Accounts Mailbox page
   // alongside everything we send — mode: 'received' marks the direction.
   const invoiceLineRows = sfOrder.items
     .map((item) => {

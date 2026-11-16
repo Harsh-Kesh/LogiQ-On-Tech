@@ -509,7 +509,7 @@ export default function ShopOrderDetailPage() {
           </div>
           <div className="pt-3 border-t" style={{ borderColor: '#f1f5f9' }}>
             <Link
-              href="/dashboard/owner/emails"
+              href="/dashboard/owner/orders-mailbox?tab=sent"
               className="inline-flex items-center gap-1.5 text-xs font-semibold hover:underline"
               style={{ color: '#4C3AE3' }}
             >

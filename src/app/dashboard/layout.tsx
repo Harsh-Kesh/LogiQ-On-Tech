@@ -10,7 +10,7 @@ import Brand from '@/components/Brand';
 import HelpdeskLauncher from '@/components/HelpdeskLauncher';
 import {
   Shield, FileText, LogOut, Lock, Package, Truck, ShoppingCart,
-  Menu, X, Search, ShieldCheck, Inbox, BarChart2, LayoutDashboard, Send,
+  Menu, X, Search, ShieldCheck, Inbox, BarChart2, LayoutDashboard, Receipt,
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -77,8 +77,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       label: 'Email',
       links: [
-        { name: 'Inbox', href: '/dashboard/owner/inquiries', roleRequired: OWNER_ONLY, icon: Inbox },
-        { name: 'Sent Emails', href: '/dashboard/owner/emails', roleRequired: OWNER_ONLY, icon: Send },
+        { name: 'Orders Mailbox', href: '/dashboard/owner/orders-mailbox', roleRequired: OWNER_ONLY, icon: Inbox },
+        { name: 'Accounts Mailbox', href: '/dashboard/owner/accounts-mailbox', roleRequired: OWNER_ONLY, icon: Receipt },
       ],
     },
     {
