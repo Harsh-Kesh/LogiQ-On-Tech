@@ -5,9 +5,13 @@
 // {n} is replaced with the URL-encoded tracking number.
 export const CARRIERS: Record<string, { label: string; match: RegExp; url: string }> = {
   // StarTrack before Australia Post: invoices often print "StarTrack (Australia Post)".
-  startrack: { label: 'StarTrack', match: /star\s*track/i, url: 'https://startrack.com.au/track/details/{n}' },
+  // StarTrack Courier search link (per the client). ponytail: state fixed to NSW (Sektor's dispatch
+  // state, unconfirmed) — make it per-order if consignments come from other states.
+  startrack: { label: 'StarTrack', match: /star\s*track/i, url: 'https://my.startrackcourier.com.au/?Type.TypeName=Connote&Type.JobTypeNumber={n}&Type.State=NSW' },
   auspost: { label: 'Australia Post', match: /australia\s*post|auspost|aus\s*post/i, url: 'https://auspost.com.au/mypost/track/details/{n}' },
-  tnt: { label: 'TNT', match: /\btnt\b/i, url: 'https://www.tnt.com/express/en_au/site/shipping-tools/tracking.html?searchType=con&cons={n}' },
+  // TNT Australia (FedEx). The real per-consignment page needs an encrypted link that only TNT's
+  // search form produces — src/lib/couriers/tnt.ts resolves it at dispatch; this is the fallback.
+  tnt: { label: 'TNT (FedEx)', match: /\btnt\b|fedex/i, url: 'https://www.tntexpress.com.au/interaction/trackntrace.aspx' },
   couriersplease: { label: 'CouriersPlease', match: /couriers?\s*please/i, url: 'https://www.couriersplease.com.au/tools-track/no/{n}' },
   aramex: { label: 'Aramex', match: /aramex|fastway/i, url: 'https://www.aramex.com.au/tools/track?l={n}' },
   dhl: { label: 'DHL Express', match: /\bdhl\b/i, url: 'https://www.dhl.com/au-en/home/tracking/tracking-express.html?submit=1&tracking-id={n}' },

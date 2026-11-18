@@ -97,6 +97,24 @@ export default function ShopOrderDetailPage() {
   const [simulatingId, setSimulatingId] = useState(false);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [showDeliveredModal, setShowDeliveredModal] = useState(false);
+  const [checkingCourier, setCheckingCourier] = useState(false);
+
+  const handleCheckCourier = async () => {
+    if (!order) return;
+    setCheckingCourier(true);
+    const res = await fetch(`/api/storefront/orders/${order.id}/check-tracking`, { method: 'POST' });
+    setCheckingCourier(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.error || 'Courier check failed.'); return; }
+    if (data.outcome === 'no_tracker') {
+      alert('This courier isn\'t checked automatically yet — use Mark Delivered once the customer has the goods.');
+    } else if (data.delivered) {
+      alert('The courier reports this order as delivered. It is now Fulfilled and the customer has been emailed.');
+    } else {
+      alert(`Not delivered yet (courier status: ${String(data.status).replace(/_/g, ' ')}).${data.estimatedDelivery ? `\nEstimated delivery: ${new Date(data.estimatedDelivery).toLocaleDateString('en-AU')}` : ''}`);
+    }
+    load();
+  };
   const [retryingPoId, setRetryingPoId] = useState(false);
   const [forceMatchId, setForceMatchId] = useState(false);
   const [runningMatchId, setRunningMatchId] = useState(false);
@@ -216,7 +234,10 @@ export default function ShopOrderDetailPage() {
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const currentStepIdx = PIPELINE_STEPS.indexOf(order.status === 'SUPPLIER_PAID' ? 'BILL_CREATED' : order.status);
   const canDispatch = DISPATCH_ELIGIBLE.has(order.status);
-  const trackUrl = order.sektorTrackingNumber ? trackingUrl(order.trackingCarrier, order.sektorTrackingNumber) : null;
+  // TNT's per-consignment link has to be looked up server-side, so go via our redirect route.
+  const trackUrl = !order.sektorTrackingNumber ? null
+    : order.trackingCarrier === 'tnt' ? `/api/storefront/orders/${order.id}/track`
+    : trackingUrl(order.trackingCarrier, order.sektorTrackingNumber);
   const canForceMatch = FORCE_MATCH_ELIGIBLE.has(order.status);
 
   return (
@@ -286,6 +307,9 @@ export default function ShopOrderDetailPage() {
             label="Send Tracking"
             loadingLabel="Sending…"
           />
+        )}
+        {order.status === 'DISPATCHED' && (
+          <ActionButton onClick={handleCheckCourier} loading={checkingCourier} icon={RotateCcw} color="#0f766e" label="Check Courier Now" loadingLabel="Checking…" />
         )}
         {order.status === 'DISPATCHED' && (
           <ActionButton onClick={() => setShowDeliveredModal(true)} loading={false} icon={CheckCircle2} color="#059669" label="Mark Delivered" loadingLabel="Saving…" />

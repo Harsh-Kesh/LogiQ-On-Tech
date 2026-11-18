@@ -6,6 +6,7 @@ assert.equal(normalizeCarrier('StarTrack (Australia Post)'), 'startrack', 'StarT
 assert.equal(normalizeCarrier('Australia Post eParcel'), 'auspost');
 assert.equal(normalizeCarrier('auspost'), 'auspost', 'stored key round-trips');
 assert.equal(normalizeCarrier('TNT Express'), 'tnt');
+assert.equal(normalizeCarrier('FedEx'), 'tnt', 'TNT deliveries are done by FedEx');
 assert.equal(normalizeCarrier('Couriers Please'), 'couriersplease');
 assert.equal(normalizeCarrier('Fastway'), 'aramex');
 assert.equal(normalizeCarrier('Hunter Express'), 'Hunter Express', 'unknown carrier kept as text');
@@ -13,7 +14,8 @@ assert.equal(normalizeCarrier('  '), null);
 assert.equal(normalizeCarrier(null), null);
 
 assert.equal(trackingUrl('auspost', ' 33ABC123 '), 'https://auspost.com.au/mypost/track/details/33ABC123');
-assert.equal(trackingUrl('tnt', 'X 1'), 'https://www.tnt.com/express/en_au/site/shipping-tools/tracking.html?searchType=con&cons=X%201');
+assert.equal(trackingUrl('tnt', 'X 1'), 'https://www.tntexpress.com.au/interaction/trackntrace.aspx', 'TNT fallback = search page');
+assert.equal(trackingUrl('startrack', 'MFFZ50043395'), 'https://my.startrackcourier.com.au/?Type.TypeName=Connote&Type.JobTypeNumber=MFFZ50043395&Type.State=NSW');
 assert.equal(trackingUrl('Hunter Express', '123'), null, 'no link for unknown carrier');
 assert.equal(trackingUrl(null, '123'), null);
 assert.equal(carrierLabel('startrack'), 'StarTrack');

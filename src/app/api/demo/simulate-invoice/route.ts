@@ -1,5 +1,5 @@
 // Demo-only endpoint: simulates a supplier emailing a PDF invoice.
-// Creates a SupplierInvoice record (with a demo Australia Post tracking number, as a
+// Creates a SupplierInvoice record (with a real, already-delivered TNT consignment, as a
 // real supplier invoice carries once goods ship), then runs the same automatic chain
 // as a real emailed invoice: 3-way match → supplier bill → tracking email to the
 // customer (FULFILLED). If the match lands on MATCH_EXCEPTION, or bill creation fails,
@@ -52,7 +52,9 @@ export async function POST(req: Request) {
 
   const invoiceNumber = `DEMO-INV-${Date.now()}`;
   const invoiceDate = new Date();
-  const trackingNumber = `DEMO${Date.now().toString().slice(-9)}`;
+  // Real TNT consignment the client supplied (delivered 18/09/2026), so the demo order can go
+  // all the way to Delivered via the daily courier check (/api/cron/track-shipments).
+  const trackingNumber = 'SKP000301899';
   const estimatedDelivery = new Date(Date.now() + 3 * 86_400_000);
 
   // Create a simulated supplier invoice that exactly matches the PO total
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
       status: 'INVOICE_RECEIVED',
       supplierInvoiceReceivedAt: new Date(),
       sektorTrackingNumber: trackingNumber,
-      trackingCarrier: 'auspost',
+      trackingCarrier: 'tnt',
       estimatedDeliveryAt: estimatedDelivery,
     },
   });
@@ -129,7 +131,7 @@ export async function POST(req: Request) {
             <p style="text-align:right;margin:0 0 4px;font-size:13px;color:#64748b">Subtotal: AUD ${po.subtotal.toFixed(2)}</p>
             <p style="text-align:right;margin:0 0 4px;font-size:13px;color:#64748b">GST: AUD ${po.taxTotal.toFixed(2)}</p>
             <p style="text-align:right;margin:0;font-size:16px;font-weight:700">Total Due: AUD ${po.total.toFixed(2)}</p>
-            <p style="margin-top:20px;font-size:13px">Shipped via Australia Post — tracking <strong>${trackingNumber}</strong>, estimated delivery ${estimatedDelivery.toLocaleDateString('en-AU')}</p>
+            <p style="margin-top:20px;font-size:13px">Shipped via TNT — consignment <strong>${trackingNumber}</strong>, estimated delivery ${estimatedDelivery.toLocaleDateString('en-AU')}</p>
             <p style="margin-top:8px;font-size:12px;color:#94a3b8">Payment terms: 30 days from invoice date.</p>
           </div>
         </div>`,

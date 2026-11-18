@@ -13,6 +13,7 @@ import { sendTransactionalEmail, renderEmailShell, emailInfoTable, emailItemsTab
 import { logAuditEvent } from './audit';
 import { escapeHtml } from './mail-helpers';
 import { carrierLabel, normalizeCarrier, trackingUrl } from './carriers';
+import { tntResultUrl } from './couriers/tnt';
 
 type Actor = { userId?: string; role?: UserRole };
 
@@ -29,8 +30,20 @@ export function auDate(d: Date): string {
   return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Australia/Sydney' });
 }
 
-function trackingHtml(carrier: string | null, trackingNumber: string) {
-  const url = trackingUrl(carrier, trackingNumber);
+/** Customer tracking link. TNT needs its per-consignment link looked up (not stored — looked up
+ * each time it's needed); falls back to the search page. */
+export async function resolveTrackingUrl(carrier: string | null, trackingNumber: string): Promise<string | null> {
+  if (carrier === 'tnt') {
+    return tntResultUrl(trackingNumber).catch((err) => {
+      console.warn('[dispatch] TNT link lookup failed, using search page:', err.message);
+      return trackingUrl(carrier, trackingNumber);
+    });
+  }
+  return trackingUrl(carrier, trackingNumber);
+}
+
+function trackingHtml(carrier: string | null, trackingNumber: string, storedUrl?: string | null) {
+  const url = storedUrl || trackingUrl(carrier, trackingNumber);
   return {
     url,
     html: url
@@ -50,6 +63,7 @@ export async function dispatchOrder(storefrontOrderId: string, input: DispatchIn
   const carrier = normalizeCarrier(input.carrier);
   const now = new Date();
   const dispatchDate = input.dispatchDate ?? now;
+  const url = await resolveTrackingUrl(carrier, trackingNumber);
 
   // Claim the transition atomically so the email can never go out twice
   // (e.g. invoice poller and the owner's button at the same moment).
@@ -86,7 +100,7 @@ export async function dispatchOrder(storefrontOrderId: string, input: DispatchIn
     }
   }
 
-  const tracking = trackingHtml(carrier, trackingNumber);
+  const tracking = trackingHtml(carrier, trackingNumber, url);
   const label = carrierLabel(carrier);
   const eta = sfOrder.estimatedDeliveryAt;
   const totalInc = Number(sfOrder.totalAmount);
@@ -194,7 +208,7 @@ export async function markDelivered(storefrontOrderId: string, opts: { delivered
       ${emailInfoTable([
         { label: 'Order #', value: sfOrder.orderNumber, accent: true },
         { label: 'Delivered', value: auDate(deliveredAt) },
-        ...(sfOrder.sektorTrackingNumber ? [{ label: 'Tracking', value: trackingHtml(sfOrder.trackingCarrier, sfOrder.sektorTrackingNumber).html }] : []),
+        ...(sfOrder.sektorTrackingNumber ? [{ label: 'Tracking', value: trackingHtml(sfOrder.trackingCarrier, sfOrder.sektorTrackingNumber, await resolveTrackingUrl(sfOrder.trackingCarrier, sfOrder.sektorTrackingNumber)).html }] : []),
       ])}
       <p style="margin:0;font-size:13px;color:#64748b">If anything is missing or damaged, just reply to this email. Your warranty starts from the delivery date.</p>`,
   });
@@ -249,7 +263,7 @@ export async function applyTrackingUpdate(storefrontOrderId: string, update: Tra
 
   // First estimate after dispatch (the invoice had none) → tell the customer once.
   if (etaChanged && !o.estimatedDeliveryAt && o.sektorTrackingNumber) {
-    const tracking = trackingHtml(o.trackingCarrier, o.sektorTrackingNumber);
+    const tracking = trackingHtml(o.trackingCarrier, o.sektorTrackingNumber, await resolveTrackingUrl(o.trackingCarrier, o.sektorTrackingNumber));
     await sendTransactionalEmail({
       to: o.customerEmail,
       subject: `Estimated delivery ${auDate(update.estimatedDelivery!)} — ${o.orderNumber}`,

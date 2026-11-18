@@ -309,6 +309,11 @@ New order flow: `PAID → SO → PO_SENT → INVOICE_RECEIVED → MATCHED → BI
 
 **Delivery tracking (mechanism built, couriers to be added):** estimated delivery date comes from the invoice when printed (Claude reads it), otherwise from the courier. `src/lib/tracking.ts` has one slot per courier (`CARRIER_TRACKERS`, empty until the client confirms which couriers their suppliers use and we get API access); the daily cron `/api/cron/track-shipments` asks each DISPATCHED order's courier for status → `applyTrackingUpdate` stores the ETA (emails the customer once if the invoice had none) and on "delivered" calls `markDelivered` (FULFILLED, warranty starts at delivery, delivery confirmation email). Until a courier is added, the owner uses **Mark Delivered** on the order. Schema: enum value `DISPATCHED`, columns `dispatchedAt`, `estimatedDeliveryAt`.
 
+**Couriers (client: sole supplier is Sektor; it ships with TNT (FedEx) and StarTrack):**
+- **TNT — automated.** `src/lib/couriers/tnt.ts` submits TNT's public Track & Trace form to get the per-consignment link (the encrypted link customers open) and reads the result page for delivered time + ETA. No API key, no AI. Verified live with SKP000301899 (`scripts/check-tnt.ts <con>`). Screen-read, so a TNT page redesign stops it (orders stay Dispatched → Mark Delivered); upgrade path is the FedEx Track API.
+- **StarTrack — link only.** `my.startrackcourier.com.au` connote link (state fixed to NSW — confirm Sektor's dispatch state). Delivered status not automated until a live consignment (<21 days old) is available to read.
+- Order page: **Check Courier Now** runs the same check for one order immediately.
+
 | Piece | Where |
 |---|---|
 | Claude reads the invoice PDF (`claude-opus-5-5`, structured output): invoice #, PO, dates, totals, lines with item code + serial numbers, **courier tracking number + carrier**. Regex parser stays as fallback when no key is set (it cannot find tracking). | `src/lib/invoice-parser.ts` |
