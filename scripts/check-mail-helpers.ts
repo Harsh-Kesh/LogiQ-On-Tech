@@ -9,6 +9,7 @@ assert.equal(textToHtml('Hi <x>\nThanks'), 'Hi &lt;x&gt;<br>Thanks');
 
 assert.equal(extractPoNumber('Invoice for PO-2026-00012 attached'), 'PO-2026-00012');
 assert.equal(extractPoNumber('re: po 2026 00012'), 'PO-2026-00012');
+assert.equal(extractPoNumber('PO 2026 00015'), 'PO-2026-00015', 'PO as the AI reads it off a supplier invoice');
 assert.equal(extractPoNumber('no reference'), null);
 
 assert.equal(extractOrderNumber('Re: Order Confirmed — SO-2026-00042'), 'SO-2026-00042');

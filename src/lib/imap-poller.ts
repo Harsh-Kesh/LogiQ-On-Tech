@@ -174,7 +174,8 @@ async function processInvoiceMail(mail: InboundMail, result: PollResult): Promis
     }
 
     // Try to match to an open StorefrontOrder via PO number in email or PDF
-    const poRef = extractPoNumber(`${mail.subject} ${mail.text}`) || parsed.poNumber;
+    // Normalise the PDF's PO too: suppliers write "PO 2026 00015", our orders store "PO-2026-00015".
+    const poRef = extractPoNumber(`${mail.subject} ${mail.text}`) || extractPoNumber(parsed.poNumber ?? '') || parsed.poNumber;
     let storefrontOrder = null;
     if (poRef) {
       storefrontOrder = await prisma.storefrontOrder.findFirst({
